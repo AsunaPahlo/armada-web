@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+
+{% block title %}Loot Details{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <a href="{{ url_for('stats.loot') }}" class="btn btn-outline-secondary mb-2">
+            <i class="bi bi-arrow-left"></i> Back to Loot
+        </a>
+        <h2><i class="bi bi-gem"></i> Voyage Loot Details</h2>
+    </div>
+</div>
+
+<!-- Summary Card -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Voyage Info</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-dark table-sm mb-0">
+                    <tr>
+                        <td class="text-muted">Submarine</td>
+                        <td><strong>{{ loot.submarine }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Character</td>
+                        <td>{{ loot.character }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">FC Tag</td>
+                        <td>{{ loot.fc_tag or "-" }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Route</td>
+                        <td>{{ loot.route_name or "-" }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Sectors</td>
+                        <td>{{ loot.route_sectors|join(', ') if loot.route_sectors else "-" }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Captured At</td>
+                        <td><span data-timestamp="{{ loot.captured_at }}">{{ loot.captured_at }}</span></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-currency-exchange"></i> Value Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col">
+                        <h6 class="text-muted">Total Items</h6>
+                        <h2>{{ loot.total_items }}</h2>
+                    </div>
+                    <div class="col">
+                        <h6 class="text-muted">Total Vendor Value</h6>
+                        <h2 class="text-warning">{{ "{:,.0f}".format(loot.total_gil_value) }}</h2>
+                    </div>
+                    <div class="col">
+                        <h6 class="text-muted">Voyage Linked</h6>
+                        <h2>
+                            {% if loot.voyage_linked %}
+                            <span class="badge bg-success">Yes</span>
+                            {% else %}
+                            <span class="badge bg-secondary">No</span>
+                            {% endif %}
+                        </h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Items Table -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-box-seam"></i> Items by Sector</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Sector</th>
+                        <th>Primary Item</th>
+                        <th class="text-center">Count</th>
+                        <th class="text-end">Value</th>
+                        <th>Additional Item</th>
+                        <th class="text-center">Count</th>
+                        <th class="text-end">Value</th>
+                        <th class="text-end">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in loot['items'] %}
+                    <tr>
+                        <td><span class="badge bg-info">{{ item.sector_id }}</span></td>
+                        <td>
+                            {% if item.item_id_primary > 0 %}
+                            <strong>{{ item.item_name_primary or "Unknown" }}</strong>
+                            {% if item.hq_primary %}
+                            <span class="badge bg-warning text-dark">HQ</span>
+                            {% endif %}
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if item.count_primary > 0 %}
+                            {{ item.count_primary }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if item.value_primary > 0 %}
+                            <span class="text-warning">{{ "{:,.0f}".format(item.value_primary) }}</span>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.item_id_additional > 0 %}
+                            <strong>{{ item.item_name_additional or "Unknown" }}</strong>
+                            {% if item.hq_additional %}
+                            <span class="badge bg-warning text-dark">HQ</span>
+                            {% endif %}
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if item.count_additional > 0 %}
+                            {{ item.count_additional }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if item.value_additional > 0 %}
+                            <span class="text-warning">{{ "{:,.0f}".format(item.value_additional) }}</span>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <strong class="text-warning">{{ "{:,.0f}".format(item.total_value) }}</strong>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="table-dark border-top">
+                        <td colspan="7" class="text-end"><strong>Grand Total:</strong></td>
+                        <td class="text-end"><strong class="text-warning">{{ "{:,.0f}".format(loot.total_gil_value) }}</strong></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Table row hover styles */
+.table-dark tbody tr,
+.table-dark tbody tr > td {
+    --bs-table-bg-state: transparent !important;
+    --bs-table-accent-bg: transparent !important;
+}
+
+.table-dark tbody tr:hover,
+.table-dark tbody tr:hover > td {
+    --bs-table-bg-state: transparent !important;
+    --bs-table-accent-bg: transparent !important;
+    --bs-table-hover-bg: transparent !important;
+    background: rgba(99, 179, 237, 0.2) !important;
+}
+</style>
+{% endblock %}

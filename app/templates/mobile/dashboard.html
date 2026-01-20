@@ -1,0 +1,79 @@
+{% extends "mobile/base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+{% block header_title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- Stats Overview -->
+<div class="stats-row">
+    <div class="stat-card">
+        <div id="stat-total" class="stat-card-value">--</div>
+        <div class="stat-card-label">Total</div>
+    </div>
+    <div class="stat-card">
+        <div id="stat-ready" class="stat-card-value">--</div>
+        <div class="stat-card-label">Ready</div>
+    </div>
+    <div class="stat-card">
+        <div id="stat-soon" class="stat-card-value">--</div>
+        <div class="stat-card-label">Soon</div>
+    </div>
+    <div class="stat-card">
+        <div id="stat-fcs" class="stat-card-value">--</div>
+        <div class="stat-card-label">FCs</div>
+    </div>
+</div>
+
+<!-- FC List Section -->
+<div class="section-header">
+    <h2 class="section-title">Free Companies</h2>
+    <a href="{{ url_for('mobile.submarines') }}" class="section-action">View All Subs</a>
+</div>
+
+<!-- Filter Pills -->
+<div class="filter-pills" id="fc-filters">
+    <button class="filter-pill active" data-filter="all">All</button>
+    <button class="filter-pill" data-filter="ready">Ready</button>
+    <button class="filter-pill" data-filter="soon">&lt; 30 min</button>
+    <button class="filter-pill" data-filter="voyaging">Voyaging</button>
+</div>
+
+<!-- FC Cards Container -->
+<div id="fc-list">
+    <!-- Loading skeletons -->
+    <div class="fc-card">
+        <div class="fc-card-header">
+            <div class="fc-card-info">
+                <div class="skeleton" style="width: 160px; height: 20px; margin-bottom: 8px;"></div>
+                <div class="skeleton" style="width: 110px; height: 14px;"></div>
+            </div>
+            <div class="skeleton" style="width: 60px; height: 28px; border-radius: 8px;"></div>
+        </div>
+        <div class="fc-card-body">
+            <div class="sub-grid">
+                <div class="skeleton" style="height: 52px; border-radius: 12px;"></div>
+                <div class="skeleton" style="height: 52px; border-radius: 12px;"></div>
+                <div class="skeleton" style="height: 52px; border-radius: 12px;"></div>
+                <div class="skeleton" style="height: 52px; border-radius: 12px;"></div>
+            </div>
+        </div>
+    </div>
+    <div class="fc-card">
+        <div class="fc-card-header">
+            <div class="fc-card-info">
+                <div class="skeleton" style="width: 140px; height: 20px; margin-bottom: 8px;"></div>
+                <div class="skeleton" style="width: 90px; height: 14px;"></div>
+            </div>
+            <div class="skeleton" style="width: 50px; height: 28px; border-radius: 8px;"></div>
+        </div>
+        <div class="fc-card-body">
+            <div class="sub-grid">
+                <div class="skeleton" style="height: 52px; border-radius: 12px;"></div>
+                <div class="skeleton" style="height: 52px; border-radius: 12px;"></div>
+                <div class="skeleton" style="height: 52px; border-radius: 12px;"></div>
+                <div class="skeleton" style="height: 52px; border-radius: 12px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,664 @@
+/*
+ * Armada - FFXIV Submarine Fleet Dashboard
+ * FFXIV-inspired dark theme
+ */
+
+:root {
+    /* FFXIV-inspired color palette */
+    --ffxiv-bg-dark: #1a1a2e;
+    --ffxiv-bg-darker: #0f0f1a;
+    --ffxiv-bg-card: #252540;
+    --ffxiv-bg-card-hover: #2d2d4a;
+    --ffxiv-border: #3d3d5c;
+    --ffxiv-text: #f0f0f5;
+    --ffxiv-text-bright: #ffffff;
+    --ffxiv-text-muted: #a0a0c0;
+    --ffxiv-accent: #63b3ed;
+    --ffxiv-accent-hover: #4299e1;
+    --ffxiv-gold: #ffd700;
+    --ffxiv-gold-light: #ffe566;
+    --ffxiv-success: #68d391;
+    --ffxiv-warning: #f6e05e;
+    --ffxiv-danger: #fc8181;
+    --ffxiv-info: #76e4f7;
+}
+
+/* Base Styles */
+body {
+    background: linear-gradient(135deg, var(--ffxiv-bg-darker) 0%, var(--ffxiv-bg-dark) 100%);
+    color: var(--ffxiv-text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+}
+
+/* Global text overrides for dark theme */
+h1, h2, h3, h4, h5, h6 {
+    color: #ffffff;
+}
+
+p, span, div, li {
+    color: inherit;
+}
+
+strong, b {
+    color: #ffffff;
+}
+
+small {
+    color: var(--ffxiv-text-muted);
+}
+
+a {
+    color: var(--ffxiv-accent);
+}
+
+a:hover {
+    color: var(--ffxiv-accent-hover);
+}
+
+/* Navbar */
+.navbar {
+    background: var(--ffxiv-bg-darker) !important;
+    border-bottom: 1px solid var(--ffxiv-border);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.navbar-brand {
+    color: var(--ffxiv-gold) !important;
+    font-weight: 600;
+    font-size: 1.4rem;
+}
+
+.navbar-brand i {
+    margin-right: 0.5rem;
+}
+
+.nav-link {
+    color: var(--ffxiv-text-muted) !important;
+    transition: color 0.2s ease;
+}
+
+.nav-link:hover,
+.nav-link.active {
+    color: var(--ffxiv-accent) !important;
+}
+
+/* Cards */
+.card {
+    background: var(--ffxiv-bg-card);
+    border: 1px solid var(--ffxiv-border);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    color: var(--ffxiv-text);
+}
+
+.card-header {
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid var(--ffxiv-border);
+    padding: 1rem 1.25rem;
+    color: var(--ffxiv-text);
+}
+
+.card-header h5,
+.card-header h4,
+.card-header h3 {
+    color: #ffffff;
+}
+
+.card-body {
+    color: var(--ffxiv-text);
+}
+
+.card-body h2,
+.card-body h3,
+.card-body h4,
+.card-body h5,
+.card-body h6 {
+    color: #ffffff;
+}
+
+.card-footer {
+    background: rgba(0, 0, 0, 0.15);
+    border-top: 1px solid var(--ffxiv-border);
+    color: var(--ffxiv-text);
+}
+
+/* Summary Cards */
+.summary-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.summary-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+.summary-card .summary-icon {
+    font-size: 2.5rem;
+    opacity: 0.8;
+}
+
+.summary-card.ready {
+    border-left: 3px solid var(--ffxiv-success);
+}
+
+.summary-card.voyaging {
+    border-left: 3px solid var(--ffxiv-info);
+}
+
+.summary-card.gil {
+    border-left: 3px solid var(--ffxiv-gold);
+}
+
+/* FC Cards */
+.fc-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.fc-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+.fc-card .card-header {
+    background: linear-gradient(90deg, rgba(99, 179, 237, 0.1) 0%, transparent 100%);
+}
+
+.fc-stats {
+    border-bottom: 1px solid var(--ffxiv-border);
+    padding-bottom: 0.75rem;
+    color: var(--ffxiv-text);
+}
+
+.fc-stats strong {
+    color: inherit;
+}
+
+/* Submarine List */
+.submarine-list {
+    max-height: 350px;
+    overflow-y: auto;
+}
+
+.submarine-row {
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--ffxiv-border);
+    transition: background 0.15s ease;
+    color: var(--ffxiv-text);
+}
+
+.submarine-row:last-child {
+    border-bottom: none;
+}
+
+.submarine-row:hover {
+    background: var(--ffxiv-bg-card-hover);
+}
+
+.submarine-row.ready {
+    background: rgba(40, 167, 69, 0.3) !important;
+    border-left: 3px solid var(--ffxiv-success);
+}
+
+.submarine-row.soon {
+    background: rgba(246, 224, 94, 0.2);
+    border-left: 3px solid var(--ffxiv-warning);
+}
+
+.sub-name {
+    font-weight: 600;
+    margin-right: 0.5rem;
+    color: var(--ffxiv-text-bright);
+}
+
+.sub-info {
+    color: var(--ffxiv-text);
+}
+
+.sub-timer {
+    color: var(--ffxiv-text);
+}
+
+.sub-build {
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.75rem;
+}
+
+.sub-route {
+    font-size: 0.7rem;
+}
+
+.sub-details {
+    margin-top: 0.25rem;
+}
+
+/* EXP Progress Bar */
+.exp-bar {
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+}
+
+.exp-bar .progress-bar {
+    border-radius: 2px;
+}
+
+/* Tables */
+.table-dark {
+    --bs-table-bg: transparent;
+    --bs-table-border-color: var(--ffxiv-border);
+    --bs-table-color: var(--ffxiv-text);
+    color: var(--ffxiv-text);
+}
+
+.table-dark th,
+.table-dark td {
+    color: var(--ffxiv-text);
+}
+
+.table-dark thead {
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.table-dark thead th {
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.table-dark tbody tr {
+    transition: background 0.15s ease;
+}
+
+.table-dark tbody tr:hover:not(.fc-detail-row) {
+    --bs-table-bg-state: transparent !important;
+    --bs-table-accent-bg: transparent !important;
+    background: rgba(99, 179, 237, 0.15) !important;
+}
+
+/* Submarine detail table - prevent parent hover from bleeding through */
+tr.fc-detail-row,
+tr.fc-detail-row:hover,
+tr.fc-detail-row > td,
+tr.fc-detail-row:hover > td {
+    --bs-table-bg-state: transparent !important;
+    --bs-table-accent-bg: transparent !important;
+    background: rgba(0, 0, 0, 0.2) !important;
+}
+
+.fc-detail-row .sub-table tbody tr {
+    --bs-table-bg-state: transparent !important;
+    background: transparent !important;
+}
+
+.fc-detail-row .sub-table tbody tr:hover {
+    background: rgba(99, 179, 237, 0.25) !important;
+}
+
+.fc-detail-row .sub-table tbody tr.sub-ready {
+    background: rgba(40, 167, 69, 0.25) !important;
+}
+
+.fc-detail-row .sub-table tbody tr.sub-ready:hover {
+    background: rgba(40, 167, 69, 0.4) !important;
+}
+
+.fc-detail-row .sub-table tbody tr.sub-soon {
+    background: rgba(251, 191, 36, 0.2) !important;
+}
+
+.fc-detail-row .sub-table tbody tr.sub-soon:hover {
+    background: rgba(251, 191, 36, 0.35) !important;
+}
+
+.table-dark strong {
+    color: #ffffff;
+}
+
+.table-success {
+    --bs-table-bg: rgba(72, 187, 120, 0.15) !important;
+    --bs-table-color: var(--ffxiv-text) !important;
+}
+
+.table-warning {
+    --bs-table-bg: rgba(236, 201, 75, 0.15) !important;
+    --bs-table-color: var(--ffxiv-text) !important;
+}
+
+.table-success td,
+.table-warning td {
+    color: var(--ffxiv-text);
+}
+
+/* Badges */
+.badge {
+    font-weight: 500;
+    color: #ffffff;
+}
+
+.badge.bg-success {
+    background-color: var(--ffxiv-success) !important;
+    color: #000000;
+}
+
+.badge.bg-warning {
+    background-color: var(--ffxiv-warning) !important;
+    color: #000000;
+}
+
+.badge.bg-secondary {
+    background-color: var(--ffxiv-border) !important;
+    color: var(--ffxiv-text);
+}
+
+.badge.bg-dark {
+    background: rgba(0, 0, 0, 0.5) !important;
+    color: var(--ffxiv-gold-light);
+}
+
+.bg-dark {
+    background: rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Buttons */
+.btn-primary {
+    background: var(--ffxiv-accent);
+    border-color: var(--ffxiv-accent);
+}
+
+.btn-primary:hover {
+    background: var(--ffxiv-accent-hover);
+    border-color: var(--ffxiv-accent-hover);
+}
+
+.btn-outline-primary {
+    color: var(--ffxiv-accent);
+    border-color: var(--ffxiv-accent);
+}
+
+.btn-outline-primary:hover {
+    background: var(--ffxiv-accent);
+    border-color: var(--ffxiv-accent);
+}
+
+.btn-outline-secondary {
+    color: var(--ffxiv-text-muted);
+    border-color: var(--ffxiv-border);
+}
+
+.btn-outline-secondary:hover,
+.btn-outline-secondary.active {
+    background: var(--ffxiv-border);
+    border-color: var(--ffxiv-border);
+    color: var(--ffxiv-text);
+}
+
+/* Forms */
+.form-control {
+    background: var(--ffxiv-bg-darker);
+    border-color: var(--ffxiv-border);
+    color: var(--ffxiv-text);
+}
+
+.form-control:focus {
+    background: var(--ffxiv-bg-darker);
+    border-color: var(--ffxiv-accent);
+    color: var(--ffxiv-text);
+    box-shadow: 0 0 0 0.2rem rgba(99, 179, 237, 0.25);
+}
+
+.input-group-text {
+    background: rgba(0, 0, 0, 0.3);
+    border-color: var(--ffxiv-border);
+    color: var(--ffxiv-text-muted);
+}
+
+/* Dropdown */
+.dropdown-menu-dark {
+    background: var(--ffxiv-bg-darker);
+    border-color: var(--ffxiv-border);
+}
+
+.dropdown-item {
+    color: var(--ffxiv-text);
+}
+
+.dropdown-item:hover {
+    background: var(--ffxiv-bg-card-hover);
+    color: var(--ffxiv-text);
+}
+
+/* Alerts */
+.alert {
+    border-radius: 6px;
+}
+
+/* Connection Indicator (Navbar) */
+.connection-dot {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.connection-dot.connected {
+    color: var(--ffxiv-success);
+}
+
+.connection-dot.disconnected {
+    color: var(--ffxiv-danger);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+/* Footer */
+.footer {
+    background: var(--ffxiv-bg-darker);
+    border-top: 1px solid var(--ffxiv-border);
+}
+
+/* Breadcrumb */
+.breadcrumb {
+    background: transparent;
+    padding: 0;
+}
+
+.breadcrumb-item a {
+    color: var(--ffxiv-accent);
+}
+
+.breadcrumb-item.active {
+    color: var(--ffxiv-text-muted);
+}
+
+/* Text Colors */
+.text-warning {
+    color: var(--ffxiv-gold) !important;
+}
+
+.text-success {
+    color: var(--ffxiv-success) !important;
+}
+
+.text-info {
+    color: var(--ffxiv-info) !important;
+}
+
+.text-muted {
+    color: var(--ffxiv-text-muted) !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--ffxiv-bg-darker);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--ffxiv-border);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--ffxiv-text-muted);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .summary-card .summary-icon {
+        font-size: 1.8rem;
+    }
+
+    .submarine-list {
+        max-height: 250px;
+    }
+}
+
+/* Code styling */
+code {
+    color: var(--ffxiv-gold-light);
+    background: rgba(0, 0, 0, 0.3);
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    font-size: 0.85rem;
+}
+
+/* Timer countdown styling */
+.timer-countdown {
+    font-variant-numeric: tabular-nums;
+}
+
+/* Login page specific */
+.login-card .card {
+    background: var(--ffxiv-bg-card);
+    border: 1px solid var(--ffxiv-border);
+}
+
+.login-card .card-header {
+    background: linear-gradient(180deg, rgba(212, 175, 55, 0.1) 0%, transparent 100%);
+    border-bottom: 1px solid var(--ffxiv-border);
+}
+
+.login-card .card-header h3 {
+    color: var(--ffxiv-gold);
+}
+
+/* Alert bell in navbar */
+.alert-bell {
+    color: var(--ffxiv-text-muted);
+    opacity: 0.5;
+    transition: all 0.2s ease;
+}
+
+.alert-bell:hover {
+    opacity: 0.8;
+    color: var(--ffxiv-text);
+}
+
+.alert-bell.has-alerts {
+    color: var(--ffxiv-danger);
+    opacity: 1;
+}
+
+.alert-bell.has-alerts:hover {
+    color: #ff6b6b;
+}
+
+.alert-dropdown .alert-item {
+    border-bottom: 1px solid var(--ffxiv-border);
+    padding: 0.5rem 1rem;
+    white-space: normal;
+}
+
+.alert-dropdown .alert-item:last-child {
+    border-bottom: none;
+}
+
+.alert-dropdown .alert-item:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Alert enabled card green background */
+.alert-enabled-card {
+    background-color: rgba(40, 167, 69, 0.2);
+    border-color: rgba(40, 167, 69, 0.5);
+}
+
+/* Form placeholder text - improve visibility on dark backgrounds */
+.form-control::placeholder,
+.form-select::placeholder {
+    color: #888;
+    opacity: 1;
+}
+
+.form-control::-webkit-input-placeholder {
+    color: #888;
+}
+
+.form-control::-moz-placeholder {
+    color: #888;
+}
+
+.form-control:-ms-input-placeholder {
+    color: #888;
+}
+
+/* Dark theme for form controls */
+.form-control,
+.form-select {
+    background-color: var(--ffxiv-bg-darker);
+    border-color: var(--ffxiv-border);
+    color: var(--ffxiv-text);
+}
+
+.form-control:focus,
+.form-select:focus {
+    background-color: var(--ffxiv-bg-darker);
+    border-color: var(--ffxiv-accent);
+    color: var(--ffxiv-text);
+    box-shadow: 0 0 0 0.2rem rgba(212, 175, 55, 0.25);
+}
+
+.form-select option {
+    background-color: var(--ffxiv-bg-darker);
+    color: var(--ffxiv-text);
+}
+
+/* Vis.js Network overrides for dark theme */
+.vis-network {
+    background: transparent !important;
+}
+
+.vis-tooltip {
+    background: var(--ffxiv-bg-darker) !important;
+    border: 1px solid var(--ffxiv-border) !important;
+    border-radius: 4px !important;
+    color: var(--ffxiv-text) !important;
+    font-family: 'Segoe UI', system-ui, sans-serif !important;
+    padding: 8px 12px !important;
+    white-space: pre-line !important;
+}
+
+/* Hide default vis.js navigation buttons - using custom controls instead */
+.vis-navigation {
+    display: none !important;
+}
+
+/* Unlock link icon on dashboard */
+.unlock-link-icon {
+    opacity: 0.5;
+    transition: all 0.2s ease;
+}
+
+.unlock-link-icon:hover {
+    opacity: 1;
+    color: var(--ffxiv-accent) !important;
+}

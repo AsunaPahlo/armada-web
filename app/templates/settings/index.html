@@ -1,0 +1,356 @@
+{% extends "base.html" %}
+
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<div class="settings-container">
+    <!-- Sidebar Navigation -->
+    <div class="settings-sidebar">
+        <div class="settings-nav-section">
+            <div class="settings-nav-header">General</div>
+            <a href="#" class="settings-nav-item active" data-section="general">
+                <i class="bi bi-gear"></i> App Settings
+            </a>
+            <a href="#" class="settings-nav-item" data-section="tags">
+                <i class="bi bi-tags"></i> Tags
+            </a>
+            <a href="#" class="settings-nav-item" data-section="fc-config">
+                <i class="bi bi-sliders"></i> Exclusions
+            </a>
+            <a href="#" class="settings-nav-item" data-section="alerts">
+                <i class="bi bi-bell"></i> Alerts
+            </a>
+        </div>
+
+        <div class="settings-nav-section">
+            <div class="settings-nav-header">Data</div>
+            <a href="#" class="settings-nav-item" data-section="export">
+                <i class="bi bi-download"></i> Export
+            </a>
+        </div>
+
+        {% if current_user.is_admin %}
+        <div class="settings-nav-section">
+            <div class="settings-nav-header">Admin</div>
+            <a href="#" class="settings-nav-item" data-section="api-keys">
+                <i class="bi bi-key"></i> API Keys
+            </a>
+            <a href="#" class="settings-nav-item" data-section="users">
+                <i class="bi bi-people"></i> User Management
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Content Panel -->
+    <div class="settings-content">
+        <div class="settings-content-inner" id="settings-content">
+            <div class="settings-loading">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Prevent main page from scrolling */
+html, body {
+    overflow: hidden;
+}
+
+/* Remove container-fluid padding for settings page */
+main.container-fluid {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.settings-container {
+    display: flex;
+    gap: 0;
+    height: calc(100vh - 120px); /* Account for navbar and footer */
+    margin-top: -1.5rem;
+    margin-bottom: -1.5rem;
+    overflow: hidden;
+}
+
+.settings-sidebar {
+    width: 240px;
+    background: var(--ffxiv-bg-card);
+    border-right: 1px solid var(--ffxiv-border);
+    padding: 1.5rem 0;
+    flex-shrink: 0;
+    overflow-y: auto;
+}
+
+.settings-nav-section {
+    margin-bottom: 1.5rem;
+}
+
+.settings-nav-header {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--ffxiv-text-muted);
+    padding: 0 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.settings-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0.6rem 1.5rem;
+    color: var(--ffxiv-text);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: all 0.15s ease;
+    border-left: 3px solid transparent;
+}
+
+.settings-nav-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--ffxiv-text-bright);
+}
+
+.settings-nav-item.active {
+    background: rgba(102, 126, 234, 0.1);
+    border-left-color: var(--ffxiv-accent);
+    color: var(--ffxiv-accent);
+}
+
+.settings-nav-item i {
+    font-size: 1rem;
+    width: 20px;
+    text-align: center;
+}
+
+.settings-content {
+    flex: 1;
+    padding: 1.5rem 2rem;
+    overflow-y: auto;
+}
+
+.settings-content-inner {
+    max-width: 1200px;
+}
+
+.settings-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 200px;
+}
+
+/* Section styling for partials */
+.settings-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--ffxiv-border);
+}
+
+.settings-section-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.settings-section-header h2 i {
+    color: var(--ffxiv-accent);
+}
+
+.settings-card {
+    background: var(--ffxiv-bg-card);
+    border: 1px solid var(--ffxiv-border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.settings-card-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: var(--ffxiv-text-bright);
+}
+
+.settings-form-group {
+    margin-bottom: 1rem;
+}
+
+.settings-form-group:last-child {
+    margin-bottom: 0;
+}
+
+.settings-form-group label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    color: var(--ffxiv-text);
+}
+
+.settings-form-group .form-text {
+    font-size: 0.8rem;
+    color: var(--ffxiv-text-muted);
+    margin-top: 0.25rem;
+}
+
+.settings-form-row {
+    display: flex;
+    gap: 1rem;
+}
+
+.settings-form-row .settings-form-group {
+    flex: 1;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .settings-container {
+        flex-direction: column;
+        height: auto;
+        max-height: calc(100vh - 140px);
+    }
+
+    .settings-sidebar {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--ffxiv-border);
+        padding: 1rem 0;
+        overflow-y: visible;
+        flex-shrink: 0;
+    }
+
+    .settings-nav-section {
+        margin-bottom: 0.5rem;
+    }
+
+    .settings-nav-item {
+        padding: 0.5rem 1rem;
+    }
+
+    .settings-content {
+        padding: 1rem;
+        flex: 1;
+        overflow-y: auto;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const navItems = document.querySelectorAll('.settings-nav-item');
+    const contentEl = document.getElementById('settings-content');
+    let currentSection = 'general';
+
+    // Load a section via AJAX
+    async function loadSection(section, forceReload = false) {
+        // Skip if same section unless forcing reload
+        if (section === currentSection && !forceReload) {
+            return;
+        }
+        // Update nav active state
+        navItems.forEach(item => {
+            item.classList.toggle('active', item.dataset.section === section);
+        });
+
+        // Show loading
+        contentEl.innerHTML = `
+            <div class="settings-loading">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        `;
+
+        try {
+            const response = await fetch(`/settings/partial/${section}`);
+            if (!response.ok) {
+                if (response.status === 403) {
+                    throw new Error('You do not have permission to view this section.');
+                }
+                throw new Error('Failed to load section');
+            }
+            const html = await response.text();
+
+            // Parse the HTML and extract scripts
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+
+            // Get all script elements
+            const scripts = doc.querySelectorAll('script');
+
+            // Remove scripts from parsed doc (we'll execute them separately)
+            scripts.forEach(script => script.remove());
+
+            // Insert the HTML content (without scripts)
+            contentEl.innerHTML = doc.body.innerHTML;
+            currentSection = section;
+
+            // Update URL hash
+            history.replaceState(null, '', `#${section}`);
+
+            // Execute scripts by creating new script elements
+            scripts.forEach(oldScript => {
+                const newScript = document.createElement('script');
+                if (oldScript.src) {
+                    newScript.src = oldScript.src;
+                } else {
+                    newScript.textContent = oldScript.textContent;
+                }
+                // Copy attributes
+                Array.from(oldScript.attributes).forEach(attr => {
+                    if (attr.name !== 'src') {
+                        newScript.setAttribute(attr.name, attr.value);
+                    }
+                });
+                document.body.appendChild(newScript);
+                // Clean up after execution
+                document.body.removeChild(newScript);
+            });
+
+            // Trigger custom event for any additional initialization
+            document.dispatchEvent(new CustomEvent('settingsSectionLoaded', { detail: { section } }));
+
+        } catch (error) {
+            contentEl.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i> ${error.message}
+                </div>
+            `;
+        }
+    }
+
+    // Handle nav clicks
+    navItems.forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            const section = this.dataset.section;
+            loadSection(section);
+        });
+    });
+
+    // Expose reload function globally for partials to use
+    window.reloadSettingsSection = function(section) {
+        loadSection(section || currentSection, true);
+    };
+
+    // Load initial section (from hash or default)
+    const initialSection = window.location.hash.slice(1) || 'general';
+    const validSections = Array.from(navItems).map(item => item.dataset.section);
+    loadSection(validSections.includes(initialSection) ? initialSection : 'general', true);
+})();
+</script>
+{% endblock %}

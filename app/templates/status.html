@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}Status{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h4><i class="bi bi-activity"></i> System Status</h4>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-plug"></i> Connected Clients</h5>
+                <span class="badge bg-secondary" id="plugin-count">{{ plugins|selectattr('connected')|list|length }} connected</span>
+            </div>
+            <div class="card-body p-0">
+                {% if plugins %}
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Status</th>
+                                <th>Name</th>
+                                <th>Last Data</th>
+                                {% if not current_user.is_readonly %}<th>Actions</th>{% endif %}
+                            </tr>
+                        </thead>
+                        <tbody id="plugin-list" data-can-delete="{{ 'true' if not current_user.is_readonly else 'false' }}">
+                            {% for plugin in plugins %}
+                            <tr>
+                                <td>{% if plugin.connected %}<span class="badge bg-success">Connected</span>{% else %}<span class="badge bg-secondary">Disconnected</span>{% endif %}</td>
+                                <td>{{ plugin.plugin_id }}</td>
+                                <td class="text-muted">{% if plugin.last_received_at %}<span class="last-update-time" data-timestamp="{{ plugin.last_received_at }}">{{ plugin.last_received_at }}</span>{% else %}Never{% endif %}</td>
+                                {% if not current_user.is_readonly %}<td><button class="btn btn-sm btn-outline-danger" onclick="clearClientData('{{ plugin.plugin_id }}')"><i class="bi bi-trash"></i></button></td>{% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-plug fs-1 d-block mb-2"></i>
+                    No clients have connected yet
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-broadcast"></i> WebSocket</h6>
+            </div>
+            <div class="card-body">
+                <span id="ws-status-indicator" class="badge bg-secondary">Checking...</span>
+                <span class="small text-muted ms-2">Dashboard connection</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if file_accounts %}
+<div class="row">
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-file-earmark-text"></i> File-Based Accounts</h5>
+                <span class="badge bg-info">{{ file_accounts|length }} configured</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Nickname</th>
+                                <th>Config Path</th>
+                                <th>File Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for acc in file_accounts %}
+                            <tr>
+                                <td>{{ acc.nickname }}</td>
+                                <td class="text-muted small" style="max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ acc.config_path }}">{{ acc.config_path }}</td>
+                                <td>
+                                    {% if acc.exists %}
+                                    <span class="badge bg-success">Found</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Not Found</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer text-muted small">
+                Configure accounts in <code>data/accounts.json</code>. Set <code>"enabled": false</code> to hide an account.
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    updateTimestamps();
+    setInterval(updateTimestamps, 30000);
+
+    if (window.armada) {
+        updateWsStatus(window.armada.connected);
+        window.armada.socket.on('connect', () => updateWsStatus(true));
+        window.armada.socket.on('disconnect', () => updateWsStatus(false));
+        window.armada.socket.on('plugin_connected', refreshPluginList);
+        window.armada.socket.on('plugin_disconnected', refreshPluginList);
+        window.armada.socket.on('plugin_data_update', refreshPluginList);
+    }
+});
+
+function updateWsStatus(connected) {
+    const el = document.getElementById('ws-status-indicator');
+    if (el) {
+        el.className = 'badge ' + (connected ? 'bg-success' : 'bg-danger');
+        el.textContent = connected ? 'Connected' : 'Disconnected';
+    }
+}
+
+function updateTimestamps() {
+    document.querySelectorAll('.last-update-time').forEach(el => {
+        const ts = el.dataset.timestamp;
+        if (ts) el.textContent = formatRelativeTime(ts);
+    });
+}
+
+function formatRelativeTime(isoString) {
+    const date = new Date(isoString);
+    const diffMs = Date.now() - date;
+    const mins = Math.floor(diffMs / 60000);
+    const hours = Math.floor(diffMs / 3600000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return mins + 'm ago';
+    if (hours < 24) return hours + 'h ago';
+    return date.toLocaleString();
+}
+
+async function refreshPluginList() {
+    try {
+        const resp = await fetch('/api/plugins');
+        if (resp.ok) updatePluginTable(await resp.json());
+    } catch (e) {
+        console.error('Failed to refresh:', e);
+    }
+}
+
+function updatePluginTable(plugins) {
+    const container = document.getElementById('plugin-list');
+    const countEl = document.getElementById('plugin-count');
+    if (!container) return;
+
+    const canDelete = container.dataset.canDelete === 'true';
+    const connected = plugins.filter(p => p.connected).length;
+    if (countEl) {
+        countEl.textContent = connected + ' connected';
+        countEl.className = 'badge ' + (connected > 0 ? 'bg-success' : 'bg-secondary');
+    }
+
+    if (plugins.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted py-2">No clients</div>';
+        return;
+    }
+
+    container.innerHTML = plugins.map(p => {
+        const statusBadge = p.connected
+            ? '<span class="badge bg-success">Connected</span>'
+            : '<span class="badge bg-secondary">Disconnected</span>';
+        const lastData = p.last_received_at
+            ? formatRelativeTime(p.last_received_at)
+            : 'Never';
+        const actionCol = canDelete
+            ? `<td><button class="btn btn-sm btn-outline-danger" onclick="clearClientData('${p.plugin_id}')"><i class="bi bi-trash"></i></button></td>`
+            : '';
+        return `<tr>
+            <td>${statusBadge}</td>
+            <td>${p.plugin_id}</td>
+            <td class="text-muted">${lastData}</td>
+            ${actionCol}
+        </tr>`;
+    }).join('');
+}
+
+async function clearClientData(clientId) {
+    if (!confirm('Clear cached data for "' + clientId + '"?')) return;
+    try {
+        const resp = await fetch('/api/plugins/' + encodeURIComponent(clientId), { method: 'DELETE' });
+        if (resp.ok) refreshPluginList();
+    } catch (e) {
+        console.error('Failed to clear:', e);
+    }
+}
+</script>
+{% endblock %}

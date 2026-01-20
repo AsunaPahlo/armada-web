@@ -1,0 +1,250 @@
+<div class="settings-section-header">
+    <h2><i class="bi bi-tags"></i> Tag Management</h2>
+</div>
+
+<div class="row">
+    <!-- Tag Creation Section -->
+    <div class="col-lg-4 mb-4">
+        {% if not current_user.is_readonly %}
+        <div class="settings-card">
+            <div class="settings-card-title">
+                <i class="bi bi-plus-circle"></i> Create Tag
+            </div>
+            <form id="create-tag-form">
+                <div class="settings-form-group">
+                    <label for="tag-name">Tag Name</label>
+                    <input type="text" class="form-control" id="tag-name" name="name" required maxlength="50" placeholder="e.g., Main, Alt, Farm">
+                </div>
+                <div class="settings-form-group">
+                    <label for="tag-color">Color</label>
+                    <select class="form-select" id="tag-color" name="color">
+                        <option value="primary">Blue</option>
+                        <option value="success">Green</option>
+                        <option value="danger">Red</option>
+                        <option value="warning">Yellow</option>
+                        <option value="info">Cyan</option>
+                        <option value="secondary" selected>Gray</option>
+                        <option value="dark">Dark</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-plus"></i> Create Tag
+                </button>
+            </form>
+        </div>
+        {% endif %}
+
+        <!-- Existing Tags -->
+        <div class="settings-card {% if not current_user.is_readonly %}mt-3{% endif %}">
+            <div class="settings-card-title">
+                <i class="bi bi-collection"></i> Existing Tags
+            </div>
+            {% if tags %}
+            <div class="d-flex flex-wrap gap-2" id="tags-list">
+                {% for tag in tags %}
+                <span class="badge bg-{{ tag.color }} tag-badge d-flex align-items-center gap-1" data-tag-id="{{ tag.id }}">
+                    {{ tag.name }}
+                    {% if not current_user.is_readonly %}
+                    <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.6em;" onclick="deleteTag({{ tag.id }}, '{{ tag.name }}')" title="Delete tag"></button>
+                    {% endif %}
+                </span>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-muted mb-0" id="no-tags-msg">No tags created yet.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- FC Tag Assignments Section -->
+    <div class="col-lg-8">
+        <div class="settings-card" style="padding: 0;">
+            <div class="d-flex justify-content-between align-items-center p-3" style="border-bottom: 1px solid var(--ffxiv-border);">
+                <div class="settings-card-title mb-0">
+                    <i class="bi bi-diagram-3"></i> FC Tag Assignments
+                </div>
+                <div class="input-group" style="max-width: 200px;">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" id="fc-search" placeholder="Search FCs...">
+                </div>
+            </div>
+            <div class="table-responsive" style="max-height: 60vh; overflow-y: auto;">
+                <table class="table table-dark table-hover mb-0" id="fc-tags-table">
+                    <thead class="sticky-top" style="background: var(--ffxiv-bg-card);">
+                        <tr>
+                            <th>FC Name</th>
+                            <th>Character</th>
+                            <th>Client</th>
+                            <th>Tags</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for fc in fcs %}
+                        <tr data-fc-id="{{ fc.fc_id }}" data-fc-name="{{ fc.fc_name|lower }}" data-character="{{ fc.character|lower }}" data-client="{{ fc.client_nickname|lower }}">
+                            <td><strong>{{ fc.fc_name }}</strong></td>
+                            <td>
+                                {{ fc.character }}
+                                {% if fc.world %}
+                                <br><small class="text-muted">{{ fc.world }}</small>
+                                {% endif %}
+                            </td>
+                            <td>{{ fc.client_nickname }}</td>
+                            <td class="fc-tags-cell">
+                                <div class="d-flex flex-wrap gap-1 align-items-center">
+                                    {% for tag in fc.tags %}
+                                    <span class="badge bg-{{ tag.color }} fc-tag" data-tag-id="{{ tag.id }}">
+                                        {{ tag.name }}
+                                        {% if not current_user.is_readonly %}
+                                        <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.5em;" onclick="unassignTag('{{ fc.fc_id }}', {{ tag.id }})" title="Remove tag"></button>
+                                        {% endif %}
+                                    </span>
+                                    {% endfor %}
+                                    {% if not current_user.is_readonly %}
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle py-0 px-1" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Add tag">
+                                            <i class="bi bi-plus"></i>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-dark">
+                                            {% for tag in tags %}
+                                            <li>
+                                                <a class="dropdown-item" href="#" onclick="assignTag('{{ fc.fc_id }}', {{ tag.id }}); return false;">
+                                                    <span class="badge bg-{{ tag.color }} me-2">{{ tag.name }}</span>
+                                                </a>
+                                            </li>
+                                            {% endfor %}
+                                            {% if not tags %}
+                                            <li><span class="dropdown-item text-muted">No tags available</span></li>
+                                            {% endif %}
+                                        </ul>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.tag-badge {
+    font-size: 0.9em;
+    padding: 0.5em 0.8em;
+}
+.fc-tag {
+    font-size: 0.8em;
+}
+.fc-tags-cell {
+    min-width: 200px;
+}
+#fc-tags-table tbody tr.hidden {
+    display: none;
+}
+</style>
+
+<script>
+// Create tag form
+document.getElementById('create-tag-form')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const name = document.getElementById('tag-name').value.trim();
+    const color = document.getElementById('tag-color').value;
+    if (!name) return;
+
+    try {
+        const resp = await fetch('/tags/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ name, color })
+        });
+        const data = await resp.json();
+        if (data.success) {
+            // Reload section
+            if (typeof reloadSettingsSection === 'function') reloadSettingsSection('tags');
+        } else {
+            alert(data.message || 'Failed to create tag');
+        }
+    } catch (err) {
+        alert('Error creating tag');
+    }
+});
+
+// Delete tag
+async function deleteTag(tagId, tagName) {
+    if (!confirm(`Delete tag "${tagName}"? This will remove it from all FCs.`)) return;
+
+    try {
+        const resp = await fetch(`/tags/delete/${tagId}`, {
+            method: 'POST',
+            credentials: 'same-origin'
+        });
+        const data = await resp.json();
+        if (data.success) {
+            if (typeof reloadSettingsSection === 'function') reloadSettingsSection('tags');
+        } else {
+            alert(data.message || 'Failed to delete tag');
+        }
+    } catch (err) {
+        alert('Error deleting tag');
+    }
+}
+
+// Assign tag to FC
+async function assignTag(fcId, tagId) {
+    try {
+        const resp = await fetch('/tags/assign', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ fc_id: fcId, tag_id: tagId })
+        });
+        const data = await resp.json();
+        if (data.success) {
+            if (typeof reloadSettingsSection === 'function') reloadSettingsSection('tags');
+        } else {
+            alert(data.message || 'Failed to assign tag');
+        }
+    } catch (err) {
+        alert('Error assigning tag');
+    }
+}
+
+// Unassign tag from FC
+async function unassignTag(fcId, tagId) {
+    try {
+        const resp = await fetch('/tags/unassign', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ fc_id: fcId, tag_id: tagId })
+        });
+        const data = await resp.json();
+        if (data.success) {
+            if (typeof reloadSettingsSection === 'function') reloadSettingsSection('tags');
+        } else {
+            alert(data.message || 'Failed to remove tag');
+        }
+    } catch (err) {
+        alert('Error removing tag');
+    }
+}
+
+// Search/filter FCs
+document.getElementById('fc-search')?.addEventListener('input', function() {
+    const query = this.value.toLowerCase().trim();
+    const rows = document.querySelectorAll('#fc-tags-table tbody tr');
+    rows.forEach(row => {
+        const fcName = row.dataset.fcName || '';
+        const character = row.dataset.character || '';
+        const client = row.dataset.client || '';
+        if (query === '' || fcName.includes(query) || character.includes(query) || client.includes(query)) {
+            row.classList.remove('hidden');
+        } else {
+            row.classList.add('hidden');
+        }
+    });
+});
+</script>

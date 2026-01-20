@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell:*)",
+      "Bash(python:*)",
+      "Bash(.venvScriptspip install -r requirements.txt)",
+      "Bash(\".venv/Scripts/pip.exe\" install -r requirements.txt)",
+      "Bash(\".venv/Scripts/python.exe\" -m py_compile:*)",
+      "Bash(\".venv/Scripts/python.exe\" -c \"from app import create_app; app = create_app\\(\\); print\\(''Flask app created successfully''\\)\")",
+      "Bash(\".venv/Scripts/python.exe\" -c:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:docs.google.com)",
+      "WebFetch(domain:doc-00-7o-sheets.googleusercontent.com)",
+      "Bash(magick identify:*)",
+      "Bash(convert:*)",
+      "Bash(pip install:*)",
+      "Bash(sqlite3:*)",
+      "Bash(dir:*)",
+      "Bash(xargs ls:*)",
+      "Bash(find:*)",
+      "Bash(findstr:*)",
+      "Bash(git checkout:*)",
+      "Bash(dotnet build:*)",
+      "Bash(copy /Y \"data\\\\plugin_data.json.backup\" \"data\\\\plugin_data.json\")",
+      "Bash(del:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}

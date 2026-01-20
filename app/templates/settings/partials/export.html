@@ -1,0 +1,116 @@
+<div class="settings-section-header">
+    <h2><i class="bi bi-download"></i> Export Data</h2>
+</div>
+
+<p class="text-muted mb-4">
+    Download your fleet data as CSV files. These can be opened in Excel, Google Sheets, or any spreadsheet application.
+</p>
+
+<div class="settings-card" style="padding: 0;">
+    <div class="list-group list-group-flush">
+        <!-- Free Companies Export -->
+        <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent">
+            <div>
+                <h6 class="mb-1"><i class="bi bi-building text-info"></i> Free Companies</h6>
+                <small class="text-muted">FC ID, name, holder character, world, housing info, submarine count</small>
+            </div>
+            <a href="/export/fc" class="btn btn-outline-info btn-sm">
+                <i class="bi bi-download"></i> Download
+            </a>
+        </div>
+
+        <!-- Characters Export -->
+        <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent">
+            <div>
+                <h6 class="mb-1"><i class="bi bi-person text-success"></i> Characters</h6>
+                <small class="text-muted">Character name, ID, world, FC name, submarine count</small>
+            </div>
+            <a href="/export/characters" class="btn btn-outline-success btn-sm">
+                <i class="bi bi-download"></i> Download
+            </a>
+        </div>
+
+        <!-- Submarines Export -->
+        <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent">
+            <div>
+                <h6 class="mb-1"><i class="bi bi-water text-primary"></i> Submarines</h6>
+                <small class="text-muted">Character, FC, submarine name, level, build, status, return time, route</small>
+            </div>
+            <a href="/export/submarines" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-download"></i> Download
+            </a>
+        </div>
+
+        <!-- Voyage Loot Export -->
+        <div class="list-group-item bg-transparent">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h6 class="mb-1"><i class="bi bi-gem text-warning"></i> Voyage Loot</h6>
+                    <small class="text-muted">Timestamp, character, FC, submarine, route, items, quantities, gil value</small>
+                </div>
+            </div>
+            <div class="mt-3">
+                <form id="loot-export-form" class="row g-2 align-items-end">
+                    <div class="col-auto">
+                        <label for="export-start-date" class="form-label small text-muted mb-1">Start Date</label>
+                        <input type="date" class="form-control form-control-sm" id="export-start-date" name="start_date">
+                    </div>
+                    <div class="col-auto">
+                        <label for="export-end-date" class="form-label small text-muted mb-1">End Date</label>
+                        <input type="date" class="form-control form-control-sm" id="export-end-date" name="end_date">
+                    </div>
+                    <div class="col-auto">
+                        <label class="form-label small text-muted mb-1">&nbsp;</label>
+                        <div>
+                            <button type="button" class="btn btn-outline-warning btn-sm" onclick="downloadLoot()">
+                                <i class="bi bi-download"></i> Download
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearExportDates()">
+                                Clear
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <small class="text-muted">Leave dates empty for last 30 days</small>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="settings-card mt-3">
+    <div class="settings-card-title">
+        <i class="bi bi-info-circle"></i> Export Information
+    </div>
+    <ul class="text-muted mb-0 small">
+        <li><strong>Free Companies</strong> - Lists all FCs with their housing information and total submarine count.</li>
+        <li><strong>Characters</strong> - Lists all characters linked to the fleet with their FC associations.</li>
+        <li><strong>Submarines</strong> - Current state of all submarines including their build configuration and voyage status.</li>
+        <li><strong>Voyage Loot</strong> - Historical loot data with per-sector item breakdowns and gil values. Use date filters for large exports.</li>
+    </ul>
+</div>
+
+<script>
+function downloadLoot() {
+    const startDate = document.getElementById('export-start-date').value;
+    const endDate = document.getElementById('export-end-date').value;
+
+    let url = '/export/loot';
+    const params = new URLSearchParams();
+
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+
+    if (params.toString()) {
+        url += '?' + params.toString();
+    }
+
+    window.location.href = url;
+}
+
+function clearExportDates() {
+    document.getElementById('export-start-date').value = '';
+    document.getElementById('export-end-date').value = '';
+}
+</script>

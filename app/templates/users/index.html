@@ -1,0 +1,415 @@
+{% extends "base.html" %}
+
+{% block title %}User Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-people"></i> User Management</h2>
+</div>
+
+<div class="row">
+    <!-- User Creation Section -->
+    <div class="col-lg-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-person-plus"></i> Add User</h5>
+            </div>
+            <div class="card-body">
+                <form id="create-user-form">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="username" name="username" required maxlength="80" placeholder="Enter username">
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="password" name="password" required minlength="4" placeholder="Enter password">
+                    </div>
+                    <div class="mb-3">
+                        <label for="role" class="form-label">Role</label>
+                        <select class="form-select" id="role" name="role">
+                            <option value="readonly" selected>Read Only</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-plus"></i> Create User
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Role Info -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Role Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <span class="badge bg-danger me-2">Admin</span>
+                    <small class="text-muted">Full access to all features including user management, creating/deleting tags, and clearing plugin data.</small>
+                </div>
+                <div>
+                    <span class="badge bg-secondary me-2">Read Only</span>
+                    <small class="text-muted">Can view all dashboards and data but cannot make changes.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Users List Section -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-list-ul"></i> Users</h5>
+                <span class="badge bg-secondary">{{ users|length }} users</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Role</th>
+                                <th>Created</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                            <tr>
+                                <td>
+                                    <strong>{{ user.username }}</strong>
+                                    {% if user.id == current_user.id %}
+                                    <span class="badge bg-info ms-2">You</span>
+                                    {% endif %}
+                                    <button class="btn btn-sm btn-link text-muted p-0 ms-2" onclick="showUsernameModal({{ user.id }}, '{{ user.username }}')" title="Change Username">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                </td>
+                                <td>
+                                    {% if user.role == 'admin' %}
+                                    <span class="badge bg-danger">Admin</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Read Only</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user.created_at %}
+                                    <span data-timestamp="{{ user.created_at.isoformat() }}Z">{{ user.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    {% if user.id != current_user.id %}
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-warning" onclick="showRoleModal({{ user.id }}, '{{ user.username }}', '{{ user.role }}')" title="Change Role">
+                                            <i class="bi bi-shield"></i>
+                                        </button>
+                                        <button class="btn btn-outline-info" onclick="showResetPasswordModal({{ user.id }}, '{{ user.username }}')" title="Reset Password">
+                                            <i class="bi bi-key"></i>
+                                        </button>
+                                        <button class="btn btn-outline-danger" onclick="deleteUser({{ user.id }}, '{{ user.username }}')" title="Delete User">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Change Username Modal -->
+<div class="modal fade" id="usernameModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-pencil"></i> Change Username</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Current username: <strong id="username-modal-current"></strong></p>
+                <div class="mb-3">
+                    <label for="new-username" class="form-label">New Username</label>
+                    <input type="text" class="form-control" id="new-username" maxlength="80" placeholder="Enter new username">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="changeUsername()">Change Username</button>
+            </div>
+        </div>
+    </div>
+</div>
+<input type="hidden" id="username-modal-user-id">
+
+<!-- Change Role Modal -->
+<div class="modal fade" id="roleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-shield"></i> Change Role</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Change role for user: <strong id="role-modal-username"></strong></p>
+                <div class="mb-3">
+                    <label for="new-role" class="form-label">New Role</label>
+                    <select class="form-select" id="new-role">
+                        <option value="readonly">Read Only</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" onclick="changeRole()">Change Role</button>
+            </div>
+        </div>
+    </div>
+</div>
+<input type="hidden" id="role-modal-user-id">
+
+<!-- Reset Password Modal -->
+<div class="modal fade" id="resetPasswordModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-key"></i> Reset Password</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Reset password for user: <strong id="reset-modal-username"></strong></p>
+                <div class="mb-3">
+                    <label for="new-password" class="form-label">New Password</label>
+                    <input type="text" class="form-control" id="new-password" placeholder="Leave empty to generate random">
+                    <small class="text-muted">Leave empty to generate a random password.</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-info" onclick="resetPassword()">Reset Password</button>
+            </div>
+        </div>
+    </div>
+</div>
+<input type="hidden" id="reset-modal-user-id">
+
+<!-- Password Result Modal -->
+<div class="modal fade" id="passwordResultModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-check-circle text-success"></i> Password Reset</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Password has been reset for user: <strong id="result-username"></strong></p>
+                <div class="alert alert-info">
+                    <strong>New Password:</strong>
+                    <code id="result-password" class="ms-2"></code>
+                    <button class="btn btn-sm btn-outline-info ms-2" onclick="copyPassword()" title="Copy to clipboard">
+                        <i class="bi bi-clipboard"></i>
+                    </button>
+                </div>
+                <p class="text-warning mb-0"><small><i class="bi bi-exclamation-triangle"></i> Make sure to save this password. It will not be shown again.</small></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Done</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Create user form
+document.getElementById('create-user-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+    const role = document.getElementById('role').value;
+
+    if (!username || !password) return;
+
+    try {
+        const resp = await fetch('/users/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ username, password, role })
+        });
+
+        const data = await resp.json();
+
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert(data.message || 'Failed to create user');
+        }
+    } catch (err) {
+        console.error('Error creating user:', err);
+        alert('Error creating user');
+    }
+});
+
+// Delete user
+async function deleteUser(userId, username) {
+    if (!confirm(`Delete user "${username}"? This action cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        const resp = await fetch(`/users/delete/${userId}`, {
+            method: 'POST',
+            credentials: 'same-origin'
+        });
+
+        const data = await resp.json();
+
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert(data.message || 'Failed to delete user');
+        }
+    } catch (err) {
+        console.error('Error deleting user:', err);
+        alert('Error deleting user');
+    }
+}
+
+// Show username change modal
+function showUsernameModal(userId, currentUsername) {
+    document.getElementById('username-modal-user-id').value = userId;
+    document.getElementById('username-modal-current').textContent = currentUsername;
+    document.getElementById('new-username').value = currentUsername;
+    new bootstrap.Modal(document.getElementById('usernameModal')).show();
+}
+
+// Change username
+async function changeUsername() {
+    const userId = document.getElementById('username-modal-user-id').value;
+    const newUsername = document.getElementById('new-username').value.trim();
+
+    if (!newUsername) {
+        alert('Username is required');
+        return;
+    }
+
+    try {
+        const resp = await fetch(`/users/change-username/${userId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ username: newUsername })
+        });
+
+        const data = await resp.json();
+
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert(data.message || 'Failed to change username');
+        }
+    } catch (err) {
+        console.error('Error changing username:', err);
+        alert('Error changing username');
+    }
+}
+
+// Show role change modal
+function showRoleModal(userId, username, currentRole) {
+    document.getElementById('role-modal-user-id').value = userId;
+    document.getElementById('role-modal-username').textContent = username;
+    document.getElementById('new-role').value = currentRole;
+    new bootstrap.Modal(document.getElementById('roleModal')).show();
+}
+
+// Change role
+async function changeRole() {
+    const userId = document.getElementById('role-modal-user-id').value;
+    const newRole = document.getElementById('new-role').value;
+
+    try {
+        const resp = await fetch(`/users/change-role/${userId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ role: newRole })
+        });
+
+        const data = await resp.json();
+
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert(data.message || 'Failed to change role');
+        }
+    } catch (err) {
+        console.error('Error changing role:', err);
+        alert('Error changing role');
+    }
+}
+
+// Show reset password modal
+function showResetPasswordModal(userId, username) {
+    document.getElementById('reset-modal-user-id').value = userId;
+    document.getElementById('reset-modal-username').textContent = username;
+    document.getElementById('new-password').value = '';
+    new bootstrap.Modal(document.getElementById('resetPasswordModal')).show();
+}
+
+// Reset password
+async function resetPassword() {
+    const userId = document.getElementById('reset-modal-user-id').value;
+    const newPassword = document.getElementById('new-password').value.trim();
+    const username = document.getElementById('reset-modal-username').textContent;
+
+    try {
+        const resp = await fetch(`/users/reset-password/${userId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ password: newPassword })
+        });
+
+        const data = await resp.json();
+
+        if (data.success) {
+            // Close the reset modal
+            bootstrap.Modal.getInstance(document.getElementById('resetPasswordModal')).hide();
+
+            // Show the result modal with the new password
+            document.getElementById('result-username').textContent = username;
+            document.getElementById('result-password').textContent = data.new_password;
+            new bootstrap.Modal(document.getElementById('passwordResultModal')).show();
+        } else {
+            alert(data.message || 'Failed to reset password');
+        }
+    } catch (err) {
+        console.error('Error resetting password:', err);
+        alert('Error resetting password');
+    }
+}
+
+// Copy password to clipboard
+function copyPassword() {
+    const password = document.getElementById('result-password').textContent;
+    navigator.clipboard.writeText(password).then(() => {
+        alert('Password copied to clipboard');
+    }).catch(err => {
+        console.error('Failed to copy:', err);
+    });
+}
+</script>
+{% endblock %}

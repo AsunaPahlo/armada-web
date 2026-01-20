@@ -1,0 +1,104 @@
+{% extends "mobile/base.html" %}
+
+{% block title %}Submarines{% endblock %}
+{% block header_title %}Submarines{% endblock %}
+
+{% block content %}
+<!-- Search Bar -->
+<div class="search-container">
+    <div class="search-wrapper">
+        <i class="bi bi-search"></i>
+        <input type="text" id="search-input" class="search-input" placeholder="Search submarines...">
+    </div>
+</div>
+
+<!-- Filter Pills -->
+<div class="filter-pills">
+    <button class="filter-pill active" data-filter="all">All</button>
+    <button class="filter-pill" data-filter="ready">Ready</button>
+    <button class="filter-pill" data-filter="soon">< 30 min</button>
+    <button class="filter-pill" data-filter="voyaging">Voyaging</button>
+</div>
+
+<!-- Submarine List -->
+<div id="sub-list">
+    <!-- Loading skeletons -->
+    <div class="sub-list-item">
+        <div class="sub-list-info">
+            <div class="skeleton" style="width: 140px; height: 18px; margin-bottom: 6px;"></div>
+            <div class="skeleton" style="width: 100px; height: 14px; margin-bottom: 4px;"></div>
+            <div class="skeleton" style="width: 60px; height: 12px;"></div>
+        </div>
+        <div class="sub-list-status">
+            <div class="skeleton" style="width: 70px; height: 22px; margin-bottom: 4px;"></div>
+            <div class="skeleton" style="width: 50px; height: 14px;"></div>
+        </div>
+    </div>
+    <div class="sub-list-item">
+        <div class="sub-list-info">
+            <div class="skeleton" style="width: 120px; height: 18px; margin-bottom: 6px;"></div>
+            <div class="skeleton" style="width: 110px; height: 14px; margin-bottom: 4px;"></div>
+            <div class="skeleton" style="width: 50px; height: 12px;"></div>
+        </div>
+        <div class="sub-list-status">
+            <div class="skeleton" style="width: 60px; height: 22px; margin-bottom: 4px;"></div>
+            <div class="skeleton" style="width: 45px; height: 14px;"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    let allSubmarines = [];
+
+    async function loadSubmarines() {
+        try {
+            const response = await fetch('/m/api/submarines');
+            const data = await response.json();
+            allSubmarines = data.submarines || [];
+            renderSubmarineList(allSubmarines, 'all');
+
+            // Initialize search
+            initSearch(allSubmarines, (filtered) => {
+                const activeFilter = document.querySelector('.filter-pill.active')?.dataset.filter || 'all';
+                applyFilter(filtered, activeFilter);
+            });
+
+            // Initialize filters
+            initFilters((filter) => {
+                const searchInput = document.getElementById('search-input');
+                const query = searchInput?.value.toLowerCase().trim() || '';
+
+                let filtered = allSubmarines;
+                if (query) {
+                    filtered = allSubmarines.filter(s =>
+                        s.name?.toLowerCase().includes(query) ||
+                        s.fc_name?.toLowerCase().includes(query)
+                    );
+                }
+                applyFilter(filtered, filter);
+            });
+        } catch (error) {
+            console.error('Failed to load submarines:', error);
+            showToast('Failed to load submarines', 'error');
+        }
+    }
+
+    function applyFilter(submarines, filter) {
+        let filtered = submarines;
+        if (filter === 'ready') {
+            filtered = submarines.filter(s => s.hours_remaining <= 0);
+        } else if (filter === 'soon') {
+            filtered = submarines.filter(s => s.hours_remaining > 0 && s.hours_remaining <= 0.5);
+        } else if (filter === 'voyaging') {
+            filtered = submarines.filter(s => s.hours_remaining > 0.5);
+        }
+        renderSubmarineList(filtered, filter);
+    }
+
+    document.addEventListener('DOMContentLoaded', loadSubmarines);
+})();
+</script>
+{% endblock %}

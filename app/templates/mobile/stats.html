@@ -1,0 +1,492 @@
+{% extends "mobile/base.html" %}
+
+{% block title %}Statistics{% endblock %}
+{% block header_title %}Statistics{% endblock %}
+
+{% block content %}
+<!-- Period Badge -->
+<div class="stats-period">
+    <i class="bi bi-calendar3"></i> Last 30 Days
+</div>
+
+<!-- Summary Stats -->
+<div class="stats-summary-grid">
+    <div class="stats-summary-card">
+        <div class="stats-summary-icon voyages">
+            <i class="bi bi-send"></i>
+        </div>
+        <div class="stats-summary-info">
+            <div id="stat-voyages" class="stats-summary-value">--</div>
+            <div class="stats-summary-label">Voyages</div>
+        </div>
+    </div>
+    <div class="stats-summary-card">
+        <div class="stats-summary-icon gil">
+            <i class="bi bi-coin"></i>
+        </div>
+        <div class="stats-summary-info">
+            <div id="stat-gil" class="stats-summary-value">--</div>
+            <div class="stats-summary-label">Net Profit</div>
+        </div>
+    </div>
+    <div class="stats-summary-card">
+        <div class="stats-summary-icon items">
+            <i class="bi bi-box-seam"></i>
+        </div>
+        <div class="stats-summary-info">
+            <div id="stat-items" class="stats-summary-value">--</div>
+            <div class="stats-summary-label">Items Collected</div>
+        </div>
+    </div>
+    <div class="stats-summary-card">
+        <div class="stats-summary-icon profit">
+            <i class="bi bi-graph-up-arrow"></i>
+        </div>
+        <div class="stats-summary-info">
+            <div id="stat-profit" class="stats-summary-value">--</div>
+            <div class="stats-summary-label">Avg/Day</div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Routes -->
+<div class="stats-section">
+    <div class="stats-section-header">
+        <h3><i class="bi bi-signpost-split"></i> Top Routes (Voyages)</h3>
+    </div>
+    <div id="top-routes" class="stats-list">
+        <div class="stats-list-item">
+            <div class="skeleton" style="width: 120px; height: 16px;"></div>
+            <div class="skeleton" style="width: 40px; height: 16px;"></div>
+        </div>
+        <div class="stats-list-item">
+            <div class="skeleton" style="width: 140px; height: 16px;"></div>
+            <div class="skeleton" style="width: 35px; height: 16px;"></div>
+        </div>
+        <div class="stats-list-item">
+            <div class="skeleton" style="width: 100px; height: 16px;"></div>
+            <div class="skeleton" style="width: 30px; height: 16px;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Level Distribution -->
+<div class="stats-section">
+    <div class="stats-section-header">
+        <h3><i class="bi bi-bar-chart"></i> Fleet Levels</h3>
+    </div>
+    <div id="level-dist" class="level-bars">
+        <div class="level-bar-item">
+            <div class="level-bar-label">Loading...</div>
+            <div class="level-bar-track"><div class="level-bar-fill skeleton"></div></div>
+            <div class="level-bar-count">--</div>
+        </div>
+    </div>
+</div>
+
+<!-- Supply Alerts -->
+<div class="stats-section">
+    <div class="stats-section-header">
+        <h3><i class="bi bi-exclamation-triangle"></i> Supply Alerts</h3>
+    </div>
+    <div id="supply-alerts" class="supply-list">
+        <div class="supply-item">
+            <div class="skeleton" style="width: 130px; height: 16px;"></div>
+            <div class="skeleton" style="width: 60px; height: 16px;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Link to Desktop -->
+<a href="{{ url_for('stats.index') }}" class="desktop-link">
+    <i class="bi bi-display"></i>
+    <span>View Full Stats on Desktop</span>
+    <i class="bi bi-chevron-right"></i>
+</a>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.stats-period {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(102, 126, 234, 0.15);
+    color: var(--accent-primary);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin-bottom: 20px;
+}
+
+.stats-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.stats-summary-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.stats-summary-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.stats-summary-icon.voyages {
+    background: rgba(102, 126, 234, 0.15);
+    color: var(--accent-primary);
+}
+
+.stats-summary-icon.gil {
+    background: rgba(255, 193, 7, 0.15);
+    color: #ffc107;
+}
+
+.stats-summary-icon.items {
+    background: rgba(63, 185, 80, 0.15);
+    color: var(--success);
+}
+
+.stats-summary-icon.profit {
+    background: rgba(118, 75, 162, 0.15);
+    color: var(--accent-secondary);
+}
+
+.stats-summary-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.stats-summary-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.stats-summary-label {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.stats-section {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.stats-section-header {
+    margin-bottom: 14px;
+}
+
+.stats-section-header h3 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+}
+
+.stats-section-header h3 i {
+    color: var(--accent-primary);
+}
+
+.stats-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.stats-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 10px;
+}
+
+.stats-list-name {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.stats-list-value {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--accent-primary);
+    margin-left: 12px;
+}
+
+.stats-list-rank {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: rgba(102, 126, 234, 0.15);
+    color: var(--accent-primary);
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 10px;
+    flex-shrink: 0;
+}
+
+.stats-list-rank.gold { background: rgba(255, 193, 7, 0.2); color: #ffc107; }
+.stats-list-rank.silver { background: rgba(192, 192, 192, 0.2); color: #c0c0c0; }
+.stats-list-rank.bronze { background: rgba(205, 127, 50, 0.2); color: #cd7f32; }
+
+/* Level Distribution Bars */
+.level-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.level-bar-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.level-bar-label {
+    width: 50px;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+
+.level-bar-track {
+    flex: 1;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.level-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+    border-radius: 4px;
+    transition: width 0.5s ease-out;
+}
+
+.level-bar-count {
+    width: 30px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-align: right;
+}
+
+/* Supply Alerts */
+.supply-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.supply-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 10px;
+    border-left: 3px solid var(--card-border);
+}
+
+.supply-item.warning {
+    border-left-color: var(--warning);
+    background: rgba(210, 153, 34, 0.05);
+}
+
+.supply-item.critical {
+    border-left-color: var(--danger);
+    background: rgba(248, 81, 73, 0.05);
+}
+
+.supply-item-name {
+    font-size: 0.85rem;
+    color: var(--text-primary);
+}
+
+.supply-item-days {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.supply-item.warning .supply-item-days {
+    color: var(--warning);
+}
+
+.supply-item.critical .supply-item-days {
+    color: var(--danger);
+}
+
+.desktop-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 14px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.9rem;
+    margin-top: 8px;
+    transition: all 0.2s;
+}
+
+.desktop-link:hover, .desktop-link:active {
+    background: rgba(102, 126, 234, 0.1);
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+}
+
+.desktop-link span {
+    flex: 1;
+}
+
+.empty-stats {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    async function loadStats() {
+        try {
+            const response = await fetch('/m/api/stats');
+            if (!response.ok) throw new Error('Failed to load stats');
+            const data = await response.json();
+            renderStats(data);
+        } catch (error) {
+            console.error('Failed to load stats:', error);
+            showToast('Failed to load statistics', 'error');
+        }
+    }
+
+    function renderStats(data) {
+        const summary = data.summary || {};
+
+        // Summary cards
+        document.getElementById('stat-voyages').textContent = (summary.returned_voyages || 0).toLocaleString();
+        document.getElementById('stat-gil').textContent = formatGil(summary.net_profit || 0);
+        document.getElementById('stat-items').textContent = (summary.total_items || 0).toLocaleString();
+        document.getElementById('stat-profit').textContent = formatGil(summary.avg_daily_profit || 0);
+
+        // Top routes
+        const routesContainer = document.getElementById('top-routes');
+        const routes = data.top_routes || [];
+        if (routes.length === 0) {
+            routesContainer.innerHTML = '<div class="empty-stats">No voyage data yet</div>';
+        } else {
+            routesContainer.innerHTML = routes.map((r, i) => {
+                let rankClass = '';
+                if (i === 0) rankClass = 'gold';
+                else if (i === 1) rankClass = 'silver';
+                else if (i === 2) rankClass = 'bronze';
+
+                return `
+                    <div class="stats-list-item">
+                        <div class="stats-list-rank ${rankClass}">${i + 1}</div>
+                        <div class="stats-list-name">${r.route}</div>
+                        <div class="stats-list-value">${r.count}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Level distribution
+        const levelContainer = document.getElementById('level-dist');
+        const levels = data.level_distribution || {};
+        const levelOrder = ['1-25', '26-50', '51-75', '76-100', '100+'];
+        const maxLevel = Math.max(...Object.values(levels), 1);
+
+        levelContainer.innerHTML = levelOrder.map(range => {
+            const count = levels[range] || 0;
+            const percent = (count / maxLevel) * 100;
+            return `
+                <div class="level-bar-item">
+                    <div class="level-bar-label">${range}</div>
+                    <div class="level-bar-track">
+                        <div class="level-bar-fill" style="width: ${percent}%"></div>
+                    </div>
+                    <div class="level-bar-count">${count}</div>
+                </div>
+            `;
+        }).join('');
+
+        // Supply alerts
+        const supplyContainer = document.getElementById('supply-alerts');
+        const supplies = data.supply_urgent || [];
+        if (supplies.length === 0) {
+            supplyContainer.innerHTML = '<div class="empty-stats">All FCs are well stocked</div>';
+        } else {
+            supplyContainer.innerHTML = supplies.map(s => {
+                let itemClass = '';
+                if (s.days < 3) itemClass = 'critical';
+                else if (s.days < 7) itemClass = 'warning';
+
+                return `
+                    <div class="supply-item ${itemClass}">
+                        <div class="supply-item-name">${s.name}</div>
+                        <div class="supply-item-days">${s.days.toFixed(1)} days</div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+
+    function formatGil(amount) {
+        if (amount >= 1000000) {
+            return (amount / 1000000).toFixed(1) + 'M';
+        } else if (amount >= 1000) {
+            return (amount / 1000).toFixed(0) + 'K';
+        }
+        return amount.toLocaleString();
+    }
+
+    document.addEventListener('DOMContentLoaded', loadStats);
+})();
+</script>
+{% endblock %}

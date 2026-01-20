@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Armada">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Armada">
+    <meta name="msapplication-TileColor" content="#667eea">
+    <meta name="msapplication-tap-highlight" content="no">
+
+    <title>{% block title %}Armada{% endblock %}</title>
+
+    <!-- Manifest -->
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+
+    <!-- Icons -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+
+    <!-- Stylesheets -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/mobile.css') }}" rel="stylesheet">
+
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="no-select">
+    <!-- Offline Banner -->
+    <div id="offline-banner" class="offline-banner">
+        <i class="bi bi-wifi-off"></i> You're offline. Some features may be unavailable.
+    </div>
+
+    <!-- Pull to Refresh Indicator -->
+    <div id="pull-indicator" class="pull-indicator">
+        <i class="bi bi-arrow-down"></i> Pull to refresh
+    </div>
+
+    <!-- Top Header -->
+    <header class="mobile-header">
+        <div class="mobile-header-title">
+            {% block header_left %}
+            <img src="{{ url_for('static', filename='armada_logo.png') }}" alt="Armada">
+            <span>{% block header_title %}Armada{% endblock %}</span>
+            {% endblock %}
+        </div>
+        <div class="mobile-header-actions">
+            {% block header_actions %}
+            <span class="connection-dot disconnected" title="Connection status"></span>
+            <button class="mobile-header-btn position-relative" onclick="window.location.href='/m/settings'">
+                <i class="bi bi-gear"></i>
+            </button>
+            {% endblock %}
+        </div>
+    </header>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Main Content -->
+    <main class="mobile-content page-enter">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <a href="{{ url_for('mobile.index') }}" class="bottom-nav-item {% if request.endpoint == 'mobile.index' %}active{% endif %}">
+            <i class="bi bi-house-fill"></i>
+            <span>Home</span>
+        </a>
+        <a href="{{ url_for('mobile.submarines') }}" class="bottom-nav-item {% if request.endpoint == 'mobile.submarines' %}active{% endif %}">
+            <i class="bi bi-water"></i>
+            <span>Subs</span>
+        </a>
+        <a href="{{ url_for('mobile.stats') }}" class="bottom-nav-item {% if request.endpoint == 'mobile.stats' %}active{% endif %}">
+            <i class="bi bi-bar-chart-fill"></i>
+            <span>Stats</span>
+        </a>
+        <a href="{{ url_for('mobile.settings') }}" class="bottom-nav-item {% if request.endpoint == 'mobile.settings' %}active{% endif %}">
+            <i class="bi bi-person-fill"></i>
+            <span>More</span>
+        </a>
+    </nav>
+
+    <!-- Install Prompt -->
+    <div id="install-prompt" class="install-prompt">
+        <div class="install-prompt-content">
+            <img src="{{ url_for('static', filename='armada_logo.png') }}" alt="Armada" class="install-prompt-icon">
+            <div class="install-prompt-text">
+                <h4>Install Armada</h4>
+                <p>Add to home screen for quick access</p>
+            </div>
+        </div>
+        <div class="install-prompt-actions">
+            <button class="btn-later" onclick="dismissInstallPrompt()">Later</button>
+            <button class="btn-install" onclick="installApp()">Install</button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="{{ url_for('static', filename='js/mobile.js') }}"></script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

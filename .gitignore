@@ -1,0 +1,38 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+.venv/
+env/
+.env
+
+# Instance folder (database)
+instance/
+
+# Data folder (database, accounts, etc)
+data/
+*.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Local config (keep accounts.json.example but not actual)
+# config/accounts.json
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/

@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Armada{% endblock %} - FFXIV Submarine Dashboard</title>
+
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Armada">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Armada">
+
+    <!-- Manifest -->
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+
+    <!-- Icons -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <!-- Critical inline style to prevent UTC timestamp flash before JS converts to local time -->
+    <style>[data-timestamp]:not(.timestamp-converted) { visibility: hidden; }</style>
+    <!-- Mobile welcome screen styles -->
+    <style>
+    .mobile-welcome-screen {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #1a1a2e 100%);
+        z-index: 99999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.4s ease, visibility 0.4s ease;
+    }
+    .mobile-welcome-screen.show {
+        opacity: 1;
+        visibility: visible;
+    }
+    .mobile-welcome-screen.hiding {
+        opacity: 0;
+    }
+    .mobile-welcome-logo {
+        width: 80px;
+        height: 80px;
+        margin-bottom: 16px;
+        animation: welcomePulse 2s ease-in-out infinite;
+    }
+    @keyframes welcomePulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }
+    .mobile-welcome-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #fff;
+        margin-bottom: 8px;
+        text-align: center;
+    }
+    .mobile-welcome-subtitle {
+        font-size: 1rem;
+        color: rgba(255,255,255,0.6);
+        margin-bottom: 40px;
+        text-align: center;
+    }
+    .mobile-welcome-options {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        width: 100%;
+        max-width: 320px;
+    }
+    .mobile-welcome-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 16px 24px;
+        border-radius: 12px;
+        font-size: 1rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        border: none;
+        width: 100%;
+    }
+    .mobile-welcome-btn.primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+    .mobile-welcome-btn.primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+    }
+    .mobile-welcome-btn.secondary {
+        background: rgba(255,255,255,0.1);
+        color: #fff;
+        border: 1px solid rgba(255,255,255,0.2);
+    }
+    .mobile-welcome-btn.secondary:hover {
+        background: rgba(255,255,255,0.15);
+        border-color: rgba(255,255,255,0.3);
+    }
+    .mobile-welcome-btn.ghost {
+        background: transparent;
+        color: rgba(255,255,255,0.5);
+        font-weight: 400;
+        font-size: 0.9rem;
+        padding: 12px;
+    }
+    .mobile-welcome-btn.ghost:hover {
+        color: rgba(255,255,255,0.8);
+    }
+    .mobile-welcome-btn i {
+        font-size: 1.2rem;
+    }
+    .mobile-welcome-divider {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin: 8px 0;
+        color: rgba(255,255,255,0.3);
+        font-size: 0.85rem;
+    }
+    .mobile-welcome-divider::before,
+    .mobile-welcome-divider::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: rgba(255,255,255,0.15);
+    }
+
+    /* PWA Install Instructions (inline in welcome screen) */
+    .pwa-instructions {
+        display: none;
+        width: 100%;
+        max-width: 320px;
+        animation: fadeSlideUp 0.3s ease;
+    }
+    .pwa-instructions.show { display: block; }
+    @keyframes fadeSlideUp {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .pwa-instructions-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #fff;
+        margin-bottom: 16px;
+        text-align: center;
+    }
+    .pwa-install-steps {
+        margin: 0 0 20px;
+        padding: 0;
+        list-style: none;
+        background: rgba(255,255,255,0.05);
+        border-radius: 12px;
+        padding: 16px;
+    }
+    .pwa-install-steps li {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 10px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .pwa-install-steps li:last-child { border-bottom: none; }
+    .pwa-step-num {
+        width: 24px; height: 24px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.8rem; font-weight: 600; color: #fff;
+        flex-shrink: 0;
+    }
+    .pwa-step-text {
+        font-size: 0.9rem;
+        color: rgba(255,255,255,0.8);
+        line-height: 1.4;
+    }
+    .pwa-step-text strong { color: #fff; }
+    .pwa-browser-note {
+        background: rgba(102, 126, 234, 0.15);
+        border-radius: 8px;
+        padding: 12px;
+        font-size: 0.85rem;
+        color: rgba(255,255,255,0.6);
+        text-align: center;
+    }
+    .pwa-browser-note i { color: #667eea; margin-right: 6px; }
+    .pwa-back-btn {
+        background: none;
+        border: none;
+        color: rgba(255,255,255,0.5);
+        font-size: 0.9rem;
+        cursor: pointer;
+        padding: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        margin-top: 8px;
+    }
+    .pwa-back-btn:hover { color: rgba(255,255,255,0.8); }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center" href="{{ url_for('dashboard.index') }}">
+                <img src="{{ url_for('static', filename='armada_logo.png') }}" alt="Armada" height="32" class="me-2"> Armada
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'dashboard.index' %}active{% endif %}"
+                           href="{{ url_for('dashboard.index') }}">
+                            <i class="bi bi-speedometer2"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'dashboard.submarines' %}active{% endif %}"
+                           href="{{ url_for('dashboard.submarines') }}">
+                            <i class="bi bi-list-ul"></i> Submarines
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'stats.index' %}active{% endif %}"
+                           href="{{ url_for('stats.index') }}">
+                            <i class="bi bi-graph-up"></i> Statistics
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint and 'stats.loot' in request.endpoint %}active{% endif %}"
+                           href="{{ url_for('stats.loot') }}">
+                            <i class="bi bi-gem"></i> Loot
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint and 'stats.profit' in request.endpoint %}active{% endif %}"
+                           href="{{ url_for('stats.profits') }}">
+                            <i class="bi bi-graph-up-arrow"></i> Profits
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'stats.voyages' %}active{% endif %}"
+                           href="{{ url_for('stats.voyages') }}">
+                            <i class="bi bi-clock-history"></i> History
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'unlocks.index' %}active{% endif %}"
+                           href="{{ url_for('unlocks.index') }}">
+                            <i class="bi bi-diagram-3"></i> Unlocks
+                        </a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link position-relative alert-bell" href="#" role="button"
+                           data-bs-toggle="dropdown" aria-expanded="false" id="alert-bell"
+                           onclick="loadAlertDropdown()">
+                            <i class="bi bi-bell"></i>
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" id="alert-badge">
+                                0
+                            </span>
+                        </a>
+                        <div class="dropdown-menu dropdown-menu-end dropdown-menu-dark alert-dropdown" style="min-width: 350px; max-height: 400px; overflow-y: auto;">
+                            <h6 class="dropdown-header d-flex justify-content-between align-items-center">
+                                Recent Alerts
+                                <button class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="acknowledgeAllAlerts(event)">
+                                    <small>Mark all read</small>
+                                </button>
+                            </h6>
+                            <div id="alert-dropdown-content">
+                                <div class="dropdown-item text-center text-muted py-3">
+                                    <i class="bi bi-bell-slash"></i> No alerts
+                                </div>
+                            </div>
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item text-center small" href="{{ url_for('settings.index') }}#alerts">
+                                <i class="bi bi-gear"></i> Alert Settings
+                            </a>
+                        </div>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Settings">
+                            <i class="bi bi-gear"></i>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark">
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('settings.index') }}">
+                                    <i class="bi bi-gear"></i> Settings
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('dashboard.status') }}">
+                                    <i class="bi bi-plug"></i> Connection Status
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <span class="nav-link text-muted d-flex align-items-center gap-2" id="last-update">
+                            <span id="connection-status" class="connection-dot disconnected" title="WebSocket Disconnected">
+                                <i class="bi bi-circle"></i>
+                            </span>
+                            <span><i class="bi bi-clock"></i> <span id="update-time">--:--:--</span></span>
+                        </span>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-person-circle"></i> {{ current_user.username }}
+                            {% if current_user.is_admin %}
+                            <span class="badge bg-danger ms-1" style="font-size: 0.6em;">Admin</span>
+                            {% else %}
+                            <span class="badge bg-secondary ms-1" style="font-size: 0.6em;">RO</span>
+                            {% endif %}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark">
+                            <li><a class="dropdown-item" href="{{ url_for('auth.change_password') }}">
+                                <i class="bi bi-key"></i> Change Password
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">
+                                <i class="bi bi-box-arrow-right"></i> Logout
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mobile Welcome Screen -->
+    <div id="mobile-welcome-screen" class="mobile-welcome-screen">
+        <!-- Main Options View -->
+        <div id="welcome-main-view">
+            <img src="{{ url_for('static', filename='armada_logo.png') }}" alt="Armada" class="mobile-welcome-logo">
+            <h1 class="mobile-welcome-title">Armada</h1>
+            <p class="mobile-welcome-subtitle">FFXIV Submarine Fleet Manager</p>
+
+            <div class="mobile-welcome-options">
+                <button class="mobile-welcome-btn primary" onclick="showInstallInstructions()">
+                    <i class="bi bi-download"></i>
+                    Install App
+                </button>
+
+                <div class="mobile-welcome-divider">or</div>
+
+                <a href="{{ url_for('mobile.index') }}" class="mobile-welcome-btn secondary">
+                    <i class="bi bi-phone"></i>
+                    Continue to Mobile Site
+                </a>
+
+                <button class="mobile-welcome-btn ghost" onclick="dismissWelcomeScreen()">
+                    Continue to desktop site
+                </button>
+            </div>
+        </div>
+
+        <!-- Install Instructions View -->
+        <div id="welcome-install-view" class="pwa-instructions">
+            <p class="pwa-instructions-title">Install Armada</p>
+
+            <!-- iOS Instructions -->
+            <div id="pwa-ios-instructions" style="display:none;">
+                <ol class="pwa-install-steps">
+                    <li>
+                        <span class="pwa-step-num">1</span>
+                        <span class="pwa-step-text">Tap the <strong>Share</strong> button <i class="bi bi-box-arrow-up"></i> at the bottom of Safari</span>
+                    </li>
+                    <li>
+                        <span class="pwa-step-num">2</span>
+                        <span class="pwa-step-text">Scroll and tap <strong>"Add to Home Screen"</strong></span>
+                    </li>
+                    <li>
+                        <span class="pwa-step-num">3</span>
+                        <span class="pwa-step-text">Tap <strong>"Add"</strong> to confirm</span>
+                    </li>
+                </ol>
+                <div class="pwa-browser-note">
+                    <i class="bi bi-info-circle"></i> Requires Safari browser
+                </div>
+            </div>
+
+            <!-- Android Instructions -->
+            <div id="pwa-android-instructions" style="display:none;">
+                <ol class="pwa-install-steps">
+                    <li>
+                        <span class="pwa-step-num">1</span>
+                        <span class="pwa-step-text">Tap the <strong>menu</strong> <i class="bi bi-three-dots-vertical"></i> in your browser</span>
+                    </li>
+                    <li>
+                        <span class="pwa-step-num">2</span>
+                        <span class="pwa-step-text">Tap <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong></span>
+                    </li>
+                    <li>
+                        <span class="pwa-step-num">3</span>
+                        <span class="pwa-step-text">Tap <strong>"Install"</strong> to confirm</span>
+                    </li>
+                </ol>
+                <div class="pwa-browser-note">
+                    <i class="bi bi-info-circle"></i> Works with Chrome, Edge, or Samsung Internet
+                </div>
+            </div>
+
+            <!-- Native Install (Chrome) -->
+            <div id="pwa-native-install" style="display:none;">
+                <button class="mobile-welcome-btn primary" onclick="triggerNativeInstall()">
+                    <i class="bi bi-download"></i>
+                    Install Now
+                </button>
+            </div>
+
+            <button class="pwa-back-btn" onclick="hideInstallInstructions()">
+                <i class="bi bi-arrow-left"></i> Back to options
+            </button>
+        </div>
+    </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="container-fluid mt-3">
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- Main Content -->
+    <main class="container-fluid py-4">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer mt-auto py-3">
+        <div class="container-fluid">
+            <div class="d-flex justify-content-between text-muted small">
+                <span>Armada v{{ app_version }} - FFXIV Submarine Fleet Dashboard</span>
+                <span>Made by Asuna Pahlo 🦋</span>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+    <script>
+    // Alert bell functionality
+    let alertCount = 0;
+    let alertCheckInterval = null;
+
+    async function loadAlertDropdown() {
+        try {
+            const resp = await fetch('/alerts/unacknowledged', {
+                credentials: 'same-origin'
+            });
+            if (!resp.ok) return;
+            const data = await resp.json();
+            updateAlertBell(data.count);
+            renderAlertDropdown(data.alerts);
+        } catch (e) {
+            console.error('Failed to load alerts:', e);
+        }
+    }
+
+    function updateAlertBell(count) {
+        alertCount = count;
+        const bell = document.getElementById('alert-bell');
+        const badge = document.getElementById('alert-badge');
+
+        if (!bell || !badge) return;
+
+        if (count > 0) {
+            bell.classList.add('has-alerts');
+            badge.classList.remove('d-none');
+            badge.textContent = count > 99 ? '99+' : count;
+        } else {
+            bell.classList.remove('has-alerts');
+            badge.classList.add('d-none');
+        }
+    }
+
+    function renderAlertDropdown(alerts) {
+        const content = document.getElementById('alert-dropdown-content');
+        if (!content) return;
+
+        if (!alerts || alerts.length === 0) {
+            content.innerHTML = `
+                <div class="dropdown-item text-center text-muted py-3">
+                    <i class="bi bi-bell-slash"></i> No alerts
+                </div>
+            `;
+            return;
+        }
+
+        content.innerHTML = alerts.map(alert => {
+            const severityClass = {
+                'critical': 'text-danger',
+                'warning': 'text-warning',
+                'info': 'text-info'
+            }[alert.severity] || 'text-muted';
+
+            const iconClass = {
+                'low_supply': 'bi-fuel-pump',
+                'idle_sub': 'bi-hourglass'
+            }[alert.type] || 'bi-exclamation-triangle';
+
+            const timeAgo = formatTimeAgo(new Date(alert.created_at));
+
+            return `
+                <div class="dropdown-item alert-item" data-alert-id="${alert.id}">
+                    <div class="d-flex align-items-start gap-2">
+                        <i class="bi ${iconClass} ${severityClass} mt-1"></i>
+                        <div class="flex-grow-1 overflow-hidden">
+                            <div class="d-flex justify-content-between">
+                                <strong class="small">${alert.target_name || 'Alert'}</strong>
+                                <small class="text-muted">${timeAgo}</small>
+                            </div>
+                            <small class="text-muted d-block text-truncate">${alert.message}</small>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function formatTimeAgo(date) {
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMins < 1) return 'just now';
+        if (diffMins < 60) return `${diffMins}m`;
+        if (diffHours < 24) return `${diffHours}h`;
+        return `${diffDays}d`;
+    }
+
+    async function acknowledgeAllAlerts(event) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        try {
+            await fetch('/alerts/acknowledge', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            });
+            updateAlertBell(0);
+            loadAlertDropdown();
+        } catch (e) {
+            console.error('Failed to acknowledge alerts:', e);
+        }
+    }
+
+    // Check for alerts on page load and periodically
+    function initAlertBell() {
+        // Initial load
+        loadAlertDropdown();
+
+        // Check every 30 seconds for new alerts
+        if (alertCheckInterval) clearInterval(alertCheckInterval);
+        alertCheckInterval = setInterval(loadAlertDropdown, 30000);
+    }
+
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initAlertBell);
+    } else {
+        initAlertBell();
+    }
+
+    // =========================================================================
+    // Mobile Welcome Screen & PWA Install
+    // =========================================================================
+    let deferredPrompt = null;
+
+    // Detect mobile device
+    function isMobileDevice() {
+        const mobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const smallScreen = window.innerWidth <= 768;
+        return mobileUA || smallScreen;
+    }
+
+    // Detect iOS
+    function isIOS() {
+        return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+               (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    }
+
+    // Check if running as PWA already
+    function isRunningAsPWA() {
+        return window.matchMedia('(display-mode: standalone)').matches ||
+               window.navigator.standalone === true;
+    }
+
+    // Show welcome screen
+    function showWelcomeScreen() {
+        const screen = document.getElementById('mobile-welcome-screen');
+        if (screen) {
+            screen.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+    }
+
+    // Dismiss welcome screen with animation
+    function dismissWelcomeScreen() {
+        const screen = document.getElementById('mobile-welcome-screen');
+        if (screen) {
+            screen.classList.add('hiding');
+            setTimeout(() => {
+                screen.classList.remove('show', 'hiding');
+                document.body.style.overflow = '';
+            }, 400);
+        }
+        // Remember dismissal for 30 days
+        const expiry = Date.now() + (30 * 24 * 60 * 60 * 1000);
+        localStorage.setItem('mobileWelcomeDismissed', expiry);
+    }
+
+    // Check if welcome was dismissed recently
+    function wasWelcomeDismissed() {
+        const dismissed = localStorage.getItem('mobileWelcomeDismissed');
+        if (!dismissed) return false;
+        return Date.now() < parseInt(dismissed, 10);
+    }
+
+    // Show install instructions
+    function showInstallInstructions() {
+        const mainView = document.getElementById('welcome-main-view');
+        const installView = document.getElementById('welcome-install-view');
+        const iosInstructions = document.getElementById('pwa-ios-instructions');
+        const androidInstructions = document.getElementById('pwa-android-instructions');
+        const nativeInstall = document.getElementById('pwa-native-install');
+
+        if (!mainView || !installView) return;
+
+        // Hide main view
+        mainView.style.display = 'none';
+
+        // Show appropriate instructions
+        if (deferredPrompt) {
+            iosInstructions.style.display = 'none';
+            androidInstructions.style.display = 'none';
+            nativeInstall.style.display = 'block';
+        } else if (isIOS()) {
+            iosInstructions.style.display = 'block';
+            androidInstructions.style.display = 'none';
+            nativeInstall.style.display = 'none';
+        } else {
+            iosInstructions.style.display = 'none';
+            androidInstructions.style.display = 'block';
+            nativeInstall.style.display = 'none';
+        }
+
+        // Show install view
+        installView.classList.add('show');
+    }
+
+    // Hide install instructions, back to main
+    function hideInstallInstructions() {
+        const mainView = document.getElementById('welcome-main-view');
+        const installView = document.getElementById('welcome-install-view');
+
+        if (!mainView || !installView) return;
+
+        installView.classList.remove('show');
+        mainView.style.display = '';
+    }
+
+    // Trigger native PWA install
+    async function triggerNativeInstall() {
+        if (!deferredPrompt) return;
+
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+
+        if (outcome === 'accepted') {
+            console.log('PWA installed');
+            dismissWelcomeScreen();
+        }
+        deferredPrompt = null;
+    }
+
+    // Capture beforeinstallprompt event
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        console.log('PWA install prompt captured');
+    });
+
+    // Initialize mobile welcome screen
+    function initMobileWelcome() {
+        // Don't show if:
+        // - Not on mobile
+        // - Already running as PWA
+        // - Welcome was recently dismissed
+        if (!isMobileDevice() || isRunningAsPWA() || wasWelcomeDismissed()) {
+            return;
+        }
+
+        // Show immediately
+        showWelcomeScreen();
+    }
+
+    // Run on DOM ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initMobileWelcome);
+    } else {
+        initMobileWelcome();
+    }
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

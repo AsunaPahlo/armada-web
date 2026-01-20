@@ -1,0 +1,173 @@
+<div class="settings-section-header">
+    <h2><i class="bi bi-sliders"></i> Exclusions</h2>
+</div>
+
+<div class="row">
+    <!-- About Section -->
+    <div class="col-lg-3 mb-4">
+        <div class="settings-card">
+            <div class="settings-card-title">
+                <i class="bi bi-info-circle"></i> About FC Visibility
+            </div>
+            <p class="text-muted mb-0">
+                <i class="bi bi-eye text-info"></i> <strong>Visible</strong> -
+                Controls whether the FC appears in the dashboard, submarine views, and statistics.
+                Hidden FCs are completely excluded from all views and aggregate calculations
+                (total submarines, gil/day, supply forecasts, etc.).
+            </p>
+        </div>
+    </div>
+
+    <!-- FC List Section -->
+    <div class="col-lg-9">
+        <div class="settings-card" style="padding: 0;">
+            <div class="d-flex justify-content-between align-items-center p-3" style="border-bottom: 1px solid var(--ffxiv-border);">
+                <div class="settings-card-title mb-0">
+                    <i class="bi bi-building"></i> Free Companies
+                </div>
+                <div class="input-group" style="max-width: 200px;">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" id="fc-config-search" placeholder="Search FCs...">
+                </div>
+            </div>
+            <div class="table-responsive" style="max-height: 60vh; overflow-y: auto;">
+                <table class="table table-dark table-hover mb-0" id="fc-config-table">
+                    <thead class="sticky-top" style="background: var(--ffxiv-bg-card);">
+                        <tr>
+                            <th>FC Name</th>
+                            <th>World</th>
+                            <th>House Address</th>
+                            <th>Client</th>
+                            <th class="text-center" style="width: 80px;">Subs</th>
+                            <th class="text-center" style="width: 100px;">Visible</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for fc in fcs %}
+                        <tr data-fc-id="{{ fc.fc_id }}" data-fc-name="{{ fc.fc_name|lower }}" data-world="{{ fc.world|lower }}" data-client="{{ fc.client_nickname|lower }}">
+                            <td>
+                                <strong>{{ fc.fc_name }}</strong>
+                                {% if fc.character %}
+                                <br><small class="text-muted">{{ fc.character }}</small>
+                                {% endif %}
+                            </td>
+                            <td>{{ fc.world }}</td>
+                            <td>
+                                {% if fc.house_address %}
+                                    <i class="bi bi-house-door text-info"></i> {{ fc.house_address }}
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ fc.client_nickname }}</td>
+                            <td class="text-center">{{ fc.sub_count }}</td>
+                            <td class="text-center">
+                                <button type="button"
+                                        class="btn btn-link p-0 fc-toggle-btn{% if current_user.is_readonly %} disabled{% endif %}"
+                                        data-fc-id="{{ fc.fc_id }}"
+                                        data-setting="visible"
+                                        data-value="{{ 'true' if fc.visible else 'false' }}"
+                                        title="Toggle visibility"
+                                        {% if current_user.is_readonly %}disabled{% endif %}>
+                                    <i class="bi bi-eye{% if not fc.visible %}-slash{% endif %} fs-5 {% if fc.visible %}text-info{% else %}text-secondary opacity-50{% endif %}"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.fc-toggle-btn {
+    transition: transform 0.1s ease;
+}
+.fc-toggle-btn:hover:not(.disabled) {
+    transform: scale(1.2);
+}
+.fc-toggle-btn.disabled {
+    cursor: not-allowed;
+}
+#fc-config-table tbody tr.hidden {
+    display: none;
+}
+</style>
+
+<script>
+(function() {
+    // Toggle button click handlers
+    document.querySelectorAll('.fc-toggle-btn').forEach(btn => {
+        if (btn.classList.contains('disabled')) return;
+
+        btn.addEventListener('click', async function() {
+            const fcId = this.dataset.fcId;
+            const setting = this.dataset.setting;
+            const currentValue = this.dataset.value === 'true';
+            const newValue = !currentValue;
+
+            const icon = this.querySelector('i');
+            const originalClasses = icon.className;
+
+            // Optimistic UI update for visibility toggle
+            if (setting === 'visible') {
+                if (newValue) {
+                    icon.classList.remove('bi-eye-slash', 'text-secondary', 'opacity-50');
+                    icon.classList.add('bi-eye', 'text-info');
+                } else {
+                    icon.classList.remove('bi-eye', 'text-info');
+                    icon.classList.add('bi-eye-slash', 'text-secondary', 'opacity-50');
+                }
+            }
+            this.dataset.value = newValue.toString();
+
+            try {
+                const resp = await fetch('/settings/fc-config/toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        fc_id: fcId,
+                        setting: setting,
+                        value: newValue
+                    })
+                });
+
+                const data = await resp.json();
+
+                if (!data.success) {
+                    // Revert on failure
+                    icon.className = originalClasses;
+                    this.dataset.value = currentValue.toString();
+                    alert(data.message || 'Failed to update setting');
+                }
+            } catch (err) {
+                // Revert on error
+                icon.className = originalClasses;
+                this.dataset.value = currentValue.toString();
+                console.error('Error updating setting:', err);
+                alert('Error updating setting');
+            }
+        });
+    });
+
+    // Search/filter FCs
+    document.getElementById('fc-config-search')?.addEventListener('input', function() {
+        const query = this.value.toLowerCase().trim();
+        const rows = document.querySelectorAll('#fc-config-table tbody tr');
+
+        rows.forEach(row => {
+            const fcName = row.dataset.fcName || '';
+            const world = row.dataset.world || '';
+            const client = row.dataset.client || '';
+            if (query === '' || fcName.includes(query) || world.includes(query) || client.includes(query)) {
+                row.classList.remove('hidden');
+            } else {
+                row.classList.add('hidden');
+            }
+        });
+    });
+})();
+</script>

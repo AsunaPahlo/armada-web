@@ -1,0 +1,765 @@
+{% extends "base.html" %}
+
+{% block title %}Loot Statistics{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-gem"></i> Loot Statistics</h2>
+    <div class="btn-group">
+        <a href="{{ url_for('stats.loot', days=1) }}" class="btn btn-outline-secondary {% if days == 1 %}active{% endif %}">1 Day</a>
+        <a href="{{ url_for('stats.loot', days=7) }}" class="btn btn-outline-secondary {% if days == 7 %}active{% endif %}">7 Days</a>
+        <a href="{{ url_for('stats.loot', days=30) }}" class="btn btn-outline-secondary {% if days == 30 %}active{% endif %}">30 Days</a>
+        <a href="{{ url_for('stats.loot', days=90) }}" class="btn btn-outline-secondary {% if days == 90 %}active{% endif %}">90 Days</a>
+        <a href="{{ url_for('stats.loot', days=0) }}" class="btn btn-outline-secondary {% if days == 0 %}active{% endif %}">All</a>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col">
+        <div class="card summary-card">
+            <div class="card-body d-flex align-items-center justify-content-center">
+                <i class="bi bi-compass fs-2 text-muted me-2"></i>
+                <div>
+                    <h6 class="text-muted mb-0">Voyages Tracked</h6>
+                    <h2 class="mb-0">{{ summary.total_voyages }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card summary-card">
+            <div class="card-body d-flex align-items-center justify-content-center">
+                <i class="bi bi-cash-stack fs-2 text-warning me-2"></i>
+                <div>
+                    <h6 class="text-muted mb-0">Total Gil</h6>
+                    <h2 class="mb-0 text-warning">{{ "{:,.0f}".format(summary.total_gil) }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card summary-card">
+            <div class="card-body d-flex align-items-center justify-content-center">
+                <i class="bi bi-coin fs-2 text-muted me-2"></i>
+                <div>
+                    <h6 class="text-muted mb-0">Avg Gil/Voyage</h6>
+                    <h2 class="mb-0">{{ "{:,.0f}".format(summary.avg_gil_per_voyage) }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card summary-card">
+            <div class="card-body d-flex align-items-center justify-content-center">
+                <i class="bi bi-sun fs-2 text-warning me-2"></i>
+                <div>
+                    <h6 class="text-muted mb-0">Avg Gil/Day</h6>
+                    <h2 class="mb-0 text-warning">{{ "{:,.0f}".format(summary.avg_gil_per_day) }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card summary-card">
+            <div class="card-body d-flex align-items-center justify-content-center">
+                <i class="bi bi-clock-history fs-2 text-muted me-2"></i>
+                <div>
+                    <h6 class="text-muted mb-0">Period</h6>
+                    <h2 class="mb-0">{{ summary.period_days }} Days</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-graph-up"></i> Gil Over Time</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="gil-chart" height="120"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-signpost-split"></i> Top Routes by Gil (24 Hour)</h5>
+                <div class="btn-group btn-group-sm" role="group" id="routes-filter-toggle">
+                    <button type="button" class="btn btn-outline-secondary active" data-filter="known" title="Show only known/documented routes">Known</button>
+                    <button type="button" class="btn btn-outline-secondary" data-filter="all" title="Show all routes including custom">All</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <canvas id="routes-chart" height="120"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Submarines and Routes -->
+<div class="row mb-4">
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-trophy"></i> Top Submarines by Gil</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if summary.top_submarines %}
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover mb-0 table-sm">
+                        <thead>
+                            <tr>
+                                <th>Submarine</th>
+                                <th>Voyages</th>
+                                <th class="text-end">Total Gil</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sub in summary.top_submarines %}
+                            <tr>
+                                <td><strong>{{ sub.submarine }}</strong></td>
+                                <td>{{ sub.voyage_count }}</td>
+                                <td class="text-end text-warning">{{ "{:,.0f}".format(sub.total_gil) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    No loot data yet
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-clock"></i> Top Submarines by Gil (24 Hour)</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if summary.top_submarines_normalized %}
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover mb-0 table-sm">
+                        <thead>
+                            <tr>
+                                <th>Submarine</th>
+                                <th>Voyages</th>
+                                <th class="text-end">Gil/24h</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sub in summary.top_submarines_normalized %}
+                            <tr>
+                                <td><strong>{{ sub.submarine }}</strong></td>
+                                <td>{{ sub.voyage_count }}</td>
+                                <td class="text-end text-warning">{{ "{:,.0f}".format(sub.total_gil_normalized) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    No normalized data yet
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-signpost-split"></i> Top Routes</h5>
+                <div class="btn-group btn-group-sm" role="group" id="routes-table-filter-toggle">
+                    <button type="button" class="btn btn-outline-secondary active" data-filter="known" title="Show only known/documented routes">Known</button>
+                    <button type="button" class="btn btn-outline-secondary" data-filter="all" title="Show all routes including custom">All</button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover mb-0 table-sm">
+                        <thead>
+                            <tr>
+                                <th>Route</th>
+                                <th>Voyages</th>
+                                <th class="text-end">Duration</th>
+                                <th class="text-end">Gil/24h</th>
+                                <th class="text-end">Total Gil</th>
+                            </tr>
+                        </thead>
+                        <tbody id="top-routes-table-body">
+                            {% if summary.top_routes %}
+                            {% for route in summary.top_routes %}
+                            <tr>
+                                <td><strong>{{ route.route }}</strong></td>
+                                <td>{{ route.voyage_count }}</td>
+                                <td class="text-end">{{ route.duration_hours }}h</td>
+                                <td class="text-end text-warning">{{ "{:,.0f}".format(route.avg_gil_per_24h) }}</td>
+                                <td class="text-end">{{ "{:,.0f}".format(route.total_gil) }}</td>
+                            </tr>
+                            {% endfor %}
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">No route data yet</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loot History -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="mb-0 d-inline"><i class="bi bi-clock-history"></i> Loot History</h5>
+            <small class="text-muted ms-2" id="loot-total-count">{{ loot_pagination.total }} records</small>
+        </div>
+        <!-- Pagination Controls -->
+        <div class="d-flex align-items-center gap-2" id="loot-pagination-controls">
+            <small class="text-muted" id="loot-pagination-info">
+                {% if loot_pagination.total > 0 %}
+                1-{{ [loot_pagination.per_page, loot_pagination.total]|min }} of {{ loot_pagination.total }}
+                {% else %}
+                0 records
+                {% endif %}
+            </small>
+            <div class="btn-group btn-group-sm">
+                <button class="btn btn-outline-secondary" id="loot-page-prev" title="Previous Page" disabled>
+                    <i class="bi bi-chevron-left"></i>
+                </button>
+                <button class="btn btn-outline-secondary" id="loot-page-next" title="Next Page" {% if loot_pagination.pages <= 1 %}disabled{% endif %}>
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+            </div>
+            <select class="form-select form-select-sm" id="loot-page-size" style="width: auto;">
+                <option value="25">25</option>
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+            </select>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if loot_history %}
+        <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0 table-sm" id="loot-table">
+                <thead>
+                    <tr>
+                        <th class="sortable sort-desc" data-sort="captured_at">Time <i class="bi bi-arrow-down sort-icon"></i></th>
+                        <th class="sortable" data-sort="submarine">Submarine <i class="bi bi-arrow-down-up sort-icon"></i></th>
+                        <th class="sortable" data-sort="route">Route <i class="bi bi-arrow-down-up sort-icon"></i></th>
+                        <th class="sortable" data-sort="items">Items <i class="bi bi-arrow-down-up sort-icon"></i></th>
+                        <th class="sortable text-end" data-sort="gil">Gil Value <i class="bi bi-arrow-down-up sort-icon"></i></th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for loot in loot_history %}
+                    <tr class="loot-row"
+                        data-captured_at="{{ loot.captured_at }}"
+                        data-submarine="{{ loot.submarine }}"
+                        data-route="{{ loot.route_name or '' }}"
+                        data-items="{{ loot.total_items }}"
+                        data-gil="{{ loot.total_gil_value }}">
+                        <td><span data-timestamp="{{ loot.captured_at }}" data-format="short">{{ loot.captured_at }}</span></td>
+                        <td><strong>{{ loot.submarine }}</strong></td>
+                        <td>{{ loot.route_name or "-" }}</td>
+                        <td>{{ loot.total_items }}</td>
+                        <td class="text-end text-warning">{{ "{:,.0f}".format(loot.total_gil_value) }}</td>
+                        <td>
+                            <a href="{{ url_for('stats.loot_details', loot_id=loot.id) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-4">
+            No loot records yet. Loot is captured when submarines return and you collect them.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Table row hover styles */
+.table-dark tbody tr,
+.table-dark tbody tr > td {
+    --bs-table-bg-state: transparent !important;
+    --bs-table-accent-bg: transparent !important;
+}
+
+.table-dark tbody tr:hover,
+.table-dark tbody tr:hover > td {
+    --bs-table-bg-state: transparent !important;
+    --bs-table-accent-bg: transparent !important;
+    --bs-table-hover-bg: transparent !important;
+    background: rgba(99, 179, 237, 0.2) !important;
+}
+
+/* Sortable column headers */
+.sortable {
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.sortable:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.sortable .sort-icon {
+    font-size: 0.75em;
+    opacity: 0.4;
+    margin-left: 4px;
+}
+
+.sortable:hover .sort-icon {
+    opacity: 0.7;
+}
+
+.sortable.sort-asc .sort-icon,
+.sortable.sort-desc .sort-icon {
+    opacity: 1;
+    color: var(--ffxiv-accent);
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+// Chart data from server
+const summary = {{ summary|tojson }};
+
+// Common chart options for dark theme
+const darkThemeOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+        legend: {
+            labels: { color: 'rgba(255,255,255,0.7)' }
+        }
+    },
+    scales: {
+        y: {
+            beginAtZero: true,
+            grid: { color: 'rgba(255,255,255,0.1)' },
+            ticks: { color: 'rgba(255,255,255,0.7)' }
+        },
+        x: {
+            grid: { color: 'rgba(255,255,255,0.1)' },
+            ticks: { color: 'rgba(255,255,255,0.7)' }
+        }
+    }
+};
+
+// 1. Gil Over Time Chart
+const gilCtx = document.getElementById('gil-chart').getContext('2d');
+const dailyTotals = summary.daily_totals || [];
+const last14Days = dailyTotals.slice(-14);
+
+new Chart(gilCtx, {
+    type: 'line',
+    data: {
+        labels: last14Days.map(d => d.date.slice(5)), // MM-DD format
+        datasets: [{
+            label: 'Gil',
+            data: last14Days.map(d => d.total_gil),
+            borderColor: 'rgba(237, 177, 54, 1)',
+            backgroundColor: 'rgba(237, 177, 54, 0.2)',
+            fill: true,
+            tension: 0.3,
+            yAxisID: 'y'
+        }, {
+            label: 'Voyages',
+            data: last14Days.map(d => d.voyages),
+            borderColor: 'rgba(99, 179, 237, 1)',
+            backgroundColor: 'rgba(99, 179, 237, 0.2)',
+            fill: false,
+            tension: 0.3,
+            yAxisID: 'y1'
+        }]
+    },
+    options: {
+        ...darkThemeOptions,
+        scales: {
+            y: {
+                type: 'linear',
+                display: true,
+                position: 'left',
+                beginAtZero: true,
+                grid: { color: 'rgba(255,255,255,0.1)' },
+                ticks: {
+                    color: 'rgba(237, 177, 54, 0.8)',
+                    callback: function(value) {
+                        return value >= 1000000 ? (value / 1000000).toFixed(1) + 'M' :
+                               value >= 1000 ? (value / 1000).toFixed(0) + 'K' : value;
+                    }
+                },
+                title: {
+                    display: true,
+                    text: 'Gil',
+                    color: 'rgba(237, 177, 54, 0.8)'
+                }
+            },
+            y1: {
+                type: 'linear',
+                display: true,
+                position: 'right',
+                beginAtZero: true,
+                grid: { drawOnChartArea: false },
+                ticks: { color: 'rgba(99, 179, 237, 0.8)' },
+                title: {
+                    display: true,
+                    text: 'Voyages',
+                    color: 'rgba(99, 179, 237, 0.8)'
+                }
+            },
+            x: {
+                grid: { color: 'rgba(255,255,255,0.1)' },
+                ticks: { color: 'rgba(255,255,255,0.7)' }
+            }
+        }
+    }
+});
+
+// 2. Top Routes Chart (normalized to 24 hours)
+const routesCtx = document.getElementById('routes-chart').getContext('2d');
+const topRoutes = summary.top_routes || [];
+const currentDays = {{ days }};
+
+const routesChart = new Chart(routesCtx, {
+    type: 'bar',
+    data: {
+        labels: topRoutes.map(r => r.route),
+        datasets: [{
+            label: 'Avg Gil/24h',
+            data: topRoutes.map(r => r.avg_gil_per_24h),
+            backgroundColor: 'rgba(237, 177, 54, 0.7)',
+            borderColor: 'rgba(237, 177, 54, 1)',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        ...darkThemeOptions,
+        indexAxis: 'y',
+        plugins: { legend: { display: false } }
+    }
+});
+
+// Routes filter toggle (Known vs All)
+(function() {
+    const toggleBtns = document.querySelectorAll('#routes-filter-toggle button');
+    let currentFilter = 'known';
+
+    async function updateRoutesChart(knownOnly) {
+        try {
+            const response = await fetch(`/stats/api/top-routes?days=${currentDays}&known_only=${knownOnly}`);
+            if (!response.ok) throw new Error('Failed to fetch');
+
+            const data = await response.json();
+            const routes = data.routes || [];
+
+            // Update chart data
+            routesChart.data.labels = routes.map(r => r.route);
+            routesChart.data.datasets[0].data = routes.map(r => r.avg_gil_per_24h);
+            routesChart.update();
+        } catch (error) {
+            console.error('Error fetching routes:', error);
+        }
+    }
+
+    toggleBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const filter = this.dataset.filter;
+            if (filter === currentFilter) return;
+
+            // Update active state
+            toggleBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+
+            currentFilter = filter;
+            updateRoutesChart(filter === 'known');
+        });
+    });
+})();
+
+// Top Routes Table filter toggle (Known vs All)
+(function() {
+    const toggleBtns = document.querySelectorAll('#routes-table-filter-toggle button');
+    const tbody = document.getElementById('top-routes-table-body');
+    let currentFilter = 'known';
+
+    async function updateRoutesTable(knownOnly) {
+        try {
+            const response = await fetch(`/stats/api/top-routes?days=${currentDays}&known_only=${knownOnly}`);
+            if (!response.ok) throw new Error('Failed to fetch');
+
+            const data = await response.json();
+            const routes = data.routes || [];
+
+            if (routes.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No route data yet</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = routes.map(r => `
+                <tr>
+                    <td><strong>${r.route}</strong></td>
+                    <td>${r.voyage_count}</td>
+                    <td class="text-end">${r.duration_hours}h</td>
+                    <td class="text-end text-warning">${r.avg_gil_per_24h.toLocaleString('en-US', {maximumFractionDigits: 0})}</td>
+                    <td class="text-end">${r.total_gil.toLocaleString('en-US', {maximumFractionDigits: 0})}</td>
+                </tr>
+            `).join('');
+        } catch (error) {
+            console.error('Error fetching routes:', error);
+        }
+    }
+
+    toggleBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const filter = this.dataset.filter;
+            if (filter === currentFilter) return;
+
+            // Update active state
+            toggleBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+
+            currentFilter = filter;
+            updateRoutesTable(filter === 'known');
+        });
+    });
+})();
+
+// Loot History Table - Server-Side Sorting & Pagination
+(function() {
+    const table = document.getElementById('loot-table');
+    if (!table) return;
+
+    const tbody = table.querySelector('tbody');
+    const headers = table.querySelectorAll('th.sortable');
+
+    // DOM elements
+    const pageSizeSelect = document.getElementById('loot-page-size');
+    const pageInfo = document.getElementById('loot-pagination-info');
+    const totalCount = document.getElementById('loot-total-count');
+    const prevBtn = document.getElementById('loot-page-prev');
+    const nextBtn = document.getElementById('loot-page-next');
+
+    // State from server
+    const initialPagination = {{ loot_pagination|tojson }};
+    const currentDays = {{ days }};
+
+    // Current state
+    let state = {
+        page: initialPagination.page,
+        perPage: initialPagination.per_page,
+        total: initialPagination.total,
+        pages: initialPagination.pages,
+        sortBy: 'captured_at',
+        sortDir: 'desc',
+        loading: false
+    };
+
+    // Format number with commas
+    function formatNumber(num) {
+        return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+
+    // Format timestamp for display (matches 'short' format from dashboard.js)
+    function formatTimestamp(isoString) {
+        if (!isoString) return '-';
+        try {
+            const date = new Date(isoString);
+            if (isNaN(date.getTime())) return '-';
+            return date.toLocaleString(undefined, {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch (e) {
+            return '-';
+        }
+    }
+
+    // Render a single loot row
+    function renderRow(loot) {
+        const tr = document.createElement('tr');
+        tr.className = 'loot-row';
+        tr.innerHTML = `
+            <td><span class="timestamp-converted">${formatTimestamp(loot.captured_at)}</span></td>
+            <td><strong>${loot.submarine}</strong></td>
+            <td>${loot.route_name || '-'}</td>
+            <td>${loot.total_items}</td>
+            <td class="text-end text-warning">${formatNumber(loot.total_gil_value)}</td>
+            <td>
+                <a href="/stats/loot/${loot.id}" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-eye"></i>
+                </a>
+            </td>
+        `;
+        return tr;
+    }
+
+    // Render empty state
+    function renderEmpty() {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td colspan="6" class="text-center text-muted py-4">
+                No loot records found for this period.
+            </td>
+        `;
+        return tr;
+    }
+
+    // Update pagination UI
+    function updatePaginationUI() {
+        const startIdx = state.total === 0 ? 0 : (state.page - 1) * state.perPage + 1;
+        const endIdx = Math.min(state.page * state.perPage, state.total);
+
+        pageInfo.textContent = state.total === 0 ? '0 records' : `${startIdx}-${endIdx} of ${formatNumber(state.total)}`;
+        totalCount.textContent = `${formatNumber(state.total)} records`;
+
+        prevBtn.disabled = state.page <= 1 || state.loading;
+        nextBtn.disabled = state.page >= state.pages || state.loading;
+    }
+
+    // Update header sort indicators
+    function updateHeaderStyles() {
+        headers.forEach(header => {
+            const column = header.dataset.sort;
+            const icon = header.querySelector('.sort-icon');
+
+            header.classList.remove('sort-asc', 'sort-desc');
+            icon.className = 'bi sort-icon';
+
+            if (column === state.sortBy) {
+                if (state.sortDir === 'asc') {
+                    header.classList.add('sort-asc');
+                    icon.classList.add('bi-arrow-up');
+                } else {
+                    header.classList.add('sort-desc');
+                    icon.classList.add('bi-arrow-down');
+                }
+            } else {
+                icon.classList.add('bi-arrow-down-up');
+            }
+        });
+    }
+
+    // Fetch data from server
+    async function fetchData() {
+        if (state.loading) return;
+
+        state.loading = true;
+        updatePaginationUI();
+
+        // Show loading state
+        tbody.style.opacity = '0.5';
+
+        const params = new URLSearchParams({
+            days: currentDays,
+            page: state.page,
+            per_page: state.perPage,
+            sort_by: state.sortBy,
+            sort_dir: state.sortDir
+        });
+
+        try {
+            const response = await fetch(`/stats/api/loot-history?${params}`);
+            if (!response.ok) throw new Error('Failed to fetch');
+
+            const data = await response.json();
+
+            // Update state
+            state.total = data.total;
+            state.pages = data.pages;
+            state.page = data.page;
+
+            // Clear and render rows
+            tbody.innerHTML = '';
+            if (data.items.length === 0) {
+                tbody.appendChild(renderEmpty());
+            } else {
+                data.items.forEach(loot => {
+                    tbody.appendChild(renderRow(loot));
+                });
+            }
+
+
+        } catch (error) {
+            console.error('Error fetching loot history:', error);
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4">Error loading data. Please try again.</td></tr>';
+        } finally {
+            state.loading = false;
+            tbody.style.opacity = '1';
+            updatePaginationUI();
+        }
+    }
+
+    // Event handlers
+    headers.forEach(header => {
+        header.addEventListener('click', function() {
+            if (state.loading) return;
+
+            const column = this.dataset.sort;
+            const numericColumns = ['items', 'gil'];
+            const dateColumns = ['captured_at'];
+
+            if (column === state.sortBy) {
+                state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                state.sortBy = column;
+                state.sortDir = (dateColumns.includes(column) || numericColumns.includes(column)) ? 'desc' : 'asc';
+            }
+
+            state.page = 1; // Reset to first page on sort
+            updateHeaderStyles();
+            fetchData();
+        });
+    });
+
+    prevBtn.addEventListener('click', function() {
+        if (state.page > 1 && !state.loading) {
+            state.page--;
+            fetchData();
+        }
+    });
+
+    nextBtn.addEventListener('click', function() {
+        if (state.page < state.pages && !state.loading) {
+            state.page++;
+            fetchData();
+        }
+    });
+
+    pageSizeSelect.addEventListener('change', function() {
+        state.perPage = parseInt(this.value);
+        state.page = 1; // Reset to first page
+        fetchData();
+    });
+
+    // Initial setup
+    updateHeaderStyles();
+    updatePaginationUI();
+})();
+</script>
+{% endblock %}

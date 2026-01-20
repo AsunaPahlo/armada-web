@@ -1,0 +1,225 @@
+<div class="settings-section-header">
+    <h2><i class="bi bi-gear"></i> App Settings</h2>
+</div>
+
+<!-- Scheduler Settings -->
+<div class="settings-card">
+    <div class="settings-card-title">
+        <i class="bi bi-clock"></i> Daily Stats Rebuild Schedule
+    </div>
+    <p class="text-muted small mb-3">
+        Statistics are updated in real-time as voyages complete. A nightly rebuild runs during the configured
+        window to ensure consistency and resolve any minor discrepancies between live data and aggregated totals.
+        Configure the time window (in server local time) for this maintenance task.
+    </p>
+    <form id="scheduler-settings-form">
+        <div class="settings-form-row">
+            <div class="settings-form-group">
+                <label for="rebuild_window_start">Window Start (Hour)</label>
+                <select class="form-select" id="rebuild_window_start" name="rebuild_window_start">
+                    {% for h in range(24) %}
+                    <option value="{{ h }}" {% if settings.get('rebuild_window_start', {}).get('value', '1')|int == h %}selected{% endif %}>
+                        {{ '%02d:00'|format(h) }} ({{ 'AM' if h < 12 else 'PM' }})
+                    </option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">Earliest time rebuilds can start</div>
+            </div>
+            <div class="settings-form-group">
+                <label for="rebuild_window_end">Window End (Hour)</label>
+                <select class="form-select" id="rebuild_window_end" name="rebuild_window_end">
+                    {% for h in range(24) %}
+                    <option value="{{ h }}" {% if settings.get('rebuild_window_end', {}).get('value', '7')|int == h %}selected{% endif %}>
+                        {{ '%02d:00'|format(h) }} ({{ 'AM' if h < 12 else 'PM' }})
+                    </option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">Latest time rebuilds can start</div>
+            </div>
+        </div>
+        {% if current_user.is_admin %}
+        <button type="submit" class="btn btn-primary mt-3">
+            <i class="bi bi-check"></i> Save Schedule
+        </button>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Material Costs -->
+<div class="settings-card">
+    <div class="settings-card-title">
+        <i class="bi bi-coin"></i> Material Costs
+    </div>
+    <p class="text-muted small mb-3">
+        Configure marketboard prices for profit calculations. These affect the "Net Profit" calculations in statistics.
+    </p>
+    <form id="material-costs-form">
+        <div class="settings-form-row">
+            <div class="settings-form-group">
+                <label for="ceruleum_price">Ceruleum Tank (per stack of 999)</label>
+                <div class="input-group">
+                    <input type="number" class="form-control" id="ceruleum_price" name="ceruleum_price_per_stack"
+                           value="{{ settings.get('ceruleum_price_per_stack', {}).get('value', '5000') }}"
+                           min="0" step="100">
+                    <span class="input-group-text">gil</span>
+                </div>
+            </div>
+            <div class="settings-form-group">
+                <label for="kit_price">Repair Kit (per stack of 999)</label>
+                <div class="input-group">
+                    <input type="number" class="form-control" id="kit_price" name="repair_kit_price_per_stack"
+                           value="{{ settings.get('repair_kit_price_per_stack', {}).get('value', '10000') }}"
+                           min="0" step="100">
+                    <span class="input-group-text">gil</span>
+                </div>
+            </div>
+        </div>
+        {% if current_user.is_admin %}
+        <button type="submit" class="btn btn-primary mt-3">
+            <i class="bi bi-check"></i> Save Prices
+        </button>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Maintenance -->
+{% if current_user.is_admin %}
+<div class="settings-card">
+    <div class="settings-card-title">
+        <i class="bi bi-wrench"></i> Maintenance
+    </div>
+    <p class="text-muted small mb-2">
+        Manual maintenance actions for data updates and rebuilds.
+    </p>
+    <div class="alert alert-secondary py-2 small mb-3">
+        <i class="bi bi-info-circle"></i> These actions run automatically on a schedule. Only use these buttons if you notice data inconsistencies or need an immediate update.
+    </div>
+    <div class="d-flex flex-wrap gap-3">
+        <div>
+            <button type="button" class="btn btn-outline-primary" id="update-lumina-btn">
+                <i class="bi bi-cloud-download"></i> Update Game Data
+            </button>
+            <div class="form-text">Fetch latest submarine data from FFXIV datamining (parts, sectors, ranks). Updates automatically once per day.</div>
+        </div>
+        <div>
+            <button type="button" class="btn btn-outline-warning" id="rebuild-stats-btn">
+                <i class="bi bi-arrow-repeat"></i> Rebuild DailyStats
+            </button>
+            <div class="form-text">Recalculate all aggregated statistics from raw voyage data.</div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+(function() {
+    // Toast helper
+    function showToast(message, type = 'info') {
+        if (typeof window.showToast === 'function') {
+            window.showToast(message, type);
+            return;
+        }
+        alert(message);
+    }
+
+    // Scheduler settings form
+    document.getElementById('scheduler-settings-form')?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        const data = Object.fromEntries(formData.entries());
+
+        try {
+            const resp = await fetch('/settings/api/general', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify(data)
+            });
+            const result = await resp.json();
+            if (result.success) {
+                showToast('Schedule settings saved', 'success');
+            } else {
+                showToast(result.message || 'Failed to save settings', 'error');
+            }
+        } catch (err) {
+            showToast('Error saving settings', 'error');
+        }
+    });
+
+    // Material costs form
+    document.getElementById('material-costs-form')?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        const data = Object.fromEntries(formData.entries());
+
+        try {
+            const resp = await fetch('/settings/api/general', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify(data)
+            });
+            const result = await resp.json();
+            if (result.success) {
+                showToast('Material costs saved', 'success');
+            } else {
+                showToast(result.message || 'Failed to save settings', 'error');
+            }
+        } catch (err) {
+            showToast('Error saving settings', 'error');
+        }
+    });
+
+    // Rebuild stats button
+    document.getElementById('rebuild-stats-btn')?.addEventListener('click', async function() {
+        if (!confirm('Rebuild DailyStats from raw data? This may take a few seconds.')) return;
+
+        this.disabled = true;
+        this.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Rebuilding...';
+
+        try {
+            const resp = await fetch('/stats/rebuild-daily-stats', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const result = await resp.json();
+            if (result.success) {
+                showToast(result.message || 'DailyStats rebuilt successfully', 'success');
+            } else {
+                showToast(result.message || 'Failed to rebuild stats', 'error');
+            }
+        } catch (err) {
+            showToast('Error rebuilding stats', 'error');
+        } finally {
+            this.disabled = false;
+            this.innerHTML = '<i class="bi bi-arrow-repeat"></i> Rebuild DailyStats';
+        }
+    });
+
+    // Update Lumina game data button
+    document.getElementById('update-lumina-btn')?.addEventListener('click', async function() {
+        this.disabled = true;
+        this.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Updating...';
+
+        try {
+            const resp = await fetch('/settings/api/update-lumina', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const result = await resp.json();
+            if (result.success) {
+                showToast(result.message || 'Game data updated successfully', 'success');
+            } else {
+                showToast(result.message || 'Failed to update game data', 'error');
+            }
+        } catch (err) {
+            showToast('Error updating game data', 'error');
+        } finally {
+            this.disabled = false;
+            this.innerHTML = '<i class="bi bi-cloud-download"></i> Update Game Data';
+        }
+    });
+})();
+</script>

@@ -1,0 +1,499 @@
+<div class="settings-section-header">
+    <h2><i class="bi bi-bell"></i> Alert Settings</h2>
+</div>
+
+<p class="text-muted mb-4">Configure notifications for low supplies and idle submarines.</p>
+
+<form id="alerts-settings-form">
+<fieldset {% if current_user.is_readonly %}disabled{% endif %}>
+    <!-- Master Enable -->
+    <div class="settings-card {{ 'alert-enabled-card' if settings.alerts_enabled }}" id="alerts-enabled-card">
+        <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="alerts_enabled"
+                   name="alerts_enabled" {{ 'checked' if settings.alerts_enabled }}
+                   onchange="toggleAlertEnabledStyle(this.checked)">
+            <label class="form-check-label h5 mb-0" for="alerts_enabled">
+                <i class="bi bi-power"></i> Alerts Enabled
+            </label>
+        </div>
+        <small class="text-muted">Master toggle for all alert functionality.</small>
+    </div>
+
+    <!-- Section: Alert Conditions -->
+    <h5 class="text-muted mb-3 mt-4"><i class="bi bi-exclamation-triangle"></i> Alert Conditions</h5>
+    <div class="row">
+        <!-- Low Supply Alert -->
+        <div class="col-lg-6 mb-3">
+            <div class="settings-card h-100">
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="low_supply_enabled"
+                           name="low_supply_enabled" {{ 'checked' if settings.low_supply_enabled }}>
+                    <label class="form-check-label" for="low_supply_enabled">
+                        <i class="bi bi-fuel-pump"></i> Low Supply Alert
+                    </label>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small">Alert when days until restock below:</label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" class="form-control" name="low_supply_threshold_days"
+                               value="{{ settings.low_supply_threshold_days }}" step="0.5" min="1">
+                        <span class="input-group-text">days</span>
+                    </div>
+                </div>
+                <div class="mb-0">
+                    <label class="form-label small">Cooldown between alerts:</label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" class="form-control" name="low_supply_cooldown_minutes"
+                               value="{{ settings.low_supply_cooldown_minutes }}" min="5">
+                        <span class="input-group-text">minutes</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Idle Submarine Alert -->
+        <div class="col-lg-6 mb-3">
+            <div class="settings-card h-100">
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="idle_sub_enabled"
+                           name="idle_sub_enabled" {{ 'checked' if settings.idle_sub_enabled }}>
+                    <label class="form-check-label" for="idle_sub_enabled">
+                        <i class="bi bi-hourglass"></i> Idle Submarine Alert
+                    </label>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small">Alert when submarine ready for:</label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" class="form-control" name="idle_sub_threshold_hours"
+                               value="{{ settings.idle_sub_threshold_hours }}" step="0.5" min="0.5">
+                        <span class="input-group-text">hours</span>
+                    </div>
+                </div>
+                <div class="mb-0">
+                    <label class="form-label small">Cooldown between alerts:</label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" class="form-control" name="idle_sub_cooldown_minutes"
+                               value="{{ settings.idle_sub_cooldown_minutes }}" min="5">
+                        <span class="input-group-text">minutes</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Not Farming Alert -->
+        <div class="col-lg-6 mb-3">
+            <div class="settings-card h-100">
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="not_farming_enabled"
+                           name="not_farming_enabled" {{ 'checked' if settings.not_farming_enabled }}>
+                    <label class="form-check-label" for="not_farming_enabled">
+                        <i class="bi bi-currency-exchange"></i> Not Farming Alert
+                    </label>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small">Alert when submarine at or above level:</label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" class="form-control" name="not_farming_level_threshold"
+                               value="{{ settings.not_farming_level_threshold }}" min="1" max="125">
+                        <span class="input-group-text">is not on a money route</span>
+                    </div>
+                    <small class="text-muted">Triggers if a sub at this level or higher is on a leveling route instead of farming.</small>
+                </div>
+                <div class="mb-0">
+                    <label class="form-label small">Cooldown between alerts:</label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" class="form-control" name="not_farming_cooldown_minutes"
+                               value="{{ settings.not_farming_cooldown_minutes }}" min="5">
+                        <span class="input-group-text">minutes</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section: Notification Channels -->
+    <h5 class="text-muted mb-3 mt-2"><i class="bi bi-send"></i> Notification Channels</h5>
+    <div class="row">
+        <!-- Discord -->
+        <div class="col-lg-6 col-xl-4 mb-3">
+            <div class="settings-card h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" id="discord_enabled"
+                               name="discord_enabled" {{ 'checked' if settings.discord_enabled }}>
+                        <label class="form-check-label" for="discord_enabled">
+                            <i class="bi bi-discord"></i> Discord
+                        </label>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="testChannel('discord')">
+                        Test
+                    </button>
+                </div>
+                <input type="url" class="form-control form-control-sm" name="discord_webhook_url"
+                       placeholder="Webhook URL" value="{{ settings.discord_webhook_url or '' }}">
+            </div>
+        </div>
+
+        <!-- Pushover -->
+        <div class="col-lg-6 col-xl-4 mb-3">
+            <div class="settings-card h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" id="pushover_enabled"
+                               name="pushover_enabled" {{ 'checked' if settings.pushover_enabled }}>
+                        <label class="form-check-label" for="pushover_enabled">
+                            <i class="bi bi-phone"></i> Pushover
+                        </label>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="testChannel('pushover')">
+                        Test
+                    </button>
+                </div>
+                <div class="mb-2">
+                    <input type="text" class="form-control form-control-sm" name="pushover_user_key"
+                           placeholder="User Key" value="{{ settings.pushover_user_key or '' }}">
+                </div>
+                <div class="mb-2">
+                    <input type="password" class="form-control form-control-sm" name="pushover_api_token"
+                           placeholder="API Token (leave blank to keep)">
+                </div>
+                <div class="mb-0">
+                    <select class="form-select form-select-sm" name="pushover_priority">
+                        <option value="-2" {{ 'selected' if settings.pushover_priority == -2 }}>Lowest</option>
+                        <option value="-1" {{ 'selected' if settings.pushover_priority == -1 }}>Low</option>
+                        <option value="0" {{ 'selected' if settings.pushover_priority == 0 }}>Normal</option>
+                        <option value="1" {{ 'selected' if settings.pushover_priority == 1 }}>High</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Email -->
+        <div class="col-lg-6 col-xl-4 mb-3">
+            <div class="settings-card h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" id="email_enabled"
+                               name="email_enabled" {{ 'checked' if settings.email_enabled }}>
+                        <label class="form-check-label" for="email_enabled">
+                            <i class="bi bi-envelope"></i> Email
+                        </label>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="testChannel('email')">
+                        Test
+                    </button>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-8 pe-1">
+                        <input type="text" class="form-control form-control-sm" name="smtp_host"
+                               placeholder="SMTP Host" value="{{ settings.smtp_host or '' }}">
+                    </div>
+                    <div class="col-4 ps-1">
+                        <input type="number" class="form-control form-control-sm" name="smtp_port"
+                               placeholder="Port" value="{{ settings.smtp_port }}">
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="smtp_use_auth"
+                               name="smtp_use_auth" {{ 'checked' if settings.smtp_use_auth }}
+                               onchange="toggleSmtpAuth(this.checked)">
+                        <label class="form-check-label small" for="smtp_use_auth">Use Authentication</label>
+                    </div>
+                </div>
+                <div class="row mb-2" id="smtp-auth-fields" style="{{ '' if settings.smtp_use_auth else 'display: none;' }}">
+                    <div class="col-6 pe-1">
+                        <input type="text" class="form-control form-control-sm" name="smtp_username"
+                               placeholder="Username" value="{{ settings.smtp_username or '' }}">
+                    </div>
+                    <div class="col-6 ps-1">
+                        <input type="password" class="form-control form-control-sm" name="smtp_password"
+                               placeholder="Password">
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <input type="email" class="form-control form-control-sm" name="smtp_from_address"
+                           placeholder="From Address" value="{{ settings.smtp_from_address or '' }}">
+                </div>
+                <div class="mb-2">
+                    <input type="text" class="form-control form-control-sm" name="smtp_to_addresses"
+                           placeholder="To (comma-separated)" value="{{ settings.smtp_to_addresses or '' }}">
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="smtp_use_tls"
+                           name="smtp_use_tls" {{ 'checked' if settings.smtp_use_tls }}>
+                    <label class="form-check-label small" for="smtp_use_tls">Use TLS</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</fieldset>
+    {% if not current_user.is_readonly %}
+    <div class="mt-2 text-muted small" id="autosave-status">
+        <i class="bi bi-check-circle text-success"></i> Settings auto-save when changed
+    </div>
+    {% else %}
+    <div class="alert alert-info mb-0 mt-3">
+        <i class="bi bi-info-circle"></i> You have read-only access. Contact an admin to modify alert settings.
+    </div>
+    {% endif %}
+</form>
+
+<!-- Alert History -->
+<div class="settings-card mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="settings-card-title mb-0">
+            <i class="bi bi-clock-history"></i> Recent Alerts
+        </div>
+        {% if not current_user.is_readonly %}
+        <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearAlertHistory()">
+            <i class="bi bi-trash"></i> Clear
+        </button>
+        {% endif %}
+    </div>
+    <div class="table-responsive">
+        <table class="table table-dark table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Type</th>
+                    <th>Target</th>
+                    <th>Message</th>
+                    {% if not current_user.is_readonly %}<th class="text-end">Actions</th>{% endif %}
+                </tr>
+            </thead>
+            <tbody id="alert-history-tbody">
+                {% for alert in recent_alerts %}
+                <tr id="alert-row-{{ alert.id }}" class="{{ 'opacity-50' if alert.acknowledged }}">
+                    <td class="text-muted small"><span data-timestamp="{{ alert.created_at.isoformat() }}Z">{{ alert.created_at.strftime('%Y-%m-%d %H:%M') }}</span></td>
+                    <td>
+                        <span class="badge bg-{{ 'danger' if alert.severity == 'critical' else 'warning' if alert.severity == 'warning' else 'info' }}">
+                            {{ alert.alert_type.replace('_', ' ').title() }}
+                        </span>
+                    </td>
+                    <td>{{ alert.target_name }}</td>
+                    <td class="small">{{ alert.message }}</td>
+                    {% if not current_user.is_readonly %}
+                    <td class="text-end">
+                        {% if not alert.acknowledged %}
+                        <button class="btn btn-sm btn-outline-success py-0 px-1"
+                                onclick="markAlertRead({{ alert.id }})" title="Mark as read">
+                            <i class="bi bi-check"></i>
+                        </button>
+                        {% endif %}
+                        <button class="btn btn-sm btn-outline-danger py-0 px-1"
+                                onclick="deleteAlert({{ alert.id }})" title="Delete">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="{{ 5 if not current_user.is_readonly else 4 }}" class="text-center text-muted py-3">No alerts yet</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+.alert-enabled-card {
+    border-color: var(--ffxiv-success) !important;
+    box-shadow: 0 0 10px rgba(72, 187, 120, 0.2);
+}
+</style>
+
+<script>
+function toggleAlertEnabledStyle(enabled) {
+    const card = document.getElementById('alerts-enabled-card');
+    if (enabled) {
+        card.classList.add('alert-enabled-card');
+    } else {
+        card.classList.remove('alert-enabled-card');
+    }
+}
+
+function toggleSmtpAuth(enabled) {
+    const authFields = document.getElementById('smtp-auth-fields');
+    authFields.style.display = enabled ? '' : 'none';
+}
+
+async function markAlertRead(alertId) {
+    try {
+        const resp = await fetch('/alerts/acknowledge', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ ids: [alertId] })
+        });
+        if (resp.ok) {
+            const row = document.getElementById(`alert-row-${alertId}`);
+            if (row) {
+                row.classList.add('opacity-50');
+                const readBtn = row.querySelector('.btn-outline-success');
+                if (readBtn) readBtn.remove();
+            }
+            if (typeof loadAlertDropdown === 'function') {
+                loadAlertDropdown();
+            }
+        }
+    } catch (e) {
+        console.error('Failed to mark alert as read:', e);
+    }
+}
+
+async function deleteAlert(alertId) {
+    try {
+        const resp = await fetch(`/alerts/delete/${alertId}`, {
+            method: 'POST',
+            credentials: 'same-origin'
+        });
+        if (resp.ok) {
+            const row = document.getElementById(`alert-row-${alertId}`);
+            if (row) row.remove();
+            if (typeof loadAlertDropdown === 'function') {
+                loadAlertDropdown();
+            }
+        }
+    } catch (e) {
+        console.error('Failed to delete alert:', e);
+    }
+}
+
+async function clearAlertHistory() {
+    if (!confirm('Clear all alert history?')) return;
+    try {
+        const resp = await fetch('/alerts/clear-history', {
+            method: 'POST',
+            credentials: 'same-origin'
+        });
+        if (resp.ok) {
+            if (typeof reloadSettingsSection === 'function') reloadSettingsSection('alerts');
+        }
+    } catch (e) {
+        console.error('Failed to clear alert history:', e);
+    }
+}
+
+async function testChannel(channel) {
+    const btn = event.target.closest('button');
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    btn.disabled = true;
+
+    try {
+        const resp = await fetch(`/alerts/test/${channel}`, {
+            method: 'POST',
+            credentials: 'same-origin'
+        });
+        const result = await resp.json();
+
+        if (result.success) {
+            btn.innerHTML = '<i class="bi bi-check"></i>';
+            btn.classList.remove('btn-outline-primary');
+            btn.classList.add('btn-success');
+        } else {
+            btn.innerHTML = '<i class="bi bi-x"></i>';
+            btn.classList.remove('btn-outline-primary');
+            btn.classList.add('btn-danger');
+            alert('Test failed: ' + (result.message || 'Unknown error'));
+        }
+    } catch (e) {
+        btn.innerHTML = '<i class="bi bi-x"></i>';
+        btn.classList.add('btn-danger');
+        console.error('Test request failed:', e);
+    }
+
+    setTimeout(() => {
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+        btn.classList.remove('btn-success', 'btn-danger');
+        btn.classList.add('btn-outline-primary');
+    }, 3000);
+}
+
+// Auto-save functionality
+let saveTimeout = null;
+const statusEl = document.getElementById('autosave-status');
+
+function showSaveStatus(status) {
+    if (!statusEl) return;
+    if (status === 'saving') {
+        statusEl.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving...';
+    } else if (status === 'saved') {
+        statusEl.innerHTML = '<i class="bi bi-check-circle text-success"></i> Saved';
+    } else if (status === 'error') {
+        statusEl.innerHTML = '<i class="bi bi-x-circle text-danger"></i> Error saving';
+    }
+}
+
+async function saveSettings() {
+    const form = document.getElementById('alerts-settings-form');
+    if (!form) return;
+
+    showSaveStatus('saving');
+
+    const formData = new FormData(form);
+    const data = {};
+
+    // Handle checkboxes explicitly (unchecked = false)
+    ['alerts_enabled', 'low_supply_enabled', 'idle_sub_enabled', 'not_farming_enabled',
+     'discord_enabled', 'pushover_enabled', 'email_enabled', 'smtp_use_auth', 'smtp_use_tls'].forEach(field => {
+        data[field] = formData.has(field);
+    });
+
+    // Handle other fields
+    for (const [key, value] of formData.entries()) {
+        if (!data.hasOwnProperty(key)) {
+            data[key] = value;
+        }
+    }
+
+    try {
+        const resp = await fetch('/alerts/save-settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify(data)
+        });
+        const result = await resp.json();
+        if (result.success) {
+            showSaveStatus('saved');
+        } else {
+            showSaveStatus('error');
+        }
+    } catch (err) {
+        showSaveStatus('error');
+    }
+}
+
+function triggerSave(immediate = false) {
+    if (saveTimeout) clearTimeout(saveTimeout);
+    if (immediate) {
+        saveSettings();
+    } else {
+        // Debounce for text inputs
+        saveTimeout = setTimeout(saveSettings, 500);
+    }
+}
+
+// Attach auto-save listeners to all form inputs
+const form = document.getElementById('alerts-settings-form');
+if (form) {
+    // Checkboxes and selects - save immediately on change
+    form.querySelectorAll('input[type="checkbox"], select').forEach(el => {
+        el.addEventListener('change', () => triggerSave(true));
+    });
+
+    // Text and number inputs - debounced save
+    form.querySelectorAll('input[type="text"], input[type="number"], input[type="url"], input[type="email"], input[type="password"]').forEach(el => {
+        el.addEventListener('input', () => triggerSave(false));
+    });
+
+    // Prevent form submission (no longer needed but keep as safety)
+    form.addEventListener('submit', (e) => e.preventDefault());
+}
+</script>

@@ -1,0 +1,460 @@
+{% extends "base.html" %}
+
+{% block title %}Statistics{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-graph-up"></i> Statistics</h2>
+    <div class="btn-group">
+        <a href="{{ url_for('stats.index', days=1) }}" class="btn btn-outline-secondary {% if days == 1 %}active{% endif %}">1 Day</a>
+        <a href="{{ url_for('stats.index', days=7) }}" class="btn btn-outline-secondary {% if days == 7 %}active{% endif %}">7 Days</a>
+        <a href="{{ url_for('stats.index', days=30) }}" class="btn btn-outline-secondary {% if days == 30 %}active{% endif %}">30 Days</a>
+        <a href="{{ url_for('stats.index', days=90) }}" class="btn btn-outline-secondary {% if days == 90 %}active{% endif %}">90 Days</a>
+        <a href="{{ url_for('stats.index', days=0) }}" class="btn btn-outline-secondary {% if days == 0 %}active{% endif %}">All</a>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card summary-card">
+            <div class="card-body d-flex align-items-center justify-content-center">
+                <i class="bi bi-compass fs-1 text-muted me-3"></i>
+                <div>
+                    <h6 class="text-muted mb-0">Total Voyages</h6>
+                    <h2 class="mb-0">{{ summary.total_voyages }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card summary-card">
+            <div class="card-body d-flex align-items-center justify-content-center">
+                <i class="bi bi-speedometer2 fs-1 text-muted me-3"></i>
+                <div>
+                    <h6 class="text-muted mb-0">Avg Voyages/Day</h6>
+                    <h2 class="mb-0">{{ summary.avg_voyages_per_day }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card summary-card">
+            <div class="card-body d-flex align-items-center justify-content-center">
+                <i class="bi bi-coin fs-1 text-success me-3"></i>
+                <div>
+                    <h6 class="text-muted mb-0">Farming Subs</h6>
+                    <h2 class="mb-0 text-success">{{ fleet_summary.farming_subs }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card summary-card">
+            <div class="card-body d-flex align-items-center justify-content-center">
+                <i class="bi bi-arrow-up-circle fs-1 text-warning me-3"></i>
+                <div>
+                    <h6 class="text-muted mb-0">Leveling Subs</h6>
+                    <h2 class="mb-0 text-warning">{{ fleet_summary.leveling_subs }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Fleet Overview -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-globe"></i> FCs by Region</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col">
+                        <h3 class="text-primary mb-0">{{ region_counts.get('NA', 0) }}</h3>
+                        <small class="text-muted">NA</small>
+                    </div>
+                    <div class="col">
+                        <h3 class="text-success mb-0">{{ region_counts.get('EU', 0) }}</h3>
+                        <small class="text-muted">EU</small>
+                    </div>
+                    <div class="col">
+                        <h3 class="text-danger mb-0">{{ region_counts.get('JP', 0) }}</h3>
+                        <small class="text-muted">JP</small>
+                    </div>
+                    <div class="col">
+                        <h3 class="text-warning mb-0">{{ region_counts.get('OCE', 0) }}</h3>
+                        <small class="text-muted">OCE</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-building"></i> Fleet Overview</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col">
+                        <h3 class="mb-0">{{ fleet_summary.fc_count }}</h3>
+                        <small class="text-muted">Total FCs</small>
+                    </div>
+                    <div class="col">
+                        <h3 class="mb-0">{{ fleet_summary.total_subs }}</h3>
+                        <small class="text-muted">Submarines</small>
+                    </div>
+                    <div class="col">
+                        <h3 class="text-warning mb-0">{{ "{:,.0f}".format(fleet_summary.total_gil_per_day) }}</h3>
+                        <small class="text-muted">Gil/Day</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row 1 -->
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-graph-up"></i> Voyages Over Time</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="voyages-chart" height="120"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-bar-chart-steps"></i> Submarine Levels</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="level-chart" height="120"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row 2 -->
+<div class="row mb-4">
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-signpost-split"></i> Most Popular Routes</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="routes-chart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-clock"></i> Activity by Hour</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="hour-chart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row 3 -->
+<div class="row mb-4">
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-building"></i> Voyages by FC</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="fc-voyages-chart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-fuel-pump"></i> Days Until Restock</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="supply-chart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row 4 -->
+<div class="row mb-4">
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-trophy"></i> Top Submarines</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="top-subs-chart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-wrench"></i> Popular Builds</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="builds-chart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+// Chart data from server
+const chartData = {{ chart_data|tojson }};
+const supplyData = {{ supply_data|tojson }};
+const fleetChartData = {{ fleet_chart_data|tojson }};
+
+// Common chart options for dark theme
+const darkThemeOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+        legend: {
+            labels: { color: 'rgba(255,255,255,0.7)' }
+        }
+    },
+    scales: {
+        y: {
+            beginAtZero: true,
+            grid: { color: 'rgba(255,255,255,0.1)' },
+            ticks: { color: 'rgba(255,255,255,0.7)' }
+        },
+        x: {
+            grid: { color: 'rgba(255,255,255,0.1)' },
+            ticks: { color: 'rgba(255,255,255,0.7)' }
+        }
+    }
+};
+
+// 1. Voyages Over Time Chart
+const voyagesCtx = document.getElementById('voyages-chart').getContext('2d');
+const byDate = chartData.by_date || [];
+const last14Days = byDate.slice(-14);
+
+new Chart(voyagesCtx, {
+    type: 'line',
+    data: {
+        labels: last14Days.map(d => d.date.slice(5)), // MM-DD format
+        datasets: [{
+            label: 'Voyages',
+            data: last14Days.map(d => d.total),
+            borderColor: 'rgba(99, 179, 237, 1)',
+            backgroundColor: 'rgba(99, 179, 237, 0.2)',
+            fill: true,
+            tension: 0.3
+        }]
+    },
+    options: {
+        ...darkThemeOptions,
+        plugins: {
+            legend: { display: false }
+        }
+    }
+});
+
+// 2. Submarine Level Distribution Chart
+const levelCtx = document.getElementById('level-chart').getContext('2d');
+const levelDist = fleetChartData.level_distribution || {};
+const levelLabels = ['1-20', '21-40', '41-60', '61-80', '81-100', '100+'];
+const levelColors = [
+    'rgba(160, 174, 192, 0.7)',
+    'rgba(99, 179, 237, 0.7)',
+    'rgba(72, 187, 120, 0.7)',
+    'rgba(237, 137, 54, 0.7)',
+    'rgba(237, 100, 166, 0.7)',
+    'rgba(168, 85, 247, 0.7)'
+];
+
+new Chart(levelCtx, {
+    type: 'bar',
+    data: {
+        labels: levelLabels,
+        datasets: [{
+            label: 'Submarines',
+            data: levelLabels.map(l => levelDist[l] || 0),
+            backgroundColor: levelColors,
+            borderColor: levelColors.map(c => c.replace('0.7', '1')),
+            borderWidth: 1
+        }]
+    },
+    options: {
+        ...darkThemeOptions,
+        plugins: { legend: { display: false } }
+    }
+});
+
+// 3. Most Popular Routes Chart
+const routesCtx = document.getElementById('routes-chart').getContext('2d');
+const byRoute = chartData.by_route || [];
+
+new Chart(routesCtx, {
+    type: 'bar',
+    data: {
+        labels: byRoute.map(r => r.route.length > 20 ? r.route.slice(0, 20) + '...' : r.route),
+        datasets: [{
+            label: 'Voyages',
+            data: byRoute.map(r => r.count),
+            backgroundColor: 'rgba(168, 85, 247, 0.7)',
+            borderColor: 'rgba(168, 85, 247, 1)',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        ...darkThemeOptions,
+        indexAxis: 'y',
+        plugins: { legend: { display: false } }
+    }
+});
+
+// 4. Activity by Hour Chart
+const hourCtx = document.getElementById('hour-chart').getContext('2d');
+const byHour = chartData.by_hour || [];
+
+new Chart(hourCtx, {
+    type: 'bar',
+    data: {
+        labels: byHour.map(h => h.hour.toString().padStart(2, '0') + ':00'),
+        datasets: [{
+            label: 'Voyages',
+            data: byHour.map(h => h.count),
+            backgroundColor: 'rgba(237, 137, 54, 0.7)',
+            borderColor: 'rgba(237, 137, 54, 1)',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        ...darkThemeOptions,
+        plugins: { legend: { display: false } },
+        scales: {
+            ...darkThemeOptions.scales,
+            x: {
+                ...darkThemeOptions.scales.x,
+                ticks: {
+                    color: 'rgba(255,255,255,0.7)',
+                    maxRotation: 45,
+                    minRotation: 45
+                }
+            }
+        }
+    }
+});
+
+// 5. Voyages by FC Chart
+const fcVoyagesCtx = document.getElementById('fc-voyages-chart').getContext('2d');
+const byFC = chartData.by_fc || [];
+
+new Chart(fcVoyagesCtx, {
+    type: 'bar',
+    data: {
+        labels: byFC.map(fc => fc.fc_name.length > 15 ? fc.fc_name.slice(0, 15) + '...' : fc.fc_name),
+        datasets: [{
+            label: 'Voyages',
+            data: byFC.map(fc => fc.total),
+            backgroundColor: 'rgba(99, 179, 237, 0.7)',
+            borderColor: 'rgba(99, 179, 237, 1)',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        ...darkThemeOptions,
+        indexAxis: 'y',
+        plugins: { legend: { display: false } }
+    }
+});
+
+// 6. Supply Levels Chart (Days Until Restock)
+const supplyCtx = document.getElementById('supply-chart').getContext('2d');
+const supplyFiltered = supplyData.filter(s => s.days_until_restock !== null).slice(0, 10);
+
+new Chart(supplyCtx, {
+    type: 'bar',
+    data: {
+        labels: supplyFiltered.map(s => s.fc_name.length > 15 ? s.fc_name.slice(0, 15) + '...' : s.fc_name),
+        datasets: [{
+            label: 'Days',
+            data: supplyFiltered.map(s => s.days_until_restock),
+            backgroundColor: supplyFiltered.map(s => {
+                if (s.days_until_restock <= 3) return 'rgba(245, 101, 101, 0.7)';
+                if (s.days_until_restock <= 7) return 'rgba(237, 137, 54, 0.7)';
+                return 'rgba(72, 187, 120, 0.7)';
+            }),
+            borderColor: supplyFiltered.map(s => {
+                if (s.days_until_restock <= 3) return 'rgba(245, 101, 101, 1)';
+                if (s.days_until_restock <= 7) return 'rgba(237, 137, 54, 1)';
+                return 'rgba(72, 187, 120, 1)';
+            }),
+            borderWidth: 1
+        }]
+    },
+    options: {
+        ...darkThemeOptions,
+        indexAxis: 'y',
+        plugins: { legend: { display: false } }
+    }
+});
+
+// 7. Top Submarines Chart
+const topSubsCtx = document.getElementById('top-subs-chart').getContext('2d');
+const topSubs = chartData.top_submarines || [];
+
+new Chart(topSubsCtx, {
+    type: 'bar',
+    data: {
+        labels: topSubs.map(s => s.name),
+        datasets: [{
+            label: 'Voyages',
+            data: topSubs.map(s => s.count),
+            backgroundColor: 'rgba(72, 187, 120, 0.7)',
+            borderColor: 'rgba(72, 187, 120, 1)',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        ...darkThemeOptions,
+        indexAxis: 'y',
+        plugins: { legend: { display: false } }
+    }
+});
+
+// 8. Popular Builds Chart
+const buildsCtx = document.getElementById('builds-chart').getContext('2d');
+const topBuilds = fleetChartData.top_builds || [];
+
+new Chart(buildsCtx, {
+    type: 'bar',
+    data: {
+        labels: topBuilds.map(b => b.build),
+        datasets: [{
+            label: 'Submarines',
+            data: topBuilds.map(b => b.count),
+            backgroundColor: 'rgba(237, 100, 166, 0.7)',
+            borderColor: 'rgba(237, 100, 166, 1)',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        ...darkThemeOptions,
+        indexAxis: 'y',
+        plugins: { legend: { display: false } }
+    }
+});
+</script>
+{% endblock %}

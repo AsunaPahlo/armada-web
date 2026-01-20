@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+{% block title %}Sector Unlocks{% endblock %}
+
+{% block extra_css %}
+<link href="https://unpkg.com/vis-network@9.1.9/dist/dist/vis-network.min.css" rel="stylesheet" type="text/css" />
+<style>
+    .unlock-container {
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 200px);
+        min-height: 500px;
+    }
+
+    .unlock-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .fc-selector {
+        min-width: 250px;
+    }
+
+    .map-progress-bar {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .map-progress-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 0.5rem;
+        border-radius: 6px;
+        background: var(--ffxiv-bg-card);
+        border: 1px solid var(--ffxiv-border);
+        min-width: 100px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .map-progress-item:hover {
+        border-color: var(--ffxiv-accent);
+        transform: translateY(-2px);
+    }
+
+    .map-progress-item.active {
+        border-color: var(--ffxiv-accent);
+        background: rgba(99, 179, 237, 0.1);
+    }
+
+    .map-progress-item.locked {
+        opacity: 0.5;
+    }
+
+    .map-progress-item .map-name {
+        font-size: 0.75rem;
+        color: var(--ffxiv-text-muted);
+        margin-bottom: 0.25rem;
+    }
+
+    .map-progress-item .progress-text {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--ffxiv-text);
+    }
+
+    .map-progress-item .progress-bar-container {
+        width: 100%;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 2px;
+        margin-top: 0.25rem;
+        overflow: hidden;
+    }
+
+    .map-progress-item .progress-bar-fill {
+        height: 100%;
+        background: var(--ffxiv-success);
+        border-radius: 2px;
+        transition: width 0.3s ease;
+    }
+
+    .map-progress-item.complete .progress-bar-fill {
+        background: var(--ffxiv-gold);
+    }
+
+    .flowchart-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: var(--ffxiv-bg-card);
+        border: 1px solid var(--ffxiv-border);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .flowchart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem;
+        border-bottom: 1px solid var(--ffxiv-border);
+        background: rgba(0, 0, 0, 0.2);
+    }
+
+    .flowchart-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--ffxiv-text-bright);
+    }
+
+    .flowchart-legend {
+        display: flex;
+        gap: 1rem;
+        font-size: 0.8rem;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        color: var(--ffxiv-text-muted);
+    }
+
+    .legend-icon {
+        width: 16px;
+        height: 16px;
+        border-radius: 3px;
+        border: 2px solid;
+    }
+
+    .legend-icon.unlocked {
+        background: #68d391;
+        border-color: #38a169;
+    }
+
+    .legend-icon.available {
+        background: #f6e05e;
+        border-color: #d69e2e;
+    }
+
+    .legend-icon.locked {
+        background: #4a5568;
+        border-color: #2d3748;
+    }
+
+    .legend-icon.submarine {
+        background: #68d391;
+        border-color: #38a169;
+        border-radius: 50%;
+        width: 20px;
+        height: 14px;
+    }
+
+    .legend-icon.map-unlock {
+        background: #63b3ed;
+        border-color: #3182ce;
+        border-radius: 50%;
+    }
+
+    #flowchart-network {
+        flex: 1;
+        width: 100%;
+        min-height: 400px;
+    }
+
+    .flowchart-controls {
+        padding: 0.5rem 1rem;
+        display: flex;
+        justify-content: center;
+        gap: 0.5rem;
+        border-top: 1px solid var(--ffxiv-border);
+        background: rgba(0, 0, 0, 0.1);
+    }
+
+    .flowchart-controls .btn {
+        padding: 0.25rem 0.75rem;
+        font-size: 0.85rem;
+    }
+
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+    }
+
+    .loading-overlay.hidden {
+        display: none;
+    }
+
+    .sector-tooltip {
+        background: var(--ffxiv-bg-darker);
+        border: 1px solid var(--ffxiv-border);
+        border-radius: 4px;
+        padding: 0.5rem;
+        font-size: 0.85rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="unlock-container">
+    <div class="unlock-header">
+        <div class="d-flex align-items-center gap-3">
+            <h4 class="mb-0"><i class="bi bi-diagram-3"></i> Sector Unlocks</h4>
+            <select id="fc-selector" class="form-select form-select-sm fc-selector">
+                <option value="all">All FCs (Aggregate)</option>
+                {% for fc in fcs %}
+                <option value="{{ fc.fc_id }}" {% if fc.fc_id == default_fc %}selected{% endif %}>
+                    {{ fc.fc_name }} ({{ fc.world }})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="map-progress-bar" id="map-progress-bar">
+            {% for map_id in range(1, 8) %}
+            {% set map_data = map_summary.get(map_id, {}) %}
+            <div class="map-progress-item {% if map_id == 1 %}active{% endif %} {% if not map_data.get('accessible', False) %}locked{% endif %} {% if map_data.get('complete', False) %}complete{% endif %}"
+                 data-map-id="{{ map_id }}"
+                 title="{{ map_names.get(map_id, 'Map ' ~ map_id) }}">
+                <span class="map-name">Map {{ map_id }}</span>
+                <span class="progress-text">{{ map_data.get('unlocked', 0) }}/{{ map_data.get('total', 0) }}</span>
+                <div class="progress-bar-container">
+                    <div class="progress-bar-fill" style="width: {{ map_data.get('percent', 0) }}%"></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="flowchart-container position-relative">
+        <div class="flowchart-header">
+            <span class="flowchart-title" id="current-map-name">{{ map_names.get(1, 'Map 1') }}</span>
+            <div class="flowchart-legend">
+                <div class="legend-item">
+                    <div class="legend-icon unlocked"></div>
+                    <span>Unlocked</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-icon available"></div>
+                    <span>Available</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-icon locked"></div>
+                    <span>Locked</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-icon submarine"></div>
+                    <span>+Submarine</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-icon map-unlock"></div>
+                    <span>+Map</span>
+                </div>
+            </div>
+        </div>
+        <div id="flowchart-network"></div>
+        <div class="flowchart-controls">
+            <button class="btn btn-outline-secondary btn-sm" onclick="unlockFlowchart.zoomIn()" title="Zoom In">
+                <i class="bi bi-zoom-in"></i>
+            </button>
+            <button class="btn btn-outline-secondary btn-sm" onclick="unlockFlowchart.zoomOut()" title="Zoom Out">
+                <i class="bi bi-zoom-out"></i>
+            </button>
+            <button class="btn btn-outline-secondary btn-sm" onclick="unlockFlowchart.fitNetwork()" title="Fit to View">
+                <i class="bi bi-arrows-fullscreen"></i>
+            </button>
+            <button class="btn btn-outline-secondary btn-sm" onclick="unlockFlowchart.resetView()" title="Reset View">
+                <i class="bi bi-arrow-counterclockwise"></i>
+            </button>
+        </div>
+        <div class="loading-overlay hidden" id="loading-overlay">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/vis-network@9.1.9/dist/vis-network.min.js"></script>
+<script src="{{ url_for('static', filename='js/unlocks.js') }}"></script>
+<script>
+    // Initialize with map names passed from server
+    const mapNames = {{ map_names | tojson }};
+
+    // Initialize the flowchart controller
+    const unlockFlowchart = new UnlockFlowchart(mapNames);
+
+    // Load initial map
+    document.addEventListener('DOMContentLoaded', function() {
+        unlockFlowchart.init();
+    });
+</script>
+{% endblock %}

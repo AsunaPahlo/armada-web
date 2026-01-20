@@ -1,0 +1,364 @@
+{% extends "base.html" %}
+
+{% block title %}Submarines{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <h2 class="mb-0"><i class="fa-solid fa-anchor me-2"></i>Submarines</h2>
+        <span class="badge bg-secondary fs-6" id="sub-count-badge">{{ submarines|length }}</span>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+        <div class="input-group" style="width: 250px;">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" class="form-control" id="sub-search" placeholder="Search subs, chars, FCs...">
+        </div>
+    </div>
+</div>
+
+<!-- Summary -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card summary-card">
+            <div class="card-body text-center">
+                <h6 class="text-muted">Total</h6>
+                <h2>{{ summary.total_subs }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card summary-card ready">
+            <div class="card-body text-center">
+                <h6 class="text-muted">Ready</h6>
+                <h2 class="text-success">{{ summary.ready_subs }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card summary-card">
+            <div class="card-body text-center">
+                <h6 class="text-muted">Voyaging</h6>
+                <h2 class="text-info">{{ summary.voyaging_subs }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card summary-card">
+            <div class="card-body text-center">
+                <h6 class="text-muted">Total Gil/Day</h6>
+                <h2 class="text-warning">{{ "{:,}".format(summary.total_gil_per_day) }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Submarines Table -->
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0" id="submarines-table">
+                <thead>
+                    <tr>
+                        <th class="sortable" data-sort="name">Submarine <i class="bi bi-arrow-down-up sort-icon"></i></th>
+                        <th class="sortable" data-sort="character">Character <i class="bi bi-arrow-down-up sort-icon"></i></th>
+                        <th class="sortable" data-sort="fc">FC <i class="bi bi-arrow-down-up sort-icon"></i></th>
+                        <th class="sortable" data-sort="build">Build <i class="bi bi-arrow-down-up sort-icon"></i></th>
+                        <th class="sortable" data-sort="route">Route <i class="bi bi-arrow-down-up sort-icon"></i></th>
+                        <th class="sortable" data-sort="level">Level <i class="bi bi-arrow-down-up sort-icon"></i></th>
+                        <th>EXP</th>
+                        <th class="sortable text-end" data-sort="gil">Gil/Day <i class="bi bi-arrow-down-up sort-icon"></i></th>
+                        <th class="sortable text-end" data-sort="time">Time <i class="bi bi-arrow-down-up sort-icon"></i></th>
+                        <th class="text-end">Return Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sub in submarines %}
+                    {% set sub_tags = fc_tags.get(sub.fc_id|string, []) %}
+                    <tr class="sub-row {% if sub.status == 'ready' %}table-success{% elif sub.status == 'returning_soon' %}table-warning{% endif %}"
+                        data-name="{{ sub.name }}"
+                        data-character="{{ sub.character }}"
+                        data-fc="{{ sub.fc_name }}"
+                        data-world="{{ sub.world }}"
+                        data-build="{{ sub.build }}"
+                        data-route="{{ sub.route }}"
+                        data-level="{{ sub.level }}"
+                        data-gil="{{ sub.gil_per_day }}"
+                        data-time="{{ sub.hours_remaining }}"
+                        data-tags="{{ sub_tags|map(attribute='name')|join(' ') }}">
+                        <td>
+                            <strong>{{ sub.name }}</strong>
+                            {% for tag in sub_tags %}
+                            <span class="badge bg-{{ tag.color }} ms-1" style="font-size: 0.7em;">{{ tag.name }}</span>
+                            {% endfor %}
+                        </td>
+                        <td>
+                            {{ sub.character }}
+                            <br><small class="text-muted">{{ sub.world }}</small>
+                        </td>
+                        <td>{{ sub.fc_name or "-" }}</td>
+                        <td><code>{{ sub.build or "-" }}</code></td>
+                        <td>{{ sub.route or "-" }}</td>
+                        <td>{{ sub.level }}</td>
+                        <td style="min-width: 80px;">
+                            <div class="progress exp-bar">
+                                <div class="progress-bar bg-info" style="width: {{ sub.exp_progress }}%"></div>
+                            </div>
+                        </td>
+                        <td class="text-end text-warning">{{ "{:,.0f}".format(sub.gil_per_day) }}</td>
+                        <td class="text-end">
+                            {% if sub.status == 'ready' %}
+                            <span class="badge bg-success" data-state="ready">READY</span>
+                            {% elif sub.hours_remaining <= 0.5 %}
+                            <span class="badge bg-warning text-dark timer-countdown" data-return="{{ sub.return_time }}" data-state="warning">
+                                <i class="bi bi-hourglass-split"></i> {{ "%.0f"|format(sub.hours_remaining * 60) }}m
+                            </span>
+                            {% elif sub.hours_remaining < 1 %}
+                            <span class="timer-countdown text-muted" data-return="{{ sub.return_time }}" data-state="normal">
+                                <i class="bi bi-clock"></i> {{ "%.0f"|format(sub.hours_remaining * 60) }}m
+                            </span>
+                            {% else %}
+                            <span class="timer-countdown text-muted" data-return="{{ sub.return_time }}" data-state="normal">
+                                <i class="bi bi-clock"></i> {{ "%.1f"|format(sub.hours_remaining) }}h
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end text-muted"><span data-timestamp="{{ sub.return_time }}" data-format="short">{{ sub.return_time_display }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Submarine row hover styles */
+.sub-row,
+.sub-row > td {
+    --bs-table-bg-state: transparent !important;
+    --bs-table-accent-bg: transparent !important;
+}
+
+.sub-row:hover,
+.sub-row:hover > td {
+    --bs-table-bg-state: transparent !important;
+    --bs-table-accent-bg: transparent !important;
+    --bs-table-hover-bg: transparent !important;
+    background: rgba(99, 179, 237, 0.2) !important;
+}
+
+/* Ready rows - green */
+.sub-row.table-success,
+.sub-row.table-success > td {
+    --bs-table-bg-state: transparent !important;
+    --bs-table-accent-bg: transparent !important;
+    background: rgba(53, 109, 74, 0.38) !important;
+}
+
+.sub-row.table-success:hover,
+.sub-row.table-success:hover > td {
+    --bs-table-bg-state: transparent !important;
+    --bs-table-accent-bg: transparent !important;
+    --bs-table-hover-bg: transparent !important;
+    background: rgba(53, 109, 74, 0.55) !important;
+}
+
+/* Returning soon rows - amber */
+.sub-row.table-warning,
+.sub-row.table-warning > td {
+    --bs-table-bg-state: transparent !important;
+    --bs-table-accent-bg: transparent !important;
+    background: rgba(251, 191, 36, 0.28) !important;
+}
+
+.sub-row.table-warning:hover,
+.sub-row.table-warning:hover > td {
+    --bs-table-bg-state: transparent !important;
+    --bs-table-accent-bg: transparent !important;
+    --bs-table-hover-bg: transparent !important;
+    background: rgba(251, 191, 36, 0.4) !important;
+}
+
+.sub-row.table-warning .text-muted {
+    color: #adb5bd !important;
+}
+
+.sub-row.table-warning .text-warning {
+    color: #ffc107 !important;
+}
+
+.sub-row.table-warning code {
+    color: #fff !important;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.sub-row.table-warning .badge.bg-warning {
+    color: #212529 !important;
+}
+
+/* Sortable column headers */
+.sortable {
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.sortable:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.sortable .sort-icon {
+    font-size: 0.75em;
+    opacity: 0.4;
+    margin-left: 4px;
+}
+
+.sortable:hover .sort-icon {
+    opacity: 0.7;
+}
+
+.sortable.sort-asc .sort-icon,
+.sortable.sort-desc .sort-icon {
+    opacity: 1;
+    color: var(--ffxiv-accent);
+}
+
+/* Hidden rows when searching */
+.sub-row.search-hidden {
+    display: none !important;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const table = document.getElementById('submarines-table');
+    const tbody = table.querySelector('tbody');
+    const headers = table.querySelectorAll('th.sortable');
+
+    let currentSort = { column: 'time', direction: 'asc' };
+
+    // Numeric columns (sort as numbers)
+    const numericColumns = ['level', 'gil', 'time'];
+
+    function sortTable(column, direction) {
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        const isNumeric = numericColumns.includes(column);
+
+        rows.sort((a, b) => {
+            let aVal = a.dataset[column] || '';
+            let bVal = b.dataset[column] || '';
+
+            if (isNumeric) {
+                aVal = parseFloat(aVal) || 0;
+                bVal = parseFloat(bVal) || 0;
+                return direction === 'asc' ? aVal - bVal : bVal - aVal;
+            } else {
+                aVal = aVal.toLowerCase();
+                bVal = bVal.toLowerCase();
+                if (direction === 'asc') {
+                    return aVal.localeCompare(bVal);
+                } else {
+                    return bVal.localeCompare(aVal);
+                }
+            }
+        });
+
+        rows.forEach(row => tbody.appendChild(row));
+    }
+
+    function updateHeaderStyles() {
+        headers.forEach(header => {
+            const column = header.dataset.sort;
+            const icon = header.querySelector('.sort-icon');
+
+            header.classList.remove('sort-asc', 'sort-desc');
+            icon.className = 'bi sort-icon';
+
+            if (column === currentSort.column) {
+                if (currentSort.direction === 'asc') {
+                    header.classList.add('sort-asc');
+                    icon.classList.add('bi-arrow-up');
+                } else {
+                    header.classList.add('sort-desc');
+                    icon.classList.add('bi-arrow-down');
+                }
+            } else {
+                icon.classList.add('bi-arrow-down-up');
+            }
+        });
+    }
+
+    // Add click handlers to sortable headers
+    headers.forEach(header => {
+        header.addEventListener('click', function() {
+            const column = this.dataset.sort;
+
+            // Toggle direction if same column, otherwise default to asc (desc for time)
+            if (column === currentSort.column) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.column = column;
+                // Default: time sorts ascending (soonest first), others sort ascending too
+                currentSort.direction = 'asc';
+            }
+
+            sortTable(currentSort.column, currentSort.direction);
+            updateHeaderStyles();
+        });
+    });
+
+    // Initial sort by time ascending
+    sortTable('time', 'asc');
+    updateHeaderStyles();
+
+    // ==================== SEARCH ====================
+    const searchInput = document.getElementById('sub-search');
+    const countBadge = document.getElementById('sub-count-badge');
+    const totalSubs = tbody.querySelectorAll('tr.sub-row').length;
+
+    function applySearch() {
+        const query = searchInput.value.toLowerCase().trim();
+        let visibleCount = 0;
+
+        tbody.querySelectorAll('tr.sub-row').forEach(row => {
+            const name = (row.dataset.name || '').toLowerCase();
+            const character = (row.dataset.character || '').toLowerCase();
+            const fc = (row.dataset.fc || '').toLowerCase();
+            const world = (row.dataset.world || '').toLowerCase();
+            const build = (row.dataset.build || '').toLowerCase();
+            const route = (row.dataset.route || '').toLowerCase();
+            const tags = (row.dataset.tags || '').toLowerCase();
+
+            const matches = query === '' ||
+                name.includes(query) ||
+                character.includes(query) ||
+                fc.includes(query) ||
+                world.includes(query) ||
+                build.includes(query) ||
+                route.includes(query) ||
+                tags.includes(query);
+
+            if (matches) {
+                row.classList.remove('search-hidden');
+                visibleCount++;
+            } else {
+                row.classList.add('search-hidden');
+            }
+        });
+
+        // Update count badge
+        if (query !== '') {
+            countBadge.textContent = `${visibleCount}/${totalSubs}`;
+        } else {
+            countBadge.textContent = totalSubs;
+        }
+    }
+
+    searchInput.addEventListener('input', applySearch);
+})();
+</script>
+{% endblock %}

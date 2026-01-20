@@ -1,0 +1,563 @@
+{% extends "mobile/base.html" %}
+
+{% block title %}More{% endblock %}
+{% block header_title %}More{% endblock %}
+
+{% block content %}
+<!-- App Header Card -->
+<div class="more-header-card">
+    <div class="more-header-logo">
+        <img src="{{ url_for('static', filename='armada_logo.png') }}" alt="Armada">
+    </div>
+    <div class="more-header-info">
+        <h2>Armada</h2>
+        <p>Submarine Fleet Manager</p>
+    </div>
+    <div class="more-header-version">v1.0.0</div>
+</div>
+
+<!-- Quick Links -->
+<div class="settings-section">
+    <div class="settings-header">Quick Links</div>
+    <div class="settings-card">
+        <a href="{{ url_for('stats.loot') }}" class="settings-item">
+            <div class="settings-item-icon loot">
+                <i class="bi bi-gem"></i>
+            </div>
+            <div class="settings-item-content">
+                <div class="settings-item-title">Loot History</div>
+                <div class="settings-item-subtitle">View collected items and gil</div>
+            </div>
+            <i class="bi bi-chevron-right settings-item-arrow"></i>
+        </a>
+        <a href="{{ url_for('stats.profits') }}" class="settings-item">
+            <div class="settings-item-icon profit">
+                <i class="bi bi-graph-up-arrow"></i>
+            </div>
+            <div class="settings-item-content">
+                <div class="settings-item-title">Profit Analysis</div>
+                <div class="settings-item-subtitle">Track earnings and projections</div>
+            </div>
+            <i class="bi bi-chevron-right settings-item-arrow"></i>
+        </a>
+        <a href="{{ url_for('stats.voyages') }}" class="settings-item">
+            <div class="settings-item-icon voyages">
+                <i class="bi bi-clock-history"></i>
+            </div>
+            <div class="settings-item-content">
+                <div class="settings-item-title">Voyage History</div>
+                <div class="settings-item-subtitle">Complete voyage log</div>
+            </div>
+            <i class="bi bi-chevron-right settings-item-arrow"></i>
+        </a>
+        <a href="{{ url_for('dashboard.index') }}" class="settings-item">
+            <div class="settings-item-icon desktop">
+                <i class="bi bi-display"></i>
+            </div>
+            <div class="settings-item-content">
+                <div class="settings-item-title">Desktop Dashboard</div>
+                <div class="settings-item-subtitle">Full-featured desktop view</div>
+            </div>
+            <i class="bi bi-chevron-right settings-item-arrow"></i>
+        </a>
+    </div>
+</div>
+
+<!-- Preferences -->
+<div class="settings-section">
+    <div class="settings-header">Preferences</div>
+    <div class="settings-card">
+        <div class="settings-item">
+            <div class="settings-item-icon notifications">
+                <i class="bi bi-bell"></i>
+            </div>
+            <div class="settings-item-content">
+                <div class="settings-item-title">Push Notifications</div>
+                <div class="settings-item-subtitle">Alert when submarines return</div>
+            </div>
+            <label class="settings-toggle">
+                <input type="checkbox" id="toggle-notifications">
+                <span class="settings-toggle-slider"></span>
+            </label>
+        </div>
+        <div class="settings-item">
+            <div class="settings-item-icon sounds">
+                <i class="bi bi-volume-up"></i>
+            </div>
+            <div class="settings-item-content">
+                <div class="settings-item-title">Sound Effects</div>
+                <div class="settings-item-subtitle">Audio feedback for alerts</div>
+            </div>
+            <label class="settings-toggle">
+                <input type="checkbox" id="toggle-sounds" checked>
+                <span class="settings-toggle-slider"></span>
+            </label>
+        </div>
+        <div class="settings-item">
+            <div class="settings-item-icon haptics">
+                <i class="bi bi-phone-vibrate"></i>
+            </div>
+            <div class="settings-item-content">
+                <div class="settings-item-title">Haptic Feedback</div>
+                <div class="settings-item-subtitle">Vibrate on interactions</div>
+            </div>
+            <label class="settings-toggle">
+                <input type="checkbox" id="toggle-haptics" checked>
+                <span class="settings-toggle-slider"></span>
+            </label>
+        </div>
+    </div>
+</div>
+
+<!-- Data Management -->
+<div class="settings-section">
+    <div class="settings-header">Data</div>
+    <div class="settings-card">
+        <div class="settings-item" onclick="refreshData()">
+            <div class="settings-item-icon refresh">
+                <i class="bi bi-arrow-clockwise"></i>
+            </div>
+            <div class="settings-item-content">
+                <div class="settings-item-title">Refresh Data</div>
+                <div class="settings-item-subtitle">Sync latest fleet information</div>
+            </div>
+            <i class="bi bi-chevron-right settings-item-arrow"></i>
+        </div>
+        <div class="settings-item" onclick="clearCache()">
+            <div class="settings-item-icon danger">
+                <i class="bi bi-trash3"></i>
+            </div>
+            <div class="settings-item-content">
+                <div class="settings-item-title">Clear Cache</div>
+                <div class="settings-item-subtitle" id="cache-size">Calculating...</div>
+            </div>
+            <i class="bi bi-chevron-right settings-item-arrow"></i>
+        </div>
+    </div>
+</div>
+
+<!-- Install App (shown only if not installed) -->
+<div id="install-section" class="settings-section" style="display: none;">
+    <div class="install-app-card" onclick="installApp()">
+        <div class="install-app-icon">
+            <i class="bi bi-download"></i>
+        </div>
+        <div class="install-app-content">
+            <div class="install-app-title">Install Armada</div>
+            <div class="install-app-subtitle">Add to your home screen for quick access</div>
+        </div>
+        <i class="bi bi-chevron-right"></i>
+    </div>
+</div>
+
+<!-- About -->
+<div class="settings-section">
+    <div class="settings-header">About</div>
+    <div class="settings-card">
+        <div class="settings-item" onclick="window.open('https://github.com', '_blank')">
+            <div class="settings-item-icon github">
+                <i class="bi bi-github"></i>
+            </div>
+            <div class="settings-item-content">
+                <div class="settings-item-title">Source Code</div>
+                <div class="settings-item-subtitle">View on GitHub</div>
+            </div>
+            <i class="bi bi-chevron-right settings-item-arrow"></i>
+        </div>
+        <div class="settings-item">
+            <div class="settings-item-icon info">
+                <i class="bi bi-heart"></i>
+            </div>
+            <div class="settings-item-content">
+                <div class="settings-item-title">Made for FFXIV</div>
+                <div class="settings-item-subtitle">Submarine fleet management</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="more-footer">
+    <p>Armada &copy; 2024</p>
+    <p class="more-footer-sub">Not affiliated with Square Enix</p>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Header Card */
+.more-header-card {
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    border-radius: 20px;
+    padding: 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+}
+
+.more-header-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 200px;
+    height: 200px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+}
+
+.more-header-logo {
+    width: 64px;
+    height: 64px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.more-header-logo img {
+    width: 48px;
+    height: 48px;
+}
+
+.more-header-info {
+    flex: 1;
+}
+
+.more-header-info h2 {
+    color: white;
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0 0 4px 0;
+}
+
+.more-header-info p {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.85rem;
+    margin: 0;
+}
+
+.more-header-version {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+/* Settings Sections */
+.settings-section {
+    margin-bottom: 24px;
+}
+
+.settings-header {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0 4px;
+    margin-bottom: 8px;
+}
+
+.settings-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.settings-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.15s;
+    cursor: pointer;
+    border-bottom: 1px solid var(--card-border);
+}
+
+.settings-item:last-child {
+    border-bottom: none;
+}
+
+.settings-item:active {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.settings-item-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+/* Icon Colors */
+.settings-item-icon.loot { background: rgba(255, 193, 7, 0.15); color: #ffc107; }
+.settings-item-icon.profit { background: rgba(63, 185, 80, 0.15); color: var(--success); }
+.settings-item-icon.voyages { background: rgba(102, 126, 234, 0.15); color: var(--accent-primary); }
+.settings-item-icon.desktop { background: rgba(118, 75, 162, 0.15); color: var(--accent-secondary); }
+.settings-item-icon.notifications { background: rgba(255, 107, 107, 0.15); color: #ff6b6b; }
+.settings-item-icon.sounds { background: rgba(78, 205, 196, 0.15); color: #4ecdc4; }
+.settings-item-icon.haptics { background: rgba(165, 94, 234, 0.15); color: #a55eea; }
+.settings-item-icon.refresh { background: rgba(69, 170, 242, 0.15); color: #45aaf2; }
+.settings-item-icon.danger { background: rgba(248, 81, 73, 0.15); color: var(--danger); }
+.settings-item-icon.github { background: rgba(255, 255, 255, 0.1); color: var(--text-primary); }
+.settings-item-icon.info { background: rgba(255, 107, 129, 0.15); color: #ff6b81; }
+
+.settings-item-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.settings-item-title {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.settings-item-subtitle {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.settings-item-arrow {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+/* Toggle Switch */
+.settings-toggle {
+    position: relative;
+    width: 50px;
+    height: 28px;
+    flex-shrink: 0;
+}
+
+.settings-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.settings-toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--card-border);
+    border-radius: 28px;
+    transition: 0.3s;
+}
+
+.settings-toggle-slider::before {
+    position: absolute;
+    content: '';
+    height: 22px;
+    width: 22px;
+    left: 3px;
+    bottom: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: 0.3s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.settings-toggle input:checked + .settings-toggle-slider {
+    background: var(--accent-primary);
+}
+
+.settings-toggle input:checked + .settings-toggle-slider::before {
+    transform: translateX(22px);
+}
+
+/* Install App Card */
+.install-app-card {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.15));
+    border: 1px solid var(--accent-primary);
+    border-radius: 16px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.install-app-card:active {
+    transform: scale(0.98);
+}
+
+.install-app-icon {
+    width: 44px;
+    height: 44px;
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.2rem;
+}
+
+.install-app-content {
+    flex: 1;
+}
+
+.install-app-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--accent-primary);
+}
+
+.install-app-subtitle {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.install-app-card > i {
+    color: var(--accent-primary);
+}
+
+/* Footer */
+.more-footer {
+    text-align: center;
+    padding: 24px 16px 16px;
+    color: var(--text-muted);
+}
+
+.more-footer p {
+    margin: 0;
+    font-size: 0.8rem;
+}
+
+.more-footer-sub {
+    font-size: 0.7rem !important;
+    margin-top: 4px !important;
+    opacity: 0.7;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    // Load saved settings
+    function loadSettings() {
+        const notifications = localStorage.getItem('armada_notifications') !== 'false';
+        const sounds = localStorage.getItem('armada_sounds') !== 'false';
+        const haptics = localStorage.getItem('armada_haptics') !== 'false';
+
+        document.getElementById('toggle-notifications').checked = notifications;
+        document.getElementById('toggle-sounds').checked = sounds;
+        document.getElementById('toggle-haptics').checked = haptics;
+    }
+
+    // Save settings on toggle
+    document.getElementById('toggle-notifications').addEventListener('change', async function() {
+        localStorage.setItem('armada_notifications', this.checked);
+        if (this.checked) {
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') {
+                this.checked = false;
+                localStorage.setItem('armada_notifications', false);
+                showToast('Notification permission denied', 'error');
+            } else {
+                showToast('Notifications enabled', 'success');
+            }
+        }
+        triggerHaptic('light');
+    });
+
+    document.getElementById('toggle-sounds').addEventListener('change', function() {
+        localStorage.setItem('armada_sounds', this.checked);
+        triggerHaptic('light');
+    });
+
+    document.getElementById('toggle-haptics').addEventListener('change', function() {
+        localStorage.setItem('armada_haptics', this.checked);
+        if (this.checked) triggerHaptic('medium');
+    });
+
+    // Calculate cache size
+    async function calculateCacheSize() {
+        if ('caches' in window) {
+            try {
+                const cacheNames = await caches.keys();
+                let totalSize = 0;
+
+                for (const name of cacheNames) {
+                    const cache = await caches.open(name);
+                    const keys = await cache.keys();
+                    totalSize += keys.length;
+                }
+
+                document.getElementById('cache-size').textContent = `${totalSize} cached items`;
+            } catch (e) {
+                document.getElementById('cache-size').textContent = 'Unable to calculate';
+            }
+        } else {
+            document.getElementById('cache-size').textContent = 'Cache not available';
+        }
+    }
+
+    // Show install section if PWA not installed
+    function checkInstallStatus() {
+        if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+            document.getElementById('install-section').style.display = 'none';
+        } else {
+            document.getElementById('install-section').style.display = 'block';
+        }
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        loadSettings();
+        calculateCacheSize();
+        checkInstallStatus();
+    });
+
+    // Global functions
+    window.refreshData = async function() {
+        triggerHaptic('medium');
+        showToast('Refreshing data...', 'info');
+        try {
+            localStorage.removeItem('armada_fleet_cache');
+            setTimeout(() => window.location.reload(), 500);
+        } catch (e) {
+            showToast('Failed to refresh', 'error');
+        }
+    };
+
+    window.clearCache = async function() {
+        triggerHaptic('medium');
+        if ('caches' in window) {
+            try {
+                const cacheNames = await caches.keys();
+                await Promise.all(cacheNames.map(name => caches.delete(name)));
+                localStorage.clear();
+                showToast('Cache cleared successfully', 'success');
+                document.getElementById('cache-size').textContent = '0 cached items';
+            } catch (e) {
+                showToast('Failed to clear cache', 'error');
+            }
+        }
+    };
+})();
+</script>
+{% endblock %}

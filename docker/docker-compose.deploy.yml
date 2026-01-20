@@ -1,0 +1,27 @@
+# Standalone Armada deployment - copy this file anywhere
+# Requires: armada:latest image to be built first (run rebuild.sh)
+
+services:
+  armada:
+    image: armada:latest
+    container_name: armada
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - armada_data:/app/data
+    environment:
+      - ARMADA_HOST=0.0.0.0
+      - ARMADA_PORT=5000
+      - ARMADA_DEBUG=false
+      - SECRET_KEY=${SECRET_KEY:-change-this-to-a-random-secret-key}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/auth/login')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  armada_data:
+    name: armada_data

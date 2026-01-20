@@ -1,0 +1,400 @@
+{% extends "base.html" %}
+
+{% block title %}Profit Analysis{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-graph-up-arrow"></i> Profit Analysis</h2>
+    <div class="d-flex gap-2">
+        <div class="btn-group" id="day-filter-buttons">
+            <a href="{{ url_for('stats.profits', days=7) }}" class="btn btn-outline-secondary {% if days == 7 %}active{% endif %}" data-days="7">7 Days</a>
+            <a href="{{ url_for('stats.profits', days=30) }}" class="btn btn-outline-secondary {% if days == 30 %}active{% endif %}" data-days="30">30 Days</a>
+            <a href="{{ url_for('stats.profits', days=90) }}" class="btn btn-outline-secondary {% if days == 90 %}active{% endif %}" data-days="90">90 Days</a>
+            <a href="{{ url_for('stats.profits', days=0) }}" class="btn btn-outline-secondary {% if days == 0 %}active{% endif %}" data-days="0">All</a>
+        </div>
+        <a href="{{ url_for('stats.profit_settings') }}" class="btn btn-outline-primary" title="Configure material costs">
+            <i class="bi bi-gear"></i>
+        </a>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col">
+        <div class="card summary-card">
+            <div class="card-body d-flex align-items-center justify-content-center">
+                <i class="bi bi-cash-stack fs-2 text-success me-2"></i>
+                <div>
+                    <h6 class="text-muted mb-0">Total Net Profit</h6>
+                    <h2 class="mb-0 text-success">{{ "{:,.0f}".format(profit_data.summary.total_net_profit) }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card summary-card">
+            <div class="card-body d-flex align-items-center justify-content-center">
+                <i class="bi bi-sun fs-2 text-warning me-2"></i>
+                <div>
+                    <h6 class="text-muted mb-0">Avg Daily Profit</h6>
+                    <h2 class="mb-0 text-warning">{{ "{:,.0f}".format(profit_data.summary.avg_daily_profit) }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card summary-card">
+            <div class="card-body d-flex align-items-center justify-content-center">
+                <i class="bi bi-percent fs-2 text-info me-2"></i>
+                <div>
+                    <h6 class="text-muted mb-0">Profit Margin</h6>
+                    <h2 class="mb-0 text-info">{{ profit_data.summary.profit_margin_pct }}%</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card summary-card">
+            <div class="card-body d-flex align-items-center justify-content-center">
+                {% if profit_data.summary.trend_direction == 'up' %}
+                <i class="bi bi-arrow-up-right fs-2 text-success me-2"></i>
+                {% elif profit_data.summary.trend_direction == 'down' %}
+                <i class="bi bi-arrow-down-right fs-2 text-danger me-2"></i>
+                {% else %}
+                <i class="bi bi-arrow-right fs-2 text-muted me-2"></i>
+                {% endif %}
+                <div>
+                    <h6 class="text-muted mb-0">Daily Trend</h6>
+                    <h2 class="mb-0 {% if profit_data.summary.trend_daily_change > 0 %}text-success{% elif profit_data.summary.trend_daily_change < 0 %}text-danger{% endif %}">
+                        {{ "{:+,.0f}".format(profit_data.summary.trend_daily_change) }}
+                    </h2>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card summary-card">
+            <div class="card-body d-flex align-items-center justify-content-center">
+                <i class="bi bi-calendar-check fs-2 text-primary me-2"></i>
+                <div>
+                    <h6 class="text-muted mb-0">Projected 30d Profit</h6>
+                    <h2 class="mb-0 text-primary">{{ "{:,.0f}".format(profit_data.summary.projected_30d_profit) }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Chart -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-graph-up"></i> Cumulative Profit Over Time</h5>
+    </div>
+    <div class="card-body" style="height: 400px;">
+        <canvas id="profit-chart"></canvas>
+    </div>
+</div>
+
+<!-- Breakdown Row -->
+<div class="row mb-4">
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-pie-chart"></i> Income vs Costs</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center mb-3">
+                    <div class="col">
+                        <h6 class="text-muted">Gross Income</h6>
+                        <h3 class="text-warning">{{ "{:,.0f}".format(profit_data.summary.total_gross_income) }}</h3>
+                    </div>
+                    <div class="col">
+                        <h6 class="text-muted">Material Costs</h6>
+                        <h3 class="text-danger">{{ "{:,.0f}".format(profit_data.summary.total_material_cost) }}</h3>
+                    </div>
+                    <div class="col">
+                        <h6 class="text-muted">Net Profit</h6>
+                        <h3 class="text-success">{{ "{:,.0f}".format(profit_data.summary.total_net_profit) }}</h3>
+                    </div>
+                </div>
+                <div class="progress" style="height: 30px;">
+                    {% set profit_pct = profit_data.summary.profit_margin_pct %}
+                    {% set cost_pct = 100 - profit_pct %}
+                    <div class="progress-bar bg-success" role="progressbar" style="width: {{ profit_pct }}%">
+                        Profit {{ profit_pct }}%
+                    </div>
+                    <div class="progress-bar bg-danger" role="progressbar" style="width: {{ cost_pct }}%">
+                        Costs {{ cost_pct|round(1) }}%
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-gear"></i> Cost Configuration</h5>
+                <a href="{{ url_for('stats.profit_settings') }}" class="btn btn-sm btn-outline-primary">Edit</a>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-6">
+                        <div class="mb-3">
+                            <label class="text-muted small">Ceruleum Price/Stack</label>
+                            <h4>{{ "{:,.0f}".format(profit_data.costs.ceruleum_price_per_stack) }} gil</h4>
+                        </div>
+                        <div>
+                            <label class="text-muted small">Est. Ceruleum/Voyage</label>
+                            <h5>{{ profit_data.costs.ceruleum_per_voyage }} tanks</h5>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="mb-3">
+                            <label class="text-muted small">Repair Kit Price/Stack</label>
+                            <h4>{{ "{:,.0f}".format(profit_data.costs.repair_kit_price_per_stack) }} gil</h4>
+                        </div>
+                        <div>
+                            <label class="text-muted small">Est. Kits/Voyage</label>
+                            <h5>{{ profit_data.costs.kits_per_voyage }} kits</h5>
+                        </div>
+                    </div>
+                </div>
+                <hr>
+                <div class="row text-center">
+                    <div class="col">
+                        <small class="text-muted">Avg Daily Income</small>
+                        <h5 class="text-warning mb-0">{{ "{:,.0f}".format(profit_data.summary.avg_daily_income) }}</h5>
+                    </div>
+                    <div class="col">
+                        <small class="text-muted">Avg Daily Cost</small>
+                        <h5 class="text-danger mb-0">{{ "{:,.0f}".format(profit_data.summary.avg_daily_cost) }}</h5>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Trend Analysis -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-activity"></i> Trend Analysis</h5>
+    </div>
+    <div class="card-body">
+        <div class="row text-center">
+            <div class="col-md-3">
+                <h6 class="text-muted">Data Points</h6>
+                <h3>{{ profit_data.actual_days }} days</h3>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted">Trend Slope</h6>
+                <h3 class="{% if profit_data.trend.slope > 0 %}text-success{% elif profit_data.trend.slope < 0 %}text-danger{% endif %}">
+                    {{ "{:+,.0f}".format(profit_data.trend.slope) }} gil/day
+                </h3>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted">R² (Fit Quality)</h6>
+                <h3>{{ profit_data.summary.r_squared }}</h3>
+                <small class="text-muted">
+                    {% if profit_data.summary.r_squared >= 0.7 %}Strong fit{% elif profit_data.summary.r_squared >= 0.4 %}Moderate fit{% else %}Weak fit{% endif %}
+                </small>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted">Total Voyages</h6>
+                <h3>{{ profit_data.summary.total_voyages }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+// Timezone handling - redirect with tz parameter if not present
+(function() {
+    const url = new URL(window.location.href);
+    const currentTz = url.searchParams.get('tz');
+    const clientTz = new Date().getTimezoneOffset();
+
+    // Only redirect if tz parameter is missing
+    if (currentTz === null) {
+        url.searchParams.set('tz', clientTz);
+        window.location.replace(url.toString());
+        return;
+    }
+
+    // Update day filter links to include timezone parameter
+    document.querySelectorAll('#day-filter-buttons a').forEach(link => {
+        const linkUrl = new URL(link.href);
+        linkUrl.searchParams.set('tz', clientTz);
+        link.href = linkUrl.toString();
+    });
+})();
+
+// Chart data from server
+const profitData = {{ profit_data|tojson }};
+
+// Extract data for chart
+const dailyProfits = profitData.daily_profits || [];
+const trendPoints = profitData.trend.trend_points || [];
+const projections = profitData.projections || [];
+
+// Build labels and datasets - cumulative profit over time
+const allLabels = [];
+const cumulativeProfitData = [];
+const cumulativeTrendData = [];
+const cumulativeProjectionData = [];
+
+// Calculate cumulative profits from daily data
+let runningTotal = 0;
+let runningTrendTotal = 0;
+
+// Only show trend line if we have enough data (7+ days) for it to be meaningful
+const showTrendLine = dailyProfits.length >= 7;
+
+// Add historical data (cumulative)
+dailyProfits.forEach((d, i) => {
+    allLabels.push(d.date.slice(5)); // MM-DD format
+    runningTotal += d.net_profit;
+    cumulativeProfitData.push(runningTotal);
+
+    // Cumulative trend line (only if enough data)
+    if (showTrendLine && trendPoints[i]) {
+        runningTrendTotal += trendPoints[i].value;
+        cumulativeTrendData.push(runningTrendTotal);
+    } else {
+        cumulativeTrendData.push(null);
+    }
+    cumulativeProjectionData.push(null); // No projection for historical dates
+});
+
+// Connect projection to last actual data point
+if (dailyProfits.length > 0 && projections.length > 0) {
+    cumulativeProjectionData[dailyProfits.length - 1] = runningTotal;
+}
+
+// Use average daily profit for projection (more realistic than trend extrapolation)
+const avgDailyProfit = profitData.summary.avg_daily_profit || 0;
+
+// Add projection data (cumulative, using average daily profit)
+let projectionRunningTotal = runningTotal;
+projections.forEach((p, i) => {
+    allLabels.push(p.date.slice(5));
+    cumulativeProfitData.push(null); // No actual data for future
+    cumulativeTrendData.push(null); // Don't extend trend line into projection (can go crazy with limited data)
+
+    // Cumulative projection using average daily profit (matches "Projected 30d" card)
+    projectionRunningTotal += avgDailyProfit;
+    cumulativeProjectionData.push(projectionRunningTotal);
+});
+
+// Chart configuration
+const ctx = document.getElementById('profit-chart').getContext('2d');
+
+new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: allLabels,
+        datasets: [
+            {
+                label: 'Total Profit',
+                data: cumulativeProfitData,
+                borderColor: 'rgba(72, 187, 120, 1)',
+                backgroundColor: 'rgba(72, 187, 120, 0.1)',
+                fill: true,
+                tension: 0.3,
+                pointRadius: 3,
+                pointHoverRadius: 5
+            },
+            {
+                label: 'Trend',
+                data: cumulativeTrendData,
+                borderColor: 'rgba(99, 179, 237, 0.8)',
+                backgroundColor: 'transparent',
+                borderWidth: 2,
+                borderDash: [8, 4],
+                fill: false,
+                tension: 0,
+                pointRadius: 0
+            },
+            {
+                label: 'Projected',
+                data: cumulativeProjectionData,
+                borderColor: 'rgba(237, 137, 54, 1)',
+                backgroundColor: 'rgba(237, 137, 54, 0.1)',
+                borderDash: [10, 5],
+                fill: true,
+                tension: 0.3,
+                pointRadius: 2
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+            intersect: false,
+            mode: 'index'
+        },
+        plugins: {
+            legend: {
+                labels: { color: 'rgba(255,255,255,0.7)' }
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        const value = context.raw;
+                        if (value === null) return null;
+                        return context.dataset.label + ': ' + value.toLocaleString() + ' gil';
+                    }
+                }
+            },
+            annotation: {
+                annotations: {
+                    todayLine: {
+                        type: 'line',
+                        xMin: dailyProfits.length - 0.5,
+                        xMax: dailyProfits.length - 0.5,
+                        borderColor: 'rgba(255, 255, 255, 0.3)',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        label: {
+                            display: true,
+                            content: 'Today',
+                            position: 'start'
+                        }
+                    }
+                }
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: false,
+                grid: { color: 'rgba(255,255,255,0.1)' },
+                ticks: {
+                    color: 'rgba(255,255,255,0.7)',
+                    callback: function(value) {
+                        if (Math.abs(value) >= 1000000) {
+                            return (value / 1000000).toFixed(1) + 'M';
+                        } else if (Math.abs(value) >= 1000) {
+                            return (value / 1000).toFixed(0) + 'K';
+                        }
+                        return value;
+                    }
+                }
+            },
+            x: {
+                grid: { color: 'rgba(255,255,255,0.1)' },
+                ticks: {
+                    color: 'rgba(255,255,255,0.7)',
+                    maxRotation: 45,
+                    minRotation: 45
+                }
+            }
+        }
+    }
+});
+</script>
+{% endblock %}
