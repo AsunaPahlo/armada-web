@@ -1,8 +1,6 @@
-# Armada
+# <img src="app/static/armada_logo.png" alt="Armada Logo" height="40"> Armada
 
 A real-time submarine and airship fleet monitoring dashboard for FINAL FANTASY XIV. Track all your voyages across multiple accounts and Free Companies from a single interface.
-
-![Dashboard Preview](screenshots/dashboard.png)
 
 ## Features
 
@@ -44,12 +42,43 @@ Don't want to self-host? We offer managed hosting so you can skip the server set
 
 **[Contact on Discord](#)** to get started.
 
-### Option 2: Self-Host with Docker (Recommended)
+### Option 2: Self-Host with Docker Image (Recommended)
+
+1. Create a `docker-compose.yml` file:
+   ```yaml
+   services:
+     armada:
+       image: asunapahlo/armada:latest
+       container_name: armada
+       restart: unless-stopped
+       ports:
+         - "5000:5000"
+       volumes:
+         - armada_data:/app/data
+       environment:
+         - SECRET_KEY=change-this-to-a-random-secret-key  # Required: set a secure key
+
+   volumes:
+     armada_data:
+   ```
+
+2. Set a secure `SECRET_KEY` (generate one with: `openssl rand -hex 32`)
+
+3. Start the server:
+   ```bash
+   docker compose up -d
+   ```
+
+4. Access the dashboard at `http://localhost:5000`
+
+5. Create an account and generate API keys for your game clients
+
+### Option 3: Self-Host with Docker Build
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/AsunaPahlo/armada.git
-   cd armada
+   git clone https://github.com/AsunaPahlo/armada-web.git
+   cd armada-web
    ```
 
 2. Edit `docker-compose.yml` and set a secure `SECRET_KEY` (see [Configuration](#configuration))
@@ -63,7 +92,7 @@ Don't want to self-host? We offer managed hosting so you can skip the server set
 
 5. Create an account and generate API keys for your game clients
 
-### Option 3: Manual Installation
+### Option 4: Manual Installation
 
 <details>
 <summary>Click to expand</summary>
@@ -112,8 +141,7 @@ Configuration is handled through the `docker-compose.yml` file:
 ```yaml
 services:
   armada:
-    image: armada:latest
-    build: .
+    image: asunapahlo/armada:latest
     container_name: armada
     restart: unless-stopped
     ports:

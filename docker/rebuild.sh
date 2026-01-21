@@ -28,8 +28,5 @@ docker build --no-cache -t armada:latest -f docker/Dockerfile .
 echo ""
 echo "========================================"
 echo "  Rebuild complete!"
-echo "  "
-echo "  To start: cd docker && docker compose up -d"
-echo "  Access at: http://localhost:5000"
 echo "========================================"
 echo ""
