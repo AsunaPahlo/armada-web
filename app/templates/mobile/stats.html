@@ -409,7 +409,7 @@
         const summary = data.summary || {};
 
         // Summary cards
-        document.getElementById('stat-voyages').textContent = (summary.returned_voyages || 0).toLocaleString();
+        document.getElementById('stat-voyages').textContent = (summary.total_voyages || 0).toLocaleString();
         document.getElementById('stat-gil').textContent = formatGil(summary.net_profit || 0);
         document.getElementById('stat-items').textContent = (summary.total_items || 0).toLocaleString();
         document.getElementById('stat-profit').textContent = formatGil(summary.avg_daily_profit || 0);

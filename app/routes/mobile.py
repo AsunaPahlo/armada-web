@@ -5,6 +5,7 @@ Provides a native app-like experience for mobile devices.
 from flask import Blueprint, render_template, jsonify, redirect, url_for
 from flask_login import login_required, current_user
 
+from app import db
 from app.services import get_fleet_manager
 
 mobile_bp = Blueprint('mobile', __name__, url_prefix='/m')
@@ -146,30 +147,42 @@ def api_stats():
         profit_data = profit_tracker.get_profit_summary(days=days)
         profit_summary = profit_data.get('summary', {})
 
-        # Get voyage/item stats from DailyStats
+        # Get hidden FC IDs
         try:
             from app.models.fc_config import get_hidden_fc_ids
             hidden_fc_ids = get_hidden_fc_ids()
         except Exception:
             hidden_fc_ids = set()
 
-        from app.models.daily_stats import DailyStats
-        stats = DailyStats.get_summary(days=days, exclude_fc_ids=hidden_fc_ids)
-
-        # Get top routes directly from Voyage table (not DailyStats) for accuracy
+        # Get voyage stats directly from Voyage table (same as desktop stats page)
         from datetime import datetime, timedelta
         from sqlalchemy import func
         from collections import defaultdict
         from app.models.voyage import Voyage
+        from app.models.voyage_loot import VoyageLoot
 
-        cutoff = datetime.utcnow() - timedelta(days=days)
+        now = datetime.utcnow()
+        cutoff = now - timedelta(days=days)
+
+        # Build base query with hidden FC filter (matches desktop stats_tracker)
         voyage_query = Voyage.query.filter(Voyage.return_time >= cutoff)
         if hidden_fc_ids:
             voyage_query = voyage_query.filter(~Voyage.fc_id.in_(hidden_fc_ids))
-        # Only count returned voyages
-        voyage_query = voyage_query.filter(Voyage.return_time <= datetime.utcnow())
 
-        voyages = voyage_query.all()
+        # Total voyages (same calculation as desktop stats_tracker.calculate_summary_stats)
+        total_voyages = voyage_query.count()
+
+        # Get total items from loot records
+        loot_query = db.session.query(func.sum(VoyageLoot.total_items)).filter(
+            VoyageLoot.captured_at >= cutoff
+        )
+        if hidden_fc_ids:
+            loot_query = loot_query.filter(~VoyageLoot.fc_id.in_(hidden_fc_ids))
+        total_items = loot_query.scalar() or 0
+
+        # Get top routes from returned voyages
+        returned_query = voyage_query.filter(Voyage.return_time <= now)
+        voyages = returned_query.all()
         route_counts = defaultdict(int)
         for v in voyages:
             if v.route_name:
@@ -218,10 +231,10 @@ def api_stats():
             'summary': {
                 'total_fcs': summary.get('fc_count', 0),
                 'total_subs': summary.get('total_subs', 0),
-                'total_voyages': stats['total_voyages'],
-                'returned_voyages': stats['returned_voyages'],
+                'total_voyages': total_voyages,
+                'returned_voyages': total_voyages,  # Same as total for consistency
                 'net_profit': profit_summary.get('total_net_profit', 0),
-                'total_items': stats['total_items'],
+                'total_items': int(total_items),
                 'avg_daily_profit': profit_summary.get('avg_daily_income', 0),
             },
             'top_routes': top_routes,
