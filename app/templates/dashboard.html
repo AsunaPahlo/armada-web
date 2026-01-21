@@ -489,9 +489,6 @@
                     </div>
                 </div>
                 <div class="card-footer">
-                    <a href="{{ url_for('dashboard.fc_detail', fc_id=fc.fc_id) }}" class="btn btn-sm btn-outline-primary">
-                        <i class="bi bi-arrow-right"></i> View Details
-                    </a>
                     {% if fc.soonest_return and fc.soonest_return > 0 %}
                     <small class="text-muted float-end">
                         Next return:

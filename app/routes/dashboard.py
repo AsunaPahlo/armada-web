@@ -18,26 +18,6 @@ def index():
     return render_template('dashboard.html', data=data)
 
 
-@dashboard_bp.route('/fc/<fc_id>')
-@login_required
-def fc_detail(fc_id: str):
-    """FC detail view."""
-    fleet = get_fleet_manager()
-    data = fleet.get_dashboard_data()
-
-    # Find the specific FC (fc_id is stored as string)
-    fc_data = None
-    for fc in data['fc_summaries']:
-        if str(fc['fc_id']) == str(fc_id):
-            fc_data = fc
-            break
-
-    if fc_data is None:
-        return render_template('404.html'), 404
-
-    return render_template('fc_detail.html', fc=fc_data, summary=data['summary'])
-
-
 @dashboard_bp.route('/submarines')
 @login_required
 def submarines():

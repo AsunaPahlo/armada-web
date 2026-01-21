@@ -24,13 +24,6 @@ def submarines():
     return render_template('mobile/submarines.html')
 
 
-@mobile_bp.route('/fc/<fc_id>')
-@login_required
-def fc_detail(fc_id):
-    """Mobile FC detail view."""
-    return render_template('mobile/fc_detail.html', fc_id=fc_id)
-
-
 @mobile_bp.route('/stats')
 @login_required
 def stats():
@@ -139,35 +132,6 @@ def api_submarines():
         'submarines': submarines,
         'total': len(submarines),
     })
-
-
-@mobile_bp.route('/api/fc/<fc_id>')
-@login_required
-def api_fc_detail(fc_id):
-    """Get detailed FC data for mobile."""
-    fleet = get_fleet_manager()
-    fleet_data = fleet.get_dashboard_data()
-
-    for fc in fleet_data.get('fc_summaries', []):
-        if str(fc.get('fc_id')) == str(fc_id):
-            return jsonify({
-                'fc_id': fc.get('fc_id'),
-                'name': fc.get('fc_name', 'Unknown FC'),
-                'tag': '',
-                'world': fc.get('world', ''),
-                'submarines': fc.get('submarines', []),
-                'characters': fc.get('characters', []),
-                'housing': {
-                    'district': None,
-                    'ward': None,
-                    'plot': None,
-                    'address': fc.get('house_address'),
-                },
-                'ceruleum': fc.get('ceruleum', 0),
-                'repair_kits': fc.get('repair_kits', 0),
-            })
-
-    return jsonify({'error': 'FC not found'}), 404
 
 
 @mobile_bp.route('/api/stats')

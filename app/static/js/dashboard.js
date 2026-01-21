@@ -592,9 +592,6 @@ class ArmadaDashboard {
                         </div>
                     </div>
                     <div class="card-footer">
-                        <a href="/fc/${fcIdStr}" class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-arrow-right"></i> View Details
-                        </a>
                         ${fc.soonest_return && fc.soonest_return > 0 ? `
                             <small class="text-muted float-end">
                                 Next return: ${fc.soonest_return <= 0.5

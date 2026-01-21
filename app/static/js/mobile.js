@@ -449,7 +449,7 @@
         }
 
         return `
-            <a href="/m/fc/${fc.fc_id}" class="${cardClass}">
+            <div class="${cardClass}">
                 <div class="fc-card-header">
                     <div class="fc-card-info">
                         <div class="fc-card-name">${fc.name}</div>
@@ -467,7 +467,7 @@
                     <div class="sub-grid">${subGrid}</div>
                 </div>
                 ${resourcesHtml}
-            </a>
+            </div>
         `;
     }
 
