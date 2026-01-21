@@ -56,6 +56,7 @@ def create_app(config_name=None):
     from app.routes.unlocks import unlocks_bp
     from app.routes.mobile import mobile_bp
     from app.routes.settings import settings_bp
+    from app.routes.api_v1 import api_v1_bp
 
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(api_bp, url_prefix='/api')
@@ -70,6 +71,7 @@ def create_app(config_name=None):
     app.register_blueprint(unlocks_bp, url_prefix='/unlocks')
     app.register_blueprint(mobile_bp, url_prefix='/m')
     app.register_blueprint(settings_bp, url_prefix='/settings')
+    app.register_blueprint(api_v1_bp, url_prefix='/api/v1')
 
     # Create database tables
     with app.app_context():
