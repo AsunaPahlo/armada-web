@@ -120,6 +120,50 @@
 
 {% block extra_css %}
 <style>
+/* Fixed table layout for stable column widths */
+#voyage-table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+/* Fixed column widths */
+#voyage-table th:nth-child(1),
+#voyage-table td:nth-child(1) { width: 140px; } /* Submarine */
+
+#voyage-table th:nth-child(2),
+#voyage-table td:nth-child(2) { width: 150px; } /* Character */
+
+#voyage-table th:nth-child(3),
+#voyage-table td:nth-child(3) { width: 110px; } /* World */
+
+#voyage-table th:nth-child(4),
+#voyage-table td:nth-child(4) { width: 160px; } /* FC */
+
+#voyage-table th:nth-child(5),
+#voyage-table td:nth-child(5) { width: 90px; } /* Build */
+
+#voyage-table th:nth-child(6),
+#voyage-table td:nth-child(6) { width: 80px; } /* Route */
+
+#voyage-table th:nth-child(7),
+#voyage-table td:nth-child(7) { width: 60px; } /* Level */
+
+#voyage-table th:nth-child(8),
+#voyage-table td:nth-child(8) { width: 140px; } /* Return Time */
+
+#voyage-table th:nth-child(9),
+#voyage-table td:nth-child(9) { width: 100px; } /* Status */
+
+#voyage-table th:nth-child(10),
+#voyage-table td:nth-child(10) { width: 50px; } /* Loot button */
+
+/* Text overflow handling */
+#voyage-table td {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 /* Table row hover styles */
 .table-dark tbody tr,
 .table-dark tbody tr > td {
@@ -140,6 +184,8 @@
     cursor: pointer;
     user-select: none;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .sortable:hover {

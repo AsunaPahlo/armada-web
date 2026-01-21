@@ -1,10 +1,55 @@
 {
     "accounts": [
         {
-            "nickname": "Main",
-            "config_path": "D:\\Users\\test\\AppData\\Roaming\\XIVLauncher\\pluginConfigs\\AutoRetainer\\DefaultConfig.json",
-            "enabled": false
+            "nickname": "Account_1",
+            "config_path": "C:\\Users\\Demo\\AppData\\Roaming\\XIVLauncher\\pluginConfigs\\AutoRetainer\\Config1.json",
+            "enabled": true
+        },
+        {
+            "nickname": "Account_2",
+            "config_path": "C:\\Users\\Demo\\AppData\\Roaming\\XIVLauncher\\pluginConfigs\\AutoRetainer\\Config2.json",
+            "enabled": true
+        },
+        {
+            "nickname": "Account_3",
+            "config_path": "C:\\Users\\Demo\\AppData\\Roaming\\XIVLauncher\\pluginConfigs\\AutoRetainer\\Config3.json",
+            "enabled": true
+        },
+        {
+            "nickname": "Account_4",
+            "config_path": "C:\\Users\\Demo\\AppData\\Roaming\\XIVLauncher\\pluginConfigs\\AutoRetainer\\Config4.json",
+            "enabled": true
+        },
+        {
+            "nickname": "Account_5",
+            "config_path": "C:\\Users\\Demo\\AppData\\Roaming\\XIVLauncher\\pluginConfigs\\AutoRetainer\\Config5.json",
+            "enabled": true
+        },
+        {
+            "nickname": "Account_6",
+            "config_path": "C:\\Users\\Demo\\AppData\\Roaming\\XIVLauncher\\pluginConfigs\\AutoRetainer\\Config6.json",
+            "enabled": true
+        },
+        {
+            "nickname": "Account_7",
+            "config_path": "C:\\Users\\Demo\\AppData\\Roaming\\XIVLauncher\\pluginConfigs\\AutoRetainer\\Config7.json",
+            "enabled": true
+        },
+        {
+            "nickname": "Account_8",
+            "config_path": "C:\\Users\\Demo\\AppData\\Roaming\\XIVLauncher\\pluginConfigs\\AutoRetainer\\Config8.json",
+            "enabled": true
+        },
+        {
+            "nickname": "Account_9",
+            "config_path": "C:\\Users\\Demo\\AppData\\Roaming\\XIVLauncher\\pluginConfigs\\AutoRetainer\\Config9.json",
+            "enabled": true
+        },
+        {
+            "nickname": "Account_10",
+            "config_path": "C:\\Users\\Demo\\AppData\\Roaming\\XIVLauncher\\pluginConfigs\\AutoRetainer\\Config10.json",
+            "enabled": true
         }
     ],
-    "_comment": "Add more accounts by duplicating the entry above with different nicknames and config paths. Set enabled to false to disable an account. Each account should point to its AutoRetainer DefaultConfig.json"
+    "_comment": "Demo accounts for screenshot purposes."
 }

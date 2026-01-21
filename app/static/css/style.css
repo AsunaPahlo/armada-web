@@ -23,6 +23,37 @@
     --ffxiv-info: #76e4f7;
 }
 
+/* Dark mode scrollbar - WebKit (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--ffxiv-bg-darker);
+    border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--ffxiv-border);
+    border-radius: 6px;
+    border: 2px solid var(--ffxiv-bg-darker);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--ffxiv-text-muted);
+}
+
+::-webkit-scrollbar-corner {
+    background: var(--ffxiv-bg-darker);
+}
+
+/* Dark mode scrollbar - Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--ffxiv-border) var(--ffxiv-bg-darker);
+}
+
 /* Base Styles */
 body {
     background: linear-gradient(135deg, var(--ffxiv-bg-darker) 0%, var(--ffxiv-bg-dark) 100%);
@@ -489,6 +520,10 @@ tr.fc-detail-row:hover > td {
 }
 
 .text-muted {
+    color: var(--ffxiv-text-muted) !important;
+}
+
+.form-text {
     color: var(--ffxiv-text-muted) !important;
 }
 

@@ -6,13 +6,7 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div class="d-flex align-items-center gap-3">
         <h2 class="mb-0"><i class="fa-solid fa-anchor me-2"></i>Submarines</h2>
-        <span class="badge bg-secondary fs-6" id="sub-count-badge">{{ submarines|length }}</span>
-    </div>
-    <div class="d-flex align-items-center gap-3">
-        <div class="input-group" style="width: 250px;">
-            <span class="input-group-text"><i class="bi bi-search"></i></span>
-            <input type="text" class="form-control" id="sub-search" placeholder="Search subs, chars, FCs...">
-        </div>
+        <span class="badge bg-secondary fs-6" id="sub-count-badge">{{ pagination.total }}</span>
     </div>
 </div>
 
@@ -49,6 +43,36 @@
                 <h2 class="text-warning">{{ "{:,}".format(summary.total_gil_per_day) }}</h2>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- Search and Pagination Controls -->
+<div class="d-flex justify-content-end align-items-center mb-3 gap-3">
+    <div class="input-group" style="width: 250px;">
+        <span class="input-group-text"><i class="bi bi-search"></i></span>
+        <input type="text" class="form-control" id="sub-search" placeholder="Search subs, chars, FCs...">
+    </div>
+    <div class="d-flex align-items-center gap-2" id="pagination-controls">
+        <small class="text-muted" id="pagination-info">
+            {% if pagination.total > 0 %}
+            1-{{ [pagination.per_page, pagination.total]|min }} of {{ pagination.total }}
+            {% else %}
+            0 submarines
+            {% endif %}
+        </small>
+        <div class="btn-group btn-group-sm">
+            <button class="btn btn-outline-secondary" id="page-prev" title="Previous Page" disabled>
+                <i class="bi bi-chevron-left"></i>
+            </button>
+            <button class="btn btn-outline-secondary" id="page-next" title="Next Page" {% if pagination.pages <= 1 %}disabled{% endif %}>
+                <i class="bi bi-chevron-right"></i>
+            </button>
+        </div>
+        <select class="form-select form-select-sm" id="page-size" style="width: auto;">
+            <option value="25" {% if pagination.per_page == 25 %}selected{% endif %}>25</option>
+            <option value="50" {% if pagination.per_page == 50 %}selected{% endif %}>50</option>
+            <option value="100" {% if pagination.per_page == 100 %}selected{% endif %}>100</option>
+        </select>
     </div>
 </div>
 
@@ -234,42 +258,141 @@
 
 {% block extra_js %}
 <script>
-(function() {
+document.addEventListener('DOMContentLoaded', function() {
     const table = document.getElementById('submarines-table');
     const tbody = table.querySelector('tbody');
     const headers = table.querySelectorAll('th.sortable');
 
-    let currentSort = { column: 'time', direction: 'asc' };
+    // DOM elements
+    const pageSizeSelect = document.getElementById('page-size');
+    const pageInfo = document.getElementById('pagination-info');
+    const prevBtn = document.getElementById('page-prev');
+    const nextBtn = document.getElementById('page-next');
+    const countBadge = document.getElementById('sub-count-badge');
+    const searchInput = document.getElementById('sub-search');
 
-    // Numeric columns (sort as numbers)
-    const numericColumns = ['level', 'gil', 'time'];
+    // State from server
+    const initialPagination = {{ pagination|tojson }};
 
-    function sortTable(column, direction) {
-        const rows = Array.from(tbody.querySelectorAll('tr'));
-        const isNumeric = numericColumns.includes(column);
+    // Read state from URL params (for bookmarks/reload)
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlPage = parseInt(urlParams.get('page')) || initialPagination.page;
+    const urlPerPage = parseInt(urlParams.get('per_page')) || initialPagination.per_page;
+    const urlSortBy = urlParams.get('sort_by') || 'time';
+    const urlSortDir = urlParams.get('sort_dir') || 'asc';
 
-        rows.sort((a, b) => {
-            let aVal = a.dataset[column] || '';
-            let bVal = b.dataset[column] || '';
+    // Current state
+    let state = {
+        page: urlPage,
+        perPage: urlPerPage,
+        total: initialPagination.total,
+        pages: initialPagination.pages,
+        sortBy: urlSortBy,
+        sortDir: urlSortDir,
+        search: '',
+        loading: false
+    };
 
-            if (isNumeric) {
-                aVal = parseFloat(aVal) || 0;
-                bVal = parseFloat(bVal) || 0;
-                return direction === 'asc' ? aVal - bVal : bVal - aVal;
-            } else {
-                aVal = aVal.toLowerCase();
-                bVal = bVal.toLowerCase();
-                if (direction === 'asc') {
-                    return aVal.localeCompare(bVal);
-                } else {
-                    return bVal.localeCompare(aVal);
-                }
-            }
-        });
+    let searchTimeout = null;
+    let needsInitialFetch = urlPage !== 1 || urlSortBy !== 'time' || urlSortDir !== 'asc';
 
-        rows.forEach(row => tbody.appendChild(row));
+    // Format number with commas
+    function formatNumber(num) {
+        return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     }
 
+    // Format gil value
+    function formatGil(num) {
+        return formatNumber(Math.round(num));
+    }
+
+    // Format hours remaining
+    function formatTime(hours) {
+        if (hours <= 0) return 'READY';
+        if (hours < 1) return Math.round(hours * 60) + 'm';
+        return hours.toFixed(1) + 'h';
+    }
+
+    // Render a single submarine row
+    function renderRow(sub) {
+        const tr = document.createElement('tr');
+        const tags = sub.tags || [];
+
+        // Determine row class based on status
+        let rowClass = 'sub-row';
+        if (sub.status === 'ready') {
+            rowClass += ' table-success';
+        } else if (sub.status === 'returning_soon') {
+            rowClass += ' table-warning';
+        }
+        tr.className = rowClass;
+
+        // Tags HTML
+        const tagsHtml = tags.map(tag =>
+            `<span class="badge bg-${tag.color} ms-1" style="font-size: 0.7em;">${tag.name}</span>`
+        ).join('');
+
+        // Time/status cell
+        let timeHtml;
+        if (sub.status === 'ready') {
+            timeHtml = '<span class="badge bg-success">READY</span>';
+        } else if (sub.hours_remaining <= 0.5) {
+            timeHtml = `<span class="badge bg-warning text-dark timer-countdown" data-return="${sub.return_time}">
+                <i class="bi bi-hourglass-split"></i> ${Math.round(sub.hours_remaining * 60)}m
+            </span>`;
+        } else if (sub.hours_remaining < 1) {
+            timeHtml = `<span class="timer-countdown text-muted" data-return="${sub.return_time}">
+                <i class="bi bi-clock"></i> ${Math.round(sub.hours_remaining * 60)}m
+            </span>`;
+        } else {
+            timeHtml = `<span class="timer-countdown text-muted" data-return="${sub.return_time}">
+                <i class="bi bi-clock"></i> ${sub.hours_remaining.toFixed(1)}h
+            </span>`;
+        }
+
+        tr.innerHTML = `
+            <td><strong>${sub.name}</strong>${tagsHtml}</td>
+            <td>${sub.character}<br><small class="text-muted">${sub.world}</small></td>
+            <td>${sub.fc_name || '-'}</td>
+            <td><code>${sub.build || '-'}</code></td>
+            <td>${sub.route || '-'}</td>
+            <td>${sub.level}</td>
+            <td style="min-width: 80px;">
+                <div class="progress exp-bar">
+                    <div class="progress-bar bg-info" style="width: ${sub.exp_progress}%"></div>
+                </div>
+            </td>
+            <td class="text-end text-warning">${formatGil(sub.gil_per_day)}</td>
+            <td class="text-end">${timeHtml}</td>
+            <td class="text-end text-muted"><span data-timestamp="${sub.return_time}" data-format="short">${sub.return_time_display || ''}</span></td>
+        `;
+        return tr;
+    }
+
+    // Render empty state
+    function renderEmpty() {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td colspan="10" class="text-center text-muted py-4">
+                ${state.search ? 'No submarines match your search.' : 'No submarines found.'}
+            </td>
+        `;
+        return tr;
+    }
+
+    // Update pagination UI
+    function updatePaginationUI() {
+        const startIdx = state.total === 0 ? 0 : (state.page - 1) * state.perPage + 1;
+        const endIdx = Math.min(state.page * state.perPage, state.total);
+
+        pageInfo.textContent = state.total === 0 ? '0 submarines' : `${startIdx}-${endIdx} of ${formatNumber(state.total)}`;
+        countBadge.textContent = formatNumber(state.total);
+
+        prevBtn.disabled = state.page <= 1 || state.loading;
+        nextBtn.disabled = state.page >= state.pages || state.loading;
+    }
+
+    // Update header sort indicators
     function updateHeaderStyles() {
         headers.forEach(header => {
             const column = header.dataset.sort;
@@ -278,8 +401,8 @@
             header.classList.remove('sort-asc', 'sort-desc');
             icon.className = 'bi sort-icon';
 
-            if (column === currentSort.column) {
-                if (currentSort.direction === 'asc') {
+            if (column === state.sortBy) {
+                if (state.sortDir === 'asc') {
                     header.classList.add('sort-asc');
                     icon.classList.add('bi-arrow-up');
                 } else {
@@ -292,73 +415,147 @@
         });
     }
 
-    // Add click handlers to sortable headers
-    headers.forEach(header => {
-        header.addEventListener('click', function() {
-            const column = this.dataset.sort;
+    // Fetch data from server
+    async function fetchData(preserveScroll = true) {
+        if (state.loading) return;
 
-            // Toggle direction if same column, otherwise default to asc (desc for time)
-            if (column === currentSort.column) {
-                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
-            } else {
-                currentSort.column = column;
-                // Default: time sorts ascending (soonest first), others sort ascending too
-                currentSort.direction = 'asc';
-            }
+        state.loading = true;
+        updatePaginationUI();
 
-            sortTable(currentSort.column, currentSort.direction);
-            updateHeaderStyles();
-        });
-    });
+        // Save scroll position
+        const scrollY = preserveScroll ? window.scrollY : 0;
 
-    // Initial sort by time ascending
-    sortTable('time', 'asc');
-    updateHeaderStyles();
+        // Show loading state
+        tbody.style.opacity = '0.5';
 
-    // ==================== SEARCH ====================
-    const searchInput = document.getElementById('sub-search');
-    const countBadge = document.getElementById('sub-count-badge');
-    const totalSubs = tbody.querySelectorAll('tr.sub-row').length;
-
-    function applySearch() {
-        const query = searchInput.value.toLowerCase().trim();
-        let visibleCount = 0;
-
-        tbody.querySelectorAll('tr.sub-row').forEach(row => {
-            const name = (row.dataset.name || '').toLowerCase();
-            const character = (row.dataset.character || '').toLowerCase();
-            const fc = (row.dataset.fc || '').toLowerCase();
-            const world = (row.dataset.world || '').toLowerCase();
-            const build = (row.dataset.build || '').toLowerCase();
-            const route = (row.dataset.route || '').toLowerCase();
-            const tags = (row.dataset.tags || '').toLowerCase();
-
-            const matches = query === '' ||
-                name.includes(query) ||
-                character.includes(query) ||
-                fc.includes(query) ||
-                world.includes(query) ||
-                build.includes(query) ||
-                route.includes(query) ||
-                tags.includes(query);
-
-            if (matches) {
-                row.classList.remove('search-hidden');
-                visibleCount++;
-            } else {
-                row.classList.add('search-hidden');
-            }
+        const params = new URLSearchParams({
+            page: state.page,
+            per_page: state.perPage,
+            sort_by: state.sortBy,
+            sort_dir: state.sortDir
         });
 
-        // Update count badge
-        if (query !== '') {
-            countBadge.textContent = `${visibleCount}/${totalSubs}`;
-        } else {
-            countBadge.textContent = totalSubs;
+        if (state.search) {
+            params.set('search', state.search);
+        }
+
+        try {
+            const response = await fetch(`/api/submarines?${params}`);
+            if (!response.ok) throw new Error('Failed to fetch');
+
+            const data = await response.json();
+
+            // Update state
+            state.total = data.total;
+            state.pages = data.pages;
+            state.page = data.page;
+
+            // Clear and render rows
+            tbody.innerHTML = '';
+            if (data.submarines.length === 0) {
+                tbody.appendChild(renderEmpty());
+            } else {
+                data.submarines.forEach(sub => {
+                    tbody.appendChild(renderRow(sub));
+                });
+            }
+
+            // Re-initialize timestamp formatting if available
+            if (typeof formatTimestamps === 'function') {
+                formatTimestamps();
+            }
+
+            // Update URL without reloading (for bookmarking/sharing)
+            const url = new URL(window.location);
+            url.searchParams.set('page', state.page);
+            url.searchParams.set('per_page', state.perPage);
+            if (state.sortBy !== 'time' || state.sortDir !== 'asc') {
+                url.searchParams.set('sort_by', state.sortBy);
+                url.searchParams.set('sort_dir', state.sortDir);
+            } else {
+                url.searchParams.delete('sort_by');
+                url.searchParams.delete('sort_dir');
+            }
+            window.history.replaceState({}, '', url);
+
+        } catch (error) {
+            console.error('Error fetching submarines:', error);
+            tbody.innerHTML = '<tr><td colspan="10" class="text-center text-danger py-4">Error loading data. Please try again.</td></tr>';
+        } finally {
+            state.loading = false;
+            tbody.style.opacity = '1';
+            updatePaginationUI();
+
+            // Restore scroll position
+            if (preserveScroll) {
+                window.scrollTo(0, scrollY);
+            }
         }
     }
 
-    searchInput.addEventListener('input', applySearch);
-})();
+    // Event handlers for sortable headers
+    headers.forEach(header => {
+        header.addEventListener('click', function() {
+            if (state.loading) return;
+
+            const column = this.dataset.sort;
+            const numericColumns = ['level', 'gil', 'time'];
+
+            if (column === state.sortBy) {
+                state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                state.sortBy = column;
+                state.sortDir = 'asc';
+            }
+
+            state.page = 1; // Reset to first page on sort
+            updateHeaderStyles();
+            fetchData();
+        });
+    });
+
+    // Pagination button handlers
+    prevBtn.addEventListener('click', function() {
+        if (state.page > 1 && !state.loading) {
+            state.page--;
+            fetchData();
+        }
+    });
+
+    nextBtn.addEventListener('click', function() {
+        if (state.page < state.pages && !state.loading) {
+            state.page++;
+            fetchData();
+        }
+    });
+
+    pageSizeSelect.addEventListener('change', function() {
+        state.perPage = parseInt(this.value);
+        state.page = 1; // Reset to first page
+        fetchData();
+    });
+
+    // Search with debounce
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            state.search = this.value.trim();
+            state.page = 1; // Reset to first page
+            fetchData();
+        }, 300);
+    });
+
+    // Initial setup
+    updateHeaderStyles();
+    updatePaginationUI();
+
+    // Sync page size dropdown with state
+    pageSizeSelect.value = state.perPage;
+
+    // Fetch if URL state differs from server-rendered initial state
+    if (needsInitialFetch) {
+        fetchData(false);
+    }
+});
 </script>
 {% endblock %}

@@ -222,7 +222,7 @@ def api_stats():
                 'returned_voyages': stats['returned_voyages'],
                 'net_profit': profit_summary.get('total_net_profit', 0),
                 'total_items': stats['total_items'],
-                'avg_daily_profit': profit_summary.get('avg_daily_profit', 0),
+                'avg_daily_profit': profit_summary.get('avg_daily_income', 0),
             },
             'top_routes': top_routes,
             'level_distribution': level_dist,
