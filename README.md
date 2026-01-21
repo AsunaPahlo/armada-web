@@ -107,7 +107,7 @@ Don't want to self-host? We offer managed hosting so you can skip the server set
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/AsunaPahlo/armada.git
+   git clone https://github.com/AsunaPahlo/armada-web.git
    cd armada
    ```
 
