@@ -154,42 +154,31 @@ def api_stats():
         except Exception:
             hidden_fc_ids = set()
 
-        # Get voyage stats directly from Voyage table (same as desktop stats page)
+        # Get voyage stats using same functions as desktop stats page
         from datetime import datetime, timedelta
         from sqlalchemy import func
-        from collections import defaultdict
-        from app.models.voyage import Voyage
+        from app.routes.stats import get_voyage_chart_data
+        from app.services.stats_tracker import StatsTracker
         from app.models.voyage_loot import VoyageLoot
 
-        now = datetime.utcnow()
-        cutoff = now - timedelta(days=days)
-
-        # Build base query with hidden FC filter (matches desktop stats_tracker)
-        voyage_query = Voyage.query.filter(Voyage.return_time >= cutoff)
-        if hidden_fc_ids:
-            voyage_query = voyage_query.filter(~Voyage.fc_id.in_(hidden_fc_ids))
-
-        # Total voyages (same calculation as desktop stats_tracker.calculate_summary_stats)
-        total_voyages = voyage_query.count()
+        # Get total voyages (same as desktop stats page header)
+        tracker = StatsTracker()
+        voyage_summary = tracker.calculate_summary_stats(days=days)
+        total_voyages = voyage_summary['total_voyages']
 
         # Get total items from loot records
-        loot_query = db.session.query(func.sum(VoyageLoot.total_items)).filter(
+        now = datetime.utcnow()
+        cutoff = now - timedelta(days=days)
+        items_query = db.session.query(func.sum(VoyageLoot.total_items)).filter(
             VoyageLoot.captured_at >= cutoff
         )
         if hidden_fc_ids:
-            loot_query = loot_query.filter(~VoyageLoot.fc_id.in_(hidden_fc_ids))
-        total_items = loot_query.scalar() or 0
+            items_query = items_query.filter(~VoyageLoot.fc_id.in_(hidden_fc_ids))
+        total_items = items_query.scalar() or 0
 
-        # Get top routes from returned voyages
-        returned_query = voyage_query.filter(Voyage.return_time <= now)
-        voyages = returned_query.all()
-        route_counts = defaultdict(int)
-        for v in voyages:
-            if v.route_name:
-                route_counts[v.route_name] += 1
-
-        top_routes = sorted(route_counts.items(), key=lambda x: x[1], reverse=True)[:5]
-        top_routes = [{'route': r[0], 'count': r[1]} for r in top_routes]
+        # Get top routes (same function as desktop stats page charts)
+        chart_data = get_voyage_chart_data(days=days)
+        top_routes = chart_data['by_route'][:5]
 
         # Get fleet data for level distribution and supply info
         fleet = get_fleet_manager()
