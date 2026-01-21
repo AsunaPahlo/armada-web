@@ -45,3 +45,45 @@ def writable_required(f):
 
         return f(*args, **kwargs)
     return decorated_function
+
+
+def api_key_required(f):
+    """Decorator that requires a valid API key via Authorization header.
+
+    Expects: Authorization: Bearer <api_key>
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        from app.models.api_key import APIKey
+
+        auth_header = request.headers.get('Authorization', '')
+
+        if not auth_header:
+            return jsonify({
+                'success': False,
+                'error': 'Missing Authorization header'
+            }), 401
+
+        # Parse Bearer token
+        parts = auth_header.split()
+        if len(parts) != 2 or parts[0].lower() != 'bearer':
+            return jsonify({
+                'success': False,
+                'error': 'Invalid Authorization header format. Expected: Bearer <api_key>'
+            }), 401
+
+        api_key = parts[1]
+
+        # Validate the API key
+        key_obj = APIKey.validate_key(api_key)
+        if not key_obj:
+            return jsonify({
+                'success': False,
+                'error': 'Invalid API key'
+            }), 401
+
+        # Store the validated key info in request context for logging/auditing
+        request.api_key = key_obj
+
+        return f(*args, **kwargs)
+    return decorated_function
