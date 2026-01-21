@@ -13,6 +13,7 @@
         Configure the time window (in server local time) for this maintenance task.
     </p>
     <form id="scheduler-settings-form">
+    <fieldset {% if current_user.is_readonly %}disabled{% endif %}>
         <div class="settings-form-row">
             <div class="settings-form-group">
                 <label for="rebuild_window_start">Window Start (Hour)</label>
@@ -42,6 +43,7 @@
             <i class="bi bi-check"></i> Save Schedule
         </button>
         {% endif %}
+    </fieldset>
     </form>
 </div>
 
@@ -54,6 +56,7 @@
         Configure marketboard prices for profit calculations. These affect the "Net Profit" calculations in statistics.
     </p>
     <form id="material-costs-form">
+    <fieldset {% if current_user.is_readonly %}disabled{% endif %}>
         <div class="settings-form-row">
             <div class="settings-form-group">
                 <label for="ceruleum_price">Ceruleum Tank (per stack of 999)</label>
@@ -79,6 +82,7 @@
             <i class="bi bi-check"></i> Save Prices
         </button>
         {% endif %}
+    </fieldset>
     </form>
 </div>
 
@@ -108,6 +112,10 @@
             <div class="form-text">Recalculate all aggregated statistics from raw voyage data.</div>
         </div>
     </div>
+</div>
+{% else %}
+<div class="alert alert-info mt-3">
+    <i class="bi bi-info-circle"></i> You have read-only access. Contact an admin to modify app settings.
 </div>
 {% endif %}
 

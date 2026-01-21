@@ -44,7 +44,7 @@ Don't want to self-host? We offer managed hosting so you can skip the server set
 
 ### Option 2: Self-Host with Docker Image (Recommended)
 
-1. Create a `docker-compose.yml` file:
+1. Create a `docker-compose.yml` file with a secure `SECRET_KEY`:
    ```yaml
    services:
      armada:
@@ -56,22 +56,25 @@ Don't want to self-host? We offer managed hosting so you can skip the server set
        volumes:
          - armada_data:/app/data
        environment:
-         - SECRET_KEY=change-this-to-a-random-secret-key  # Required: set a secure key
+         - SECRET_KEY=change-this-to-a-random-secret-key
 
    volumes:
      armada_data:
    ```
+   > Generate a secure key with: `openssl rand -hex 32`
 
-2. Set a secure `SECRET_KEY` (generate one with: `openssl rand -hex 32`)
-
-3. Start the server:
+2. Start the server:
    ```bash
    docker compose up -d
    ```
 
-4. Access the dashboard at `http://localhost:5000`
+3. Verify the dashboard is running at `http://localhost:5000`
+
+4. Set up a reverse proxy with SSL and WebSocket support (see [Exposing to the Internet](#exposing-to-the-internet))
 
 5. Create an account and generate API keys for your game clients
+
+6. Install the Armada plugin on each game client and configure it with your server URL and API key
 
 ### Option 3: Self-Host with Docker Build
 
@@ -126,42 +129,20 @@ Don't want to self-host? We offer managed hosting so you can skip the server set
 
 Once your server is running, install the Dalamud plugin to start sending data:
 
-
 1. Open the Plugin Installer in-game: `/xlplugins`
-2. Search for **"Armada"** and install
-3. Open plugin settings: `/armada`
-4. Enter your server URL and API key
+2. Go to **Settings** → **Experimental**
+3. Add the custom repository: `https://pages.gamba.pro/asuna/json`
+4. Search for **"Armada"** and install
+5. Open plugin settings: `/armada`
+6. Enter your server URL (e.g., `ws://localhost:5000`), API key, and nickname for the client
 
-For detailed plugin configuration, see the [Plugin README](plugin/Armada/README.md).
-
-## Configuration
-
-Configuration is handled through the `docker-compose.yml` file:
-
-```yaml
-services:
-  armada:
-    image: asunapahlo/armada:latest
-    container_name: armada
-    restart: unless-stopped
-    ports:
-      - "5000:5000"  # Change the first port to use a different external port
-    volumes:
-      - armada_data:/app/data  # Persistent storage for database
-    environment:
-      - SECRET_KEY=change-this-to-a-random-secret-key  # Required: set a secure key
-
-volumes:
-  armada_data:
-```
-
-> **Important:** Change `SECRET_KEY` to a random string. You can generate one with: `openssl rand -hex 32`
 
 ### Generating API Keys
 
 1. Log in to the Armada dashboard
 2. Click the **Settings** icon in the top right
-3. Select **API Keys**
+3. Click Settings in the dropdown
+3. Select **API Keys** on the left side
 4. Create a new key for each game client
 
 > **Tip:** Use descriptive names like "Main Account" or "Alt FC" to identify which client is sending data.
