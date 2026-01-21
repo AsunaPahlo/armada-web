@@ -10,6 +10,7 @@ from flask import Blueprint, jsonify
 
 from app.decorators import api_key_required
 from app.services import get_fleet_manager
+from app.services.profit_tracker import profit_tracker
 
 api_v1_bp = Blueprint('api_v1', __name__)
 
@@ -76,13 +77,24 @@ def status():
 
     Returns:
         JSON with: total_subs, ready_subs, voyaging_subs, days_until_restock,
-        total_gil_per_day, last_updated
+        total_gil_per_day, avg_daily_profit, last_updated
     """
     fleet = get_fleet_manager()
     data = fleet.get_dashboard_data()
 
     summary = data.get('summary', {})
     supply = data.get('supply_forecast', {})
+
+    # Get avg daily profit directly from profit_tracker to avoid circular dependency
+    try:
+        profit_data = profit_tracker.get_daily_profits(days=30)
+        if profit_data:
+            total_profit = sum(d['net_profit'] for d in profit_data)
+            avg_daily_profit = int(total_profit / len(profit_data))
+        else:
+            avg_daily_profit = 0
+    except Exception:
+        avg_daily_profit = 0
 
     return jsonify({
         'total_subs': summary.get('total_subs', 0),
@@ -91,6 +103,7 @@ def status():
         'returning_soon_subs': len([s for s in data.get('submarines', [])
                                     if s.get('status') == 'returning_soon']),
         'total_gil_per_day': summary.get('total_gil_per_day', 0),
+        'avg_daily_profit': avg_daily_profit,
         'days_until_restock': supply.get('days_until_restock'),
         'limiting_resource': supply.get('limiting_resource'),
         'fc_count': summary.get('fc_count', 0),
