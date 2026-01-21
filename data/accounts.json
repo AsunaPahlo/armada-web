@@ -1,0 +1,10 @@
+{
+    "accounts": [
+        {
+            "nickname": "Main",
+            "config_path": "D:\\Users\\test\\AppData\\Roaming\\XIVLauncher\\pluginConfigs\\AutoRetainer\\DefaultConfig.json",
+            "enabled": false
+        }
+    ],
+    "_comment": "Add more accounts by duplicating the entry above with different nicknames and config paths. Set enabled to false to disable an account. Each account should point to its AutoRetainer DefaultConfig.json"
+}

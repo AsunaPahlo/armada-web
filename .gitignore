@@ -3,6 +3,14 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Claude
+.claude/
+
+# JSON files
+*.json
+!app/static/manifest.json
+!data/accounts.json
+
 # Virtual environment
 venv/
 .venv/
@@ -12,9 +20,8 @@ env/
 # Instance folder (database)
 instance/
 
-# Data folder (database, accounts, etc)
-data/
-*.db
+# Data folder (database files)
+data/*.db
 
 # IDE
 .idea/
