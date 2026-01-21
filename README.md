@@ -101,7 +101,7 @@ Don't want to self-host? We offer managed hosting so you can skip the server set
 <summary>Click to expand</summary>
 
 #### Prerequisites
-- Python 3.12+
+- Python 3.11+
 
 #### Steps
 
