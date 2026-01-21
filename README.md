@@ -147,6 +147,32 @@ Once your server is running, install the Dalamud plugin to start sending data:
 
 > **Tip:** Use descriptive names like "Main Account" or "Alt FC" to identify which client is sending data.
 
+## User Management
+
+If you get locked out of your account or need to reset a password, use these commands:
+
+**Reset password** (generates a random password):
+```bash
+docker exec armada python scripts/manage_users.py reset-password admin
+```
+
+**Reset password** (set a specific password):
+```bash
+docker exec armada python scripts/manage_users.py reset-password admin mynewpassword
+```
+
+**Unlock a locked account**:
+```bash
+docker exec armada python scripts/manage_users.py unlock admin
+```
+
+**List all users**:
+```bash
+docker exec armada python scripts/manage_users.py list
+```
+
+> **Note:** Replace `admin` with your username. Resetting a password also unlocks the account.
+
 ## Exposing to the Internet
 
 To connect game clients from outside your local network, you'll need to expose the server. Some options:
