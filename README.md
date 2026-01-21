@@ -1,4 +1,4 @@
-# <img src="app/static/armada_logo.png" alt="Armada Logo" height="40"> Armada
+# <img src="app/static/armada_logo.png" alt="Armada Logo" height="60"> Armada
 
 A real-time submarine and airship fleet monitoring dashboard for FINAL FANTASY XIV. Track all your voyages across multiple accounts and Free Companies from a single interface.
 
