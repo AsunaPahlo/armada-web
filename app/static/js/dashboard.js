@@ -289,7 +289,7 @@ class ArmadaDashboard {
                 data-character="${fc.unified_character || ''}"
                 data-tags="${tagIds}"
                 data-tag-names="${tagNames}"
-                data-accounts="${fc.accounts ? fc.accounts.join(' ') : ''}"
+                data-accounts="${fc.accounts ? fc.accounts.join(' ') : ''}">
                 <td class="expand-toggle" style="cursor: pointer;">
                     <i class="bi ${isExpanded ? 'bi-chevron-down' : 'bi-chevron-right'}"></i>
                 </td>
