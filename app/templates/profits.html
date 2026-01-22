@@ -26,7 +26,7 @@
                 <i class="bi bi-cash-stack fs-2 text-success me-2"></i>
                 <div>
                     <h6 class="text-muted mb-0">Total Net Profit</h6>
-                    <h2 class="mb-0 text-success">{{ "{:,.0f}".format(profit_data.summary.total_net_profit) }}</h2>
+                    <h2 class="mb-0 text-success" id="total-net-profit"><span class="placeholder col-8"></span></h2>
                 </div>
             </div>
         </div>
@@ -37,7 +37,7 @@
                 <i class="bi bi-sun fs-2 text-warning me-2"></i>
                 <div>
                     <h6 class="text-muted mb-0">Avg Daily Profit</h6>
-                    <h2 class="mb-0 text-warning">{{ "{:,.0f}".format(profit_data.summary.avg_daily_profit) }}</h2>
+                    <h2 class="mb-0 text-warning" id="avg-daily-profit"><span class="placeholder col-8"></span></h2>
                 </div>
             </div>
         </div>
@@ -45,10 +45,10 @@
     <div class="col">
         <div class="card summary-card">
             <div class="card-body d-flex align-items-center justify-content-center">
-                <i class="bi bi-percent fs-2 text-info me-2"></i>
+                <i class="bi bi-pie-chart-fill fs-2 text-info me-2"></i>
                 <div>
                     <h6 class="text-muted mb-0">Profit Margin</h6>
-                    <h2 class="mb-0 text-info">{{ profit_data.summary.profit_margin_pct }}%</h2>
+                    <h2 class="mb-0 text-info" id="profit-margin"><span class="placeholder col-6"></span></h2>
                 </div>
             </div>
         </div>
@@ -56,18 +56,10 @@
     <div class="col">
         <div class="card summary-card">
             <div class="card-body d-flex align-items-center justify-content-center">
-                {% if profit_data.summary.trend_direction == 'up' %}
-                <i class="bi bi-arrow-up-right fs-2 text-success me-2"></i>
-                {% elif profit_data.summary.trend_direction == 'down' %}
-                <i class="bi bi-arrow-down-right fs-2 text-danger me-2"></i>
-                {% else %}
-                <i class="bi bi-arrow-right fs-2 text-muted me-2"></i>
-                {% endif %}
+                <i class="bi bi-arrow-right fs-2 text-muted me-2" id="trend-icon"></i>
                 <div>
                     <h6 class="text-muted mb-0">Daily Trend</h6>
-                    <h2 class="mb-0 {% if profit_data.summary.trend_daily_change > 0 %}text-success{% elif profit_data.summary.trend_daily_change < 0 %}text-danger{% endif %}">
-                        {{ "{:+,.0f}".format(profit_data.summary.trend_daily_change) }}
-                    </h2>
+                    <h2 class="mb-0" id="daily-trend"><span class="placeholder col-7"></span></h2>
                 </div>
             </div>
         </div>
@@ -78,7 +70,7 @@
                 <i class="bi bi-calendar-check fs-2 text-primary me-2"></i>
                 <div>
                     <h6 class="text-muted mb-0">Projected 30d Profit</h6>
-                    <h2 class="mb-0 text-primary">{{ "{:,.0f}".format(profit_data.summary.projected_30d_profit) }}</h2>
+                    <h2 class="mb-0 text-primary" id="projected-profit"><span class="placeholder col-8"></span></h2>
                 </div>
             </div>
         </div>
@@ -106,25 +98,20 @@
                 <div class="row text-center mb-3">
                     <div class="col">
                         <h6 class="text-muted">Gross Income</h6>
-                        <h3 class="text-warning">{{ "{:,.0f}".format(profit_data.summary.total_gross_income) }}</h3>
+                        <h3 class="text-warning" id="gross-income"><span class="placeholder col-8"></span></h3>
                     </div>
                     <div class="col">
                         <h6 class="text-muted">Material Costs</h6>
-                        <h3 class="text-danger">{{ "{:,.0f}".format(profit_data.summary.total_material_cost) }}</h3>
+                        <h3 class="text-danger" id="material-costs"><span class="placeholder col-8"></span></h3>
                     </div>
                     <div class="col">
                         <h6 class="text-muted">Net Profit</h6>
-                        <h3 class="text-success">{{ "{:,.0f}".format(profit_data.summary.total_net_profit) }}</h3>
+                        <h3 class="text-success" id="net-profit"><span class="placeholder col-8"></span></h3>
                     </div>
                 </div>
-                <div class="progress" style="height: 30px;">
-                    {% set profit_pct = profit_data.summary.profit_margin_pct %}
-                    {% set cost_pct = 100 - profit_pct %}
-                    <div class="progress-bar bg-success" role="progressbar" style="width: {{ profit_pct }}%">
-                        Profit {{ profit_pct }}%
-                    </div>
-                    <div class="progress-bar bg-danger" role="progressbar" style="width: {{ cost_pct }}%">
-                        Costs {{ cost_pct|round(1) }}%
+                <div class="progress" style="height: 30px;" id="profit-progress">
+                    <div class="progress-bar bg-secondary" role="progressbar" style="width: 100%">
+                        Loading...
                     </div>
                 </div>
             </div>
@@ -141,21 +128,21 @@
                     <div class="col-6">
                         <div class="mb-3">
                             <label class="text-muted small">Ceruleum Price/Stack</label>
-                            <h4>{{ "{:,.0f}".format(profit_data.costs.ceruleum_price_per_stack) }} gil</h4>
+                            <h4 id="ceruleum-price"><span class="placeholder col-6"></span></h4>
                         </div>
                         <div>
                             <label class="text-muted small">Est. Ceruleum/Voyage</label>
-                            <h5>{{ profit_data.costs.ceruleum_per_voyage }} tanks</h5>
+                            <h5 id="ceruleum-per-voyage"><span class="placeholder col-4"></span></h5>
                         </div>
                     </div>
                     <div class="col-6">
                         <div class="mb-3">
                             <label class="text-muted small">Repair Kit Price/Stack</label>
-                            <h4>{{ "{:,.0f}".format(profit_data.costs.repair_kit_price_per_stack) }} gil</h4>
+                            <h4 id="repair-kit-price"><span class="placeholder col-6"></span></h4>
                         </div>
                         <div>
                             <label class="text-muted small">Est. Kits/Voyage</label>
-                            <h5>{{ profit_data.costs.kits_per_voyage }} kits</h5>
+                            <h5 id="kits-per-voyage"><span class="placeholder col-4"></span></h5>
                         </div>
                     </div>
                 </div>
@@ -163,11 +150,11 @@
                 <div class="row text-center">
                     <div class="col">
                         <small class="text-muted">Avg Daily Income</small>
-                        <h5 class="text-warning mb-0">{{ "{:,.0f}".format(profit_data.summary.avg_daily_income) }}</h5>
+                        <h5 class="text-warning mb-0" id="avg-daily-income"><span class="placeholder col-8"></span></h5>
                     </div>
                     <div class="col">
                         <small class="text-muted">Avg Daily Cost</small>
-                        <h5 class="text-danger mb-0">{{ "{:,.0f}".format(profit_data.summary.avg_daily_cost) }}</h5>
+                        <h5 class="text-danger mb-0" id="avg-daily-cost"><span class="placeholder col-8"></span></h5>
                     </div>
                 </div>
             </div>
@@ -184,24 +171,20 @@
         <div class="row text-center">
             <div class="col-md-3">
                 <h6 class="text-muted">Data Points</h6>
-                <h3>{{ profit_data.actual_days }} days</h3>
+                <h3 id="data-points"><span class="placeholder col-4"></span></h3>
             </div>
             <div class="col-md-3">
                 <h6 class="text-muted">Trend Slope</h6>
-                <h3 class="{% if profit_data.trend.slope > 0 %}text-success{% elif profit_data.trend.slope < 0 %}text-danger{% endif %}">
-                    {{ "{:+,.0f}".format(profit_data.trend.slope) }} gil/day
-                </h3>
+                <h3 id="trend-slope"><span class="placeholder col-8"></span></h3>
             </div>
             <div class="col-md-3">
                 <h6 class="text-muted">R² (Fit Quality)</h6>
-                <h3>{{ profit_data.summary.r_squared }}</h3>
-                <small class="text-muted">
-                    {% if profit_data.summary.r_squared >= 0.7 %}Strong fit{% elif profit_data.summary.r_squared >= 0.4 %}Moderate fit{% else %}Weak fit{% endif %}
-                </small>
+                <h3 id="r-squared"><span class="placeholder col-4"></span></h3>
+                <small class="text-muted" id="r-squared-label"></small>
             </div>
             <div class="col-md-3">
                 <h6 class="text-muted">Total Voyages</h6>
-                <h3>{{ profit_data.summary.total_voyages }}</h3>
+                <h3 id="total-voyages"><span class="placeholder col-4"></span></h3>
             </div>
         </div>
     </div>
@@ -212,18 +195,10 @@
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
-// Timezone handling - redirect with tz parameter if not present
 (function() {
-    const url = new URL(window.location.href);
-    const currentTz = url.searchParams.get('tz');
     const clientTz = new Date().getTimezoneOffset();
-
-    // Only redirect if tz parameter is missing
-    if (currentTz === null) {
-        url.searchParams.set('tz', clientTz);
-        window.location.replace(url.toString());
-        return;
-    }
+    const currentDays = {{ days }};
+    const projectionDays = {{ projection_days }};
 
     // Update day filter links to include timezone parameter
     document.querySelectorAll('#day-filter-buttons a').forEach(link => {
@@ -231,170 +206,270 @@
         linkUrl.searchParams.set('tz', clientTz);
         link.href = linkUrl.toString();
     });
-})();
 
-// Chart data from server
-const profitData = {{ profit_data|tojson }};
+    // Fetch profit data with timezone
+    const apiUrl = new URL('{{ url_for("stats.profits_data") }}', window.location.origin);
+    apiUrl.searchParams.set('days', currentDays);
+    apiUrl.searchParams.set('projection', projectionDays);
+    apiUrl.searchParams.set('tz', clientTz);
 
-// Extract data for chart
-const dailyProfits = profitData.daily_profits || [];
-const trendPoints = profitData.trend.trend_points || [];
-const projections = profitData.projections || [];
+    let profitChart = null;
 
-// Build labels and datasets - cumulative profit over time
-const allLabels = [];
-const cumulativeProfitData = [];
-const cumulativeTrendData = [];
-const cumulativeProjectionData = [];
+    fetch(apiUrl)
+        .then(response => response.json())
+        .then(profitData => {
+            // Populate summary cards
+            document.getElementById('total-net-profit').textContent =
+                profitData.summary.total_net_profit.toLocaleString();
+            document.getElementById('avg-daily-profit').textContent =
+                profitData.summary.avg_daily_profit.toLocaleString();
+            document.getElementById('profit-margin').textContent =
+                profitData.summary.profit_margin_pct + '%';
 
-// Calculate cumulative profits from daily data
-let runningTotal = 0;
-let runningTrendTotal = 0;
+            // Trend icon and value
+            const trendIcon = document.getElementById('trend-icon');
+            const dailyTrend = document.getElementById('daily-trend');
+            const trendChange = profitData.summary.trend_daily_change;
 
-// Only show trend line if we have enough data (7+ days) for it to be meaningful
-const showTrendLine = dailyProfits.length >= 7;
-
-// Add historical data (cumulative)
-dailyProfits.forEach((d, i) => {
-    allLabels.push(d.date.slice(5)); // MM-DD format
-    runningTotal += d.net_profit;
-    cumulativeProfitData.push(runningTotal);
-
-    // Cumulative trend line (only if enough data)
-    if (showTrendLine && trendPoints[i]) {
-        runningTrendTotal += trendPoints[i].value;
-        cumulativeTrendData.push(runningTrendTotal);
-    } else {
-        cumulativeTrendData.push(null);
-    }
-    cumulativeProjectionData.push(null); // No projection for historical dates
-});
-
-// Connect projection to last actual data point
-if (dailyProfits.length > 0 && projections.length > 0) {
-    cumulativeProjectionData[dailyProfits.length - 1] = runningTotal;
-}
-
-// Use average daily profit for projection (more realistic than trend extrapolation)
-const avgDailyProfit = profitData.summary.avg_daily_profit || 0;
-
-// Add projection data (cumulative, using average daily profit)
-let projectionRunningTotal = runningTotal;
-projections.forEach((p, i) => {
-    allLabels.push(p.date.slice(5));
-    cumulativeProfitData.push(null); // No actual data for future
-    cumulativeTrendData.push(null); // Don't extend trend line into projection (can go crazy with limited data)
-
-    // Cumulative projection using average daily profit (matches "Projected 30d" card)
-    projectionRunningTotal += avgDailyProfit;
-    cumulativeProjectionData.push(projectionRunningTotal);
-});
-
-// Chart configuration
-const ctx = document.getElementById('profit-chart').getContext('2d');
-
-new Chart(ctx, {
-    type: 'line',
-    data: {
-        labels: allLabels,
-        datasets: [
-            {
-                label: 'Total Profit',
-                data: cumulativeProfitData,
-                borderColor: 'rgba(72, 187, 120, 1)',
-                backgroundColor: 'rgba(72, 187, 120, 0.1)',
-                fill: true,
-                tension: 0.3,
-                pointRadius: 3,
-                pointHoverRadius: 5
-            },
-            {
-                label: 'Trend',
-                data: cumulativeTrendData,
-                borderColor: 'rgba(99, 179, 237, 0.8)',
-                backgroundColor: 'transparent',
-                borderWidth: 2,
-                borderDash: [8, 4],
-                fill: false,
-                tension: 0,
-                pointRadius: 0
-            },
-            {
-                label: 'Projected',
-                data: cumulativeProjectionData,
-                borderColor: 'rgba(237, 137, 54, 1)',
-                backgroundColor: 'rgba(237, 137, 54, 0.1)',
-                borderDash: [10, 5],
-                fill: true,
-                tension: 0.3,
-                pointRadius: 2
+            if (profitData.summary.trend_direction === 'up') {
+                trendIcon.className = 'bi bi-arrow-up-right fs-2 text-success me-2';
+                dailyTrend.className = 'mb-0 text-success';
+            } else if (profitData.summary.trend_direction === 'down') {
+                trendIcon.className = 'bi bi-arrow-down-right fs-2 text-danger me-2';
+                dailyTrend.className = 'mb-0 text-danger';
+            } else {
+                trendIcon.className = 'bi bi-arrow-right fs-2 text-muted me-2';
+                dailyTrend.className = 'mb-0';
             }
-        ]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: {
-            intersect: false,
-            mode: 'index'
-        },
-        plugins: {
-            legend: {
-                labels: { color: 'rgba(255,255,255,0.7)' }
-            },
-            tooltip: {
-                callbacks: {
-                    label: function(context) {
-                        const value = context.raw;
-                        if (value === null) return null;
-                        return context.dataset.label + ': ' + value.toLocaleString() + ' gil';
-                    }
-                }
-            },
-            annotation: {
-                annotations: {
-                    todayLine: {
-                        type: 'line',
-                        xMin: dailyProfits.length - 0.5,
-                        xMax: dailyProfits.length - 0.5,
-                        borderColor: 'rgba(255, 255, 255, 0.3)',
-                        borderWidth: 2,
-                        borderDash: [5, 5],
-                        label: {
-                            display: true,
-                            content: 'Today',
-                            position: 'start'
-                        }
-                    }
-                }
+            dailyTrend.textContent = (trendChange >= 0 ? '+' : '') + trendChange.toLocaleString();
+
+            document.getElementById('projected-profit').textContent =
+                profitData.summary.projected_30d_profit.toLocaleString();
+
+            // Income vs Costs breakdown
+            document.getElementById('gross-income').textContent =
+                profitData.summary.total_gross_income.toLocaleString();
+            document.getElementById('material-costs').textContent =
+                profitData.summary.total_material_cost.toLocaleString();
+            document.getElementById('net-profit').textContent =
+                profitData.summary.total_net_profit.toLocaleString();
+
+            // Progress bar
+            const profitPct = profitData.summary.profit_margin_pct;
+            const costPct = (100 - profitPct).toFixed(1);
+            document.getElementById('profit-progress').innerHTML = `
+                <div class="progress-bar bg-success" role="progressbar" style="width: ${profitPct}%">
+                    Profit ${profitPct}%
+                </div>
+                <div class="progress-bar bg-danger" role="progressbar" style="width: ${costPct}%">
+                    Costs ${costPct}%
+                </div>
+            `;
+
+            // Cost configuration
+            document.getElementById('ceruleum-price').textContent =
+                profitData.costs.ceruleum_price_per_stack.toLocaleString() + ' gil';
+            document.getElementById('ceruleum-per-voyage').textContent =
+                profitData.costs.ceruleum_per_voyage + ' tanks';
+            document.getElementById('repair-kit-price').textContent =
+                profitData.costs.repair_kit_price_per_stack.toLocaleString() + ' gil';
+            document.getElementById('kits-per-voyage').textContent =
+                profitData.costs.kits_per_voyage + ' kits';
+            document.getElementById('avg-daily-income').textContent =
+                profitData.summary.avg_daily_income.toLocaleString();
+            document.getElementById('avg-daily-cost').textContent =
+                profitData.summary.avg_daily_cost.toLocaleString();
+
+            // Trend analysis
+            document.getElementById('data-points').textContent = profitData.actual_days + ' days';
+
+            const trendSlope = document.getElementById('trend-slope');
+            const slope = profitData.trend.slope;
+            trendSlope.textContent = (slope >= 0 ? '+' : '') + Math.round(slope).toLocaleString() + ' gil/day';
+            if (slope > 0) {
+                trendSlope.className = 'text-success';
+            } else if (slope < 0) {
+                trendSlope.className = 'text-danger';
             }
-        },
-        scales: {
-            y: {
-                beginAtZero: false,
-                grid: { color: 'rgba(255,255,255,0.1)' },
-                ticks: {
-                    color: 'rgba(255,255,255,0.7)',
-                    callback: function(value) {
-                        if (Math.abs(value) >= 1000000) {
-                            return (value / 1000000).toFixed(1) + 'M';
-                        } else if (Math.abs(value) >= 1000) {
-                            return (value / 1000).toFixed(0) + 'K';
-                        }
-                        return value;
-                    }
-                }
-            },
-            x: {
-                grid: { color: 'rgba(255,255,255,0.1)' },
-                ticks: {
-                    color: 'rgba(255,255,255,0.7)',
-                    maxRotation: 45,
-                    minRotation: 45
-                }
+
+            const rSquared = profitData.summary.r_squared;
+            document.getElementById('r-squared').textContent = rSquared;
+            let rSquaredLabel = 'Weak fit';
+            if (rSquared >= 0.7) {
+                rSquaredLabel = 'Strong fit';
+            } else if (rSquared >= 0.4) {
+                rSquaredLabel = 'Moderate fit';
             }
+            document.getElementById('r-squared-label').textContent = rSquaredLabel;
+
+            document.getElementById('total-voyages').textContent =
+                profitData.summary.total_voyages.toLocaleString();
+
+            // Render chart
+            renderChart(profitData);
+        })
+        .catch(error => {
+            console.error('Error fetching profit data:', error);
+            document.querySelectorAll('.placeholder').forEach(el => {
+                el.textContent = 'Error';
+                el.classList.remove('placeholder');
+            });
+        });
+
+    function renderChart(profitData) {
+        const dailyProfits = profitData.daily_profits || [];
+        const trendPoints = profitData.trend.trend_points || [];
+        const projections = profitData.projections || [];
+
+        const allLabels = [];
+        const cumulativeProfitData = [];
+        const cumulativeTrendData = [];
+        const cumulativeProjectionData = [];
+
+        let runningTotal = 0;
+        let runningTrendTotal = 0;
+
+        const showTrendLine = dailyProfits.length >= 7;
+
+        // Add historical data (cumulative)
+        dailyProfits.forEach((d, i) => {
+            allLabels.push(d.date.slice(5)); // MM-DD format
+            runningTotal += d.net_profit;
+            cumulativeProfitData.push(runningTotal);
+
+            if (showTrendLine && trendPoints[i]) {
+                runningTrendTotal += trendPoints[i].value;
+                cumulativeTrendData.push(runningTrendTotal);
+            } else {
+                cumulativeTrendData.push(null);
+            }
+            cumulativeProjectionData.push(null);
+        });
+
+        // Connect projection to last actual data point
+        if (dailyProfits.length > 0 && projections.length > 0) {
+            cumulativeProjectionData[dailyProfits.length - 1] = runningTotal;
         }
+
+        const avgDailyProfit = profitData.summary.avg_daily_profit || 0;
+
+        // Add projection data
+        let projectionRunningTotal = runningTotal;
+        projections.forEach((p, i) => {
+            allLabels.push(p.date.slice(5));
+            cumulativeProfitData.push(null);
+            cumulativeTrendData.push(null);
+
+            projectionRunningTotal += avgDailyProfit;
+            cumulativeProjectionData.push(projectionRunningTotal);
+        });
+
+        const ctx = document.getElementById('profit-chart').getContext('2d');
+
+        profitChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: allLabels,
+                datasets: [
+                    {
+                        label: 'Total Profit',
+                        data: cumulativeProfitData,
+                        borderColor: 'rgba(72, 187, 120, 1)',
+                        backgroundColor: 'rgba(72, 187, 120, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 3,
+                        pointHoverRadius: 5
+                    },
+                    {
+                        label: 'Trend',
+                        data: cumulativeTrendData,
+                        borderColor: 'rgba(99, 179, 237, 0.8)',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        borderDash: [8, 4],
+                        fill: false,
+                        tension: 0,
+                        pointRadius: 0
+                    },
+                    {
+                        label: 'Projected',
+                        data: cumulativeProjectionData,
+                        borderColor: 'rgba(237, 137, 54, 1)',
+                        backgroundColor: 'rgba(237, 137, 54, 0.1)',
+                        borderDash: [10, 5],
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 2
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                plugins: {
+                    legend: {
+                        labels: { color: 'rgba(255,255,255,0.7)' }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.raw;
+                                if (value === null) return null;
+                                return context.dataset.label + ': ' + value.toLocaleString() + ' gil';
+                            }
+                        }
+                    },
+                    annotation: {
+                        annotations: {
+                            todayLine: {
+                                type: 'line',
+                                xMin: dailyProfits.length - 0.5,
+                                xMax: dailyProfits.length - 0.5,
+                                borderColor: 'rgba(255, 255, 255, 0.3)',
+                                borderWidth: 2,
+                                borderDash: [5, 5],
+                                label: {
+                                    display: true,
+                                    content: 'Today',
+                                    position: 'start'
+                                }
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        grid: { color: 'rgba(255,255,255,0.1)' },
+                        ticks: {
+                            color: 'rgba(255,255,255,0.7)',
+                            callback: function(value) {
+                                if (Math.abs(value) >= 1000000) {
+                                    return (value / 1000000).toFixed(1) + 'M';
+                                } else if (Math.abs(value) >= 1000) {
+                                    return (value / 1000).toFixed(0) + 'K';
+                                }
+                                return value;
+                            }
+                        }
+                    },
+                    x: {
+                        grid: { color: 'rgba(255,255,255,0.1)' },
+                        ticks: {
+                            color: 'rgba(255,255,255,0.7)',
+                            maxRotation: 45,
+                            minRotation: 45
+                        }
+                    }
+                }
+            }
+        });
     }
-});
+})();
 </script>
 {% endblock %}

@@ -373,9 +373,34 @@ def profits():
     profit_data = profit_tracker.get_profit_summary(days=days, projection_days=projection_days, tz_offset_minutes=tz_offset)
 
     return render_template('profits.html',
-                           profit_data=profit_data,
                            days=days,
                            projection_days=projection_days)
+
+
+@stats_bp.route('/profits/data')
+@login_required
+def profits_data():
+    """JSON API endpoint for profit data (used by AJAX on page load)."""
+    from app.services.profit_tracker import profit_tracker
+
+    days = request.args.get('days', 30, type=int)
+    projection_days = request.args.get('projection', 30, type=int)
+    tz_offset = request.args.get('tz', 0, type=int)  # Timezone offset in minutes
+
+    # Clamp values
+    if days != 0:
+        days = min(max(days, 1), 365)
+    projection_days = min(max(projection_days, 7), 90)
+    # Clamp timezone offset to valid range (-720 to +840 minutes)
+    tz_offset = max(-720, min(840, tz_offset))
+
+    profit_data = profit_tracker.get_profit_summary(
+        days=days,
+        projection_days=projection_days,
+        tz_offset_minutes=tz_offset
+    )
+
+    return jsonify(profit_data)
 
 
 @stats_bp.route('/profits/settings', methods=['GET', 'POST'])
