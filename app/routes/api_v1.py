@@ -6,7 +6,7 @@ All endpoints require API key authentication via Authorization header:
 
 Designed for external clients like MagicMirror modules, mobile apps, etc.
 """
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 
 from app.decorators import api_key_required
 from app.services import get_fleet_manager
@@ -75,6 +75,10 @@ def submarines_voyaging():
 def status():
     """Get a quick summary status of the fleet.
 
+    Query params:
+        tz: Timezone offset in minutes from UTC (e.g., -480 for PST, 540 for JST).
+            Used to calculate daily profit based on local day boundaries.
+
     Returns:
         JSON with: total_subs, ready_subs, voyaging_subs, days_until_restock,
         total_gil_per_day, avg_daily_profit, last_updated
@@ -85,9 +89,14 @@ def status():
     summary = data.get('summary', {})
     supply = data.get('supply_forecast', {})
 
+    # Get timezone offset from query param (default to UTC)
+    tz_offset_minutes = request.args.get('tz', 0, type=int)
+    # Clamp to valid range (-12 to +14 hours)
+    tz_offset_minutes = max(-720, min(840, tz_offset_minutes))
+
     # Get avg daily profit directly from profit_tracker to avoid circular dependency
     try:
-        profit_data = profit_tracker.get_daily_profits(days=30)
+        profit_data = profit_tracker.get_daily_profits(days=30, tz_offset_minutes=tz_offset_minutes)
         if profit_data:
             total_profit = sum(d['net_profit'] for d in profit_data)
             avg_daily_profit = int(total_profit / len(profit_data))
