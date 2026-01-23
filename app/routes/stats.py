@@ -634,12 +634,11 @@ def fc_activity(fc_id):
 @login_required
 def fc_notes_update(fc_id):
     """Update notes for an FC."""
-    from app.auth import writable_required_json
-    from app.models.fc_config import FCConfig, update_fc_config
+    from app.models.fc_config import update_fc_config
+    from flask_login import current_user
 
     # Check if user has write permission
-    from flask_login import current_user
-    if current_user.is_readonly:
+    if hasattr(current_user, 'is_readonly') and current_user.is_readonly:
         return jsonify({'success': False, 'message': 'Read-only users cannot edit notes'}), 403
 
     data = request.get_json() or {}
