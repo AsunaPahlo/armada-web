@@ -461,7 +461,7 @@ def fc_detail(fc_id):
     from app.models.fc_housing import get_fc_housing
     from app.services.submarine_data import get_inventory_parts_with_details
 
-    target_level = AppSettings.get_int('target_submarine_level', 90)
+    target_level = AppSettings.get_int('target_submarine_level', 85)
 
     # Get fleet data
     fleet = get_fleet_manager()
