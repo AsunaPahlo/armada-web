@@ -217,22 +217,11 @@ function updateSheet(sheetName, columns, rows) {
     }
   }
 
-  // Set specific column widths (adjust these values as needed)
-  const columnWidths = {
-    'character': 180,
-    'fc_name': 150,
-    'datacenter': 90,
-    'world': 100,
-    'housing_area': 120,
-    'ward': 50,
-    'plot': 50,
-    'route': 120,
-    'house_size': 80,
-    'notes': 200
-  };
-  for (let i = 0; i < columns.length; i++) {
-    const width = columnWidths[columns[i]] || 100;
-    sheet.setColumnWidth(i + 1, width);
+  // Auto-resize columns then add padding
+  for (let i = 1; i <= columns.length; i++) {
+    sheet.autoResizeColumn(i);
+    const currentWidth = sheet.getColumnWidth(i);
+    sheet.setColumnWidth(i, currentWidth + 20);
   }
 
   // Add filter to make it a proper table with dropdowns
