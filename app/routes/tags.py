@@ -97,6 +97,32 @@ def delete_tag(tag_id: int):
     return jsonify({'success': True})
 
 
+@tags_bp.route('/rename/<int:tag_id>', methods=['POST'])
+@login_required
+@writable_required
+def rename_tag(tag_id: int):
+    """Rename a tag."""
+    tag = FCTag.query.get(tag_id)
+    if not tag:
+        return jsonify({'success': False, 'message': 'Tag not found'}), 404
+
+    data = request.get_json() or request.form
+    new_name = data.get('name', '').strip()
+
+    if not new_name:
+        return jsonify({'success': False, 'message': 'Tag name is required'}), 400
+
+    # Check for duplicate (excluding current tag)
+    existing = FCTag.query.filter(FCTag.name == new_name, FCTag.id != tag_id).first()
+    if existing:
+        return jsonify({'success': False, 'message': f'Tag "{new_name}" already exists'}), 400
+
+    tag.name = new_name
+    db.session.commit()
+
+    return jsonify({'success': True, 'tag': tag.to_dict()})
+
+
 @tags_bp.route('/assign', methods=['POST'])
 @login_required
 @writable_required

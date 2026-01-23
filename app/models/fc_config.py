@@ -12,6 +12,7 @@ class FCConfig(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     fc_id = db.Column(db.String(30), nullable=False, unique=True, index=True)
     visible = db.Column(db.Boolean, default=True)
+    notes = db.Column(db.Text, nullable=True)  # User notes for this FC
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def __repr__(self):
@@ -21,6 +22,7 @@ class FCConfig(db.Model):
         return {
             'fc_id': self.fc_id,
             'visible': self.visible,
+            'notes': self.notes,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
 
@@ -34,6 +36,17 @@ def get_all_fc_configs() -> dict:
     """
     configs = FCConfig.query.all()
     return {c.fc_id: c for c in configs}
+
+
+def get_all_fc_notes() -> dict:
+    """
+    Get all FC notes as a dict.
+
+    Returns:
+        Dict mapping fc_id -> notes string (or None if no notes)
+    """
+    configs = FCConfig.query.filter(FCConfig.notes.isnot(None)).all()
+    return {c.fc_id: c.notes for c in configs}
 
 
 def get_hidden_fc_ids() -> set:
@@ -67,8 +80,10 @@ def update_fc_config(fc_id: str, **kwargs) -> FCConfig:
 
     # Update any provided fields
     for key, value in kwargs.items():
-        if hasattr(config, key) and value is not None:
-            setattr(config, key, value)
+        if hasattr(config, key):
+            # Allow None for notes (to clear), but not for other fields
+            if value is not None or key == 'notes':
+                setattr(config, key, value)
 
     config.updated_at = datetime.utcnow()
     db.session.commit()

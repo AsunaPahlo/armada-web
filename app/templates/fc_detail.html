@@ -29,6 +29,26 @@
     </div>
 </div>
 
+<!-- FC Notes -->
+<div class="card mb-4">
+    <div class="card-header py-2 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="bi bi-sticky"></i> Notes</h6>
+        <button class="btn btn-sm btn-outline-primary" id="edit-notes-btn" title="Edit notes">
+            <i class="bi bi-pencil"></i>
+        </button>
+    </div>
+    <div class="card-body py-2">
+        <div id="notes-display" class="text-muted {% if not fc_notes %}fst-italic{% endif %}" style="white-space: pre-wrap; min-height: 1.5em;">{{ fc_notes or 'No notes added yet. Click the pencil to add notes.' }}</div>
+        <div id="notes-edit" style="display: none;">
+            <textarea class="form-control form-control-sm" id="notes-textarea" rows="3" placeholder="Add notes about this FC...">{{ fc_notes or '' }}</textarea>
+            <div class="mt-2 d-flex gap-2">
+                <button class="btn btn-sm btn-primary" id="save-notes-btn"><i class="bi bi-check"></i> Save</button>
+                <button class="btn btn-sm btn-outline-secondary" id="cancel-notes-btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Leveling Estimates Summary -->
 <div class="row mb-4">
     <div class="col-md-3">
@@ -638,6 +658,56 @@
 
     // Load activity log on page load
     loadActivityLog(1);
+
+    // ==================== NOTES ====================
+    const editNotesBtn = document.getElementById('edit-notes-btn');
+    const notesDisplay = document.getElementById('notes-display');
+    const notesEdit = document.getElementById('notes-edit');
+    const notesTextarea = document.getElementById('notes-textarea');
+    const saveNotesBtn = document.getElementById('save-notes-btn');
+    const cancelNotesBtn = document.getElementById('cancel-notes-btn');
+
+    editNotesBtn.addEventListener('click', () => {
+        notesDisplay.style.display = 'none';
+        notesEdit.style.display = 'block';
+        notesTextarea.focus();
+    });
+
+    cancelNotesBtn.addEventListener('click', () => {
+        notesEdit.style.display = 'none';
+        notesDisplay.style.display = 'block';
+        // Restore original value
+        notesTextarea.value = notesDisplay.textContent.trim() === 'No notes added yet. Click the pencil to add notes.' ? '' : notesDisplay.textContent;
+    });
+
+    saveNotesBtn.addEventListener('click', async () => {
+        const notes = notesTextarea.value.trim();
+        saveNotesBtn.disabled = true;
+        saveNotesBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+        try {
+            const resp = await fetch(`/stats/fc/${fcId}/notes`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ notes: notes })
+            });
+            const data = await resp.json();
+            if (data.success) {
+                notesDisplay.textContent = notes || 'No notes added yet. Click the pencil to add notes.';
+                notesDisplay.classList.toggle('fst-italic', !notes);
+                notesEdit.style.display = 'none';
+                notesDisplay.style.display = 'block';
+            } else {
+                alert(data.message || 'Failed to save notes');
+            }
+        } catch (err) {
+            alert('Error saving notes');
+        } finally {
+            saveNotesBtn.disabled = false;
+            saveNotesBtn.innerHTML = '<i class="bi bi-check"></i> Save';
+        }
+    });
 })();
 </script>
 {% endblock %}

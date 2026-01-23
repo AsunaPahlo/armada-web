@@ -48,9 +48,12 @@
             {% if tags %}
             <div class="d-flex flex-wrap gap-2" id="tags-list">
                 {% for tag in tags %}
-                <span class="badge bg-{{ tag.color }} tag-badge d-flex align-items-center gap-1" data-tag-id="{{ tag.id }}">
-                    {{ tag.name }}
+                <span class="badge bg-{{ tag.color }} tag-badge d-flex align-items-center gap-1" data-tag-id="{{ tag.id }}" data-tag-name="{{ tag.name }}">
+                    <span class="tag-name-text">{{ tag.name }}</span>
                     {% if not current_user.is_readonly %}
+                    <button type="button" class="btn p-0 ms-1 tag-edit-btn" style="font-size: 0.7em; line-height: 1;" onclick="editTag({{ tag.id }}, '{{ tag.name }}')" title="Rename tag">
+                        <i class="bi bi-pencil text-white"></i>
+                    </button>
                     <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.6em;" onclick="deleteTag({{ tag.id }}, '{{ tag.name }}')" title="Delete tag"></button>
                     {% endif %}
                 </span>
@@ -107,7 +110,7 @@
                                     {% endfor %}
                                     {% if not current_user.is_readonly %}
                                     <div class="dropdown">
-                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle py-0 px-1" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Add tag">
+                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle py-0 px-1" type="button" data-bs-toggle="dropdown" data-bs-strategy="fixed" aria-expanded="false" title="Add tag">
                                             <i class="bi bi-plus"></i>
                                         </button>
                                         <ul class="dropdown-menu dropdown-menu-dark">
@@ -140,6 +143,13 @@
     font-size: 0.9em;
     padding: 0.5em 0.8em;
 }
+.tag-badge .tag-edit-btn {
+    opacity: 0.7;
+    transition: opacity 0.15s;
+}
+.tag-badge .tag-edit-btn:hover {
+    opacity: 1;
+}
 .fc-tag {
     font-size: 0.8em;
 }
@@ -148,6 +158,12 @@
 }
 #fc-tags-table tbody tr.hidden {
     display: none;
+}
+#fc-tags-table tbody {
+    min-height: 150px;
+}
+#fc-tags-table .dropdown-menu {
+    z-index: 1050;
 }
 </style>
 
@@ -198,6 +214,29 @@ async function deleteTag(tagId, tagName) {
     }
 }
 
+// Edit/rename tag
+async function editTag(tagId, currentName) {
+    const newName = prompt('Enter new tag name:', currentName);
+    if (newName === null || newName.trim() === '' || newName.trim() === currentName) return;
+
+    try {
+        const resp = await fetch(`/tags/rename/${tagId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ name: newName.trim() })
+        });
+        const data = await resp.json();
+        if (data.success) {
+            if (typeof reloadSettingsSection === 'function') reloadSettingsSection('tags');
+        } else {
+            alert(data.message || 'Failed to rename tag');
+        }
+    } catch (err) {
+        alert('Error renaming tag');
+    }
+}
+
 // Assign tag to FC
 async function assignTag(fcId, tagId) {
     try {
@@ -209,7 +248,24 @@ async function assignTag(fcId, tagId) {
         });
         const data = await resp.json();
         if (data.success) {
-            if (typeof reloadSettingsSection === 'function') reloadSettingsSection('tags');
+            // Update UI inline - find the tag info and add it to the FC row
+            const row = document.querySelector(`tr[data-fc-id="${fcId}"]`);
+            const tagBadge = document.querySelector(`.tag-badge[data-tag-id="${tagId}"]`);
+            if (row && tagBadge) {
+                const tagsContainer = row.querySelector('.fc-tags-cell .d-flex');
+                const dropdown = tagsContainer.querySelector('.dropdown');
+                const tagName = tagBadge.dataset.tagName;
+                const tagColor = tagBadge.className.match(/bg-(\w+)/)?.[1] || 'secondary';
+
+                // Check if tag already exists
+                if (!tagsContainer.querySelector(`.fc-tag[data-tag-id="${tagId}"]`)) {
+                    const newTag = document.createElement('span');
+                    newTag.className = `badge bg-${tagColor} fc-tag`;
+                    newTag.dataset.tagId = tagId;
+                    newTag.innerHTML = `${tagName}<button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.5em;" onclick="unassignTag('${fcId}', ${tagId})" title="Remove tag"></button>`;
+                    tagsContainer.insertBefore(newTag, dropdown);
+                }
+            }
         } else {
             alert(data.message || 'Failed to assign tag');
         }
@@ -229,7 +285,12 @@ async function unassignTag(fcId, tagId) {
         });
         const data = await resp.json();
         if (data.success) {
-            if (typeof reloadSettingsSection === 'function') reloadSettingsSection('tags');
+            // Update UI inline - remove the tag badge from the FC row
+            const row = document.querySelector(`tr[data-fc-id="${fcId}"]`);
+            if (row) {
+                const tagBadge = row.querySelector(`.fc-tag[data-tag-id="${tagId}"]`);
+                if (tagBadge) tagBadge.remove();
+            }
         } else {
             alert(data.message || 'Failed to remove tag');
         }

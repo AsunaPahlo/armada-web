@@ -570,6 +570,18 @@ class FleetManager:
             for fc in fc_summaries.values():
                 fc['tags'] = []
 
+        # Add notes to each FC
+        try:
+            from app.models.fc_config import get_all_fc_notes
+            fc_notes_map = get_all_fc_notes()
+            for fc in fc_summaries.values():
+                fc_id = str(fc.get('fc_id', ''))
+                fc['notes'] = fc_notes_map.get(fc_id, '')
+        except Exception:
+            # fc_config table may not have notes column yet
+            for fc in fc_summaries.values():
+                fc['notes'] = ''
+
         return {
             'summary': {
                 'total_subs': total_subs,

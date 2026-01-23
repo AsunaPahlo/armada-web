@@ -459,9 +459,14 @@ def fc_detail(fc_id):
     """FC detail page with leveling estimates."""
     from app.models.app_settings import AppSettings
     from app.models.fc_housing import get_fc_housing
+    from app.models.fc_config import FCConfig
     from app.services.submarine_data import get_inventory_parts_with_details
 
     target_level = AppSettings.get_int('target_submarine_level', 85)
+
+    # Get FC notes
+    fc_config = FCConfig.query.filter_by(fc_id=str(fc_id)).first()
+    fc_notes = fc_config.notes if fc_config else ''
 
     # Get fleet data
     fleet = get_fleet_manager()
@@ -519,6 +524,7 @@ def fc_detail(fc_id):
                            fc_world=fc_world,
                            fc_address=fc_address,
                            fc_characters=fc_characters,
+                           fc_notes=fc_notes,
                            target_level=target_level,
                            total_subs=len(fc_submarines),
                            inventory_parts=inventory_parts_list)
@@ -622,3 +628,29 @@ def fc_activity(fc_id):
         'has_next': pagination.has_next,
         'has_prev': pagination.has_prev
     })
+
+
+@stats_bp.route('/fc/<fc_id>/notes', methods=['POST'])
+@login_required
+def fc_notes_update(fc_id):
+    """Update notes for an FC."""
+    from app.auth import writable_required_json
+    from app.models.fc_config import FCConfig, update_fc_config
+
+    # Check if user has write permission
+    from flask_login import current_user
+    if current_user.is_readonly:
+        return jsonify({'success': False, 'message': 'Read-only users cannot edit notes'}), 403
+
+    data = request.get_json() or {}
+    notes = data.get('notes', '').strip()
+
+    # Allow empty notes (to clear)
+    if notes == '':
+        notes = None
+
+    try:
+        update_fc_config(str(fc_id), notes=notes)
+        return jsonify({'success': True, 'notes': notes or ''})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500

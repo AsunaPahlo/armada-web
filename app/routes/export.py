@@ -131,11 +131,13 @@ def sheets_export_api():
         return jsonify({'error': 'Invalid or missing token'}), 401
 
     from app.services import get_fleet_manager
+    from app.models.fc_config import get_all_fc_notes
 
     fleet = get_fleet_manager()
     accounts = fleet.get_data(force_refresh=True)
     fc_housing = get_all_fc_housing()
     fc_tags_map = get_all_fc_tags_map()
+    fc_notes_map = get_all_fc_notes()
 
     # Build FC data
     fc_data = {}
@@ -159,6 +161,7 @@ def sheets_export_api():
                     'housing': housing,
                     'tags': fc_tags_map.get(fc_id_str, []),
                     'routes': routes,
+                    'notes': fc_notes_map.get(fc_id_str, ''),
                 }
 
             # Add character info
@@ -230,6 +233,7 @@ def sheets_export_api():
             'plot': plot or '',
             'route': route_display,
             'house_size': house_size,
+            'notes': fc.get('notes', ''),
         }
 
         # FCs with no tags go to untagged list, tagged FCs go to their tag sheets
@@ -252,7 +256,7 @@ def sheets_export_api():
         'by_tag': by_tag,
         'columns': [
             'character', 'fc_name', 'datacenter', 'world',
-            'housing_area', 'ward', 'plot', 'route', 'house_size'
+            'housing_area', 'ward', 'plot', 'route', 'house_size', 'notes'
         ],
         'generated_at': datetime.utcnow().isoformat() + 'Z'
     })
@@ -270,16 +274,18 @@ def index():
 def export_fc():
     """Export Free Companies data as CSV."""
     from app.services import get_fleet_manager
+    from app.models.fc_config import get_all_fc_notes
 
     fleet = get_fleet_manager()
     accounts = fleet.get_data(force_refresh=True)
     fc_housing = get_all_fc_housing()
+    fc_notes_map = get_all_fc_notes()
 
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow([
         'fc_id', 'fc_name', 'holder_character', 'world',
-        'district', 'ward', 'plot', 'submarine_count'
+        'district', 'ward', 'plot', 'submarine_count', 'notes'
     ])
 
     seen_fc_ids = set()
@@ -301,6 +307,9 @@ def export_fc():
             ward = housing.ward if housing else ''
             plot = housing.plot if housing else ''
 
+            # Get notes
+            notes = fc_notes_map.get(fc_id_str, '')
+
             # Count submarines for this FC
             sub_count = 0
             for acc in accounts:
@@ -316,7 +325,8 @@ def export_fc():
                 district,
                 ward,
                 plot,
-                sub_count
+                sub_count,
+                notes
             ])
 
     output.seek(0)
