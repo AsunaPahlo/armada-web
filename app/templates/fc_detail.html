@@ -1,0 +1,425 @@
+{% extends "base.html" %}
+
+{% block title %}{{ fc_name }}{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <a href="{{ url_for('dashboard.index') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <div>
+            <h2 class="mb-0"><i class="bi bi-building"></i> {{ fc_name }}</h2>
+            <small class="text-muted">{{ fc_world }} &middot; {{ total_subs }} submarines{% if fc_address %} &middot; <i class="bi bi-house-door"></i> {{ fc_address }}{% endif %}</small>
+        </div>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+        <a href="{{ url_for('unlocks.index') }}?fc_id={{ fc_id }}" class="btn btn-outline-info" title="View sector unlocks">
+            <i class="bi bi-diagram-3"></i> Unlocks
+        </a>
+        <form class="d-flex align-items-center gap-2" method="POST" action="{{ url_for('stats.fc_leveling_settings', fc_id=fc_id) }}">
+            <label for="target_level" class="form-label mb-0 text-muted">Target Level:</label>
+            <input type="number" class="form-control form-control-sm" id="target_level" name="target_level"
+                   value="{{ target_level }}" min="1" max="125" style="width: 80px;">
+            <button type="submit" class="btn btn-sm btn-primary">
+                <i class="bi bi-check"></i>
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Leveling Estimates Summary -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card summary-card">
+            <div class="card-body d-flex align-items-center justify-content-center">
+                <i class="bi bi-bullseye fs-2 text-success me-2"></i>
+                <div>
+                    <h6 class="text-muted mb-0">At Target</h6>
+                    <h2 class="mb-0 text-success" id="subs-at-target"><span class="placeholder col-4"></span></h2>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card summary-card">
+            <div class="card-body d-flex align-items-center justify-content-center">
+                <i class="bi bi-arrow-up-circle fs-2 text-warning me-2"></i>
+                <div>
+                    <h6 class="text-muted mb-0">Leveling</h6>
+                    <h2 class="mb-0 text-warning" id="subs-leveling"><span class="placeholder col-4"></span></h2>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card summary-card">
+            <div class="card-body d-flex align-items-center justify-content-center">
+                <i class="bi bi-hourglass-split fs-2 text-info me-2"></i>
+                <div>
+                    <h6 class="text-muted mb-0">Est. Days (Expected)</h6>
+                    <h2 class="mb-0 text-info" id="est-days"><span class="placeholder col-4"></span></h2>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card summary-card">
+            <div class="card-body d-flex align-items-center justify-content-center">
+                <i class="bi bi-pie-chart-fill fs-2 text-primary me-2"></i>
+                <div>
+                    <h6 class="text-muted mb-0">Completion</h6>
+                    <h2 class="mb-0 text-primary" id="completion-pct"><span class="placeholder col-4"></span></h2>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Estimate Tiers Card -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-graph-up"></i> Leveling Time Estimates</h5>
+    </div>
+    <div class="card-body">
+        <div class="row text-center mb-3">
+            <div class="col-md-4">
+                <div class="p-3 rounded" style="background: rgba(40, 167, 69, 0.1);">
+                    <h6 class="text-success mb-1">Optimistic</h6>
+                    <small class="text-muted d-block mb-2">100% discovery rate</small>
+                    <h3 class="text-success mb-0" id="est-optimistic"><span class="placeholder col-6"></span></h3>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-3 rounded border border-warning" style="background: rgba(255, 193, 7, 0.1);">
+                    <h6 class="text-warning mb-1">Expected</h6>
+                    <small class="text-muted d-block mb-2">75% discovery rate</small>
+                    <h3 class="text-warning mb-0" id="est-expected"><span class="placeholder col-6"></span></h3>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-3 rounded" style="background: rgba(220, 53, 69, 0.1);">
+                    <h6 class="text-danger mb-1">Pessimistic</h6>
+                    <small class="text-muted d-block mb-2">55% discovery rate</small>
+                    <h3 class="text-danger mb-0" id="est-pessimistic"><span class="placeholder col-6"></span></h3>
+                </div>
+            </div>
+        </div>
+        <div class="progress" style="height: 20px;" id="leveling-progress">
+            <div class="progress-bar bg-secondary" role="progressbar" style="width: 100%">
+                Loading...
+            </div>
+        </div>
+        <div class="text-center mt-2">
+            <small class="text-muted" id="slowest-sub-info"></small>
+        </div>
+    </div>
+</div>
+
+<!-- Submarine Breakdown -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-water"></i> Submarine Breakdown</h5>
+        <span class="badge bg-secondary" id="sub-count">{{ total_subs }}</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0" id="sub-table">
+                <thead>
+                    <tr>
+                        <th>Submarine</th>
+                        <th class="text-center">Level</th>
+                        <th>Build</th>
+                        <th class="text-center">Progress</th>
+                        <th class="text-success text-center">Optimistic</th>
+                        <th class="text-warning text-center">Expected</th>
+                        <th class="text-danger text-center">Pessimistic</th>
+                        <th class="text-center">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="sub-tbody">
+                    <tr>
+                        <td colspan="8" class="text-center py-4">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                            <span class="ms-2">Loading submarine data...</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if inventory_parts %}
+<!-- Submarine Parts Inventory -->
+<div class="card mt-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-box-seam"></i> Submarine Parts Inventory</h5>
+        <span class="badge bg-info">{{ inventory_parts|length }} types</span>
+    </div>
+    <div class="card-body">
+        {% if inventory_parts %}
+        <div class="row">
+            {% for part in inventory_parts %}
+            <div class="col-6 col-md-4 col-lg-3 mb-3">
+                <div class="d-flex align-items-center p-2 rounded part-item" style="background: rgba(255,255,255,0.05);">
+                    {% if part.icon_url %}
+                    <img src="{{ part.icon_url }}" alt="{{ part.name }}" class="me-2" style="width: 40px; height: 40px;" loading="lazy">
+                    {% else %}
+                    <div class="me-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background: rgba(255,255,255,0.1); border-radius: 4px;">
+                        <i class="bi bi-gear text-muted"></i>
+                    </div>
+                    {% endif %}
+                    <div class="flex-grow-1 min-width-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-truncate" title="{{ part.name }}">{{ part.name }}</small>
+                            <span class="badge bg-secondary ms-1">x{{ part.count }}</span>
+                        </div>
+                        <small class="text-muted">{{ part.short_code }} {{ part.part_type }}</small>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">No submarine parts in inventory. Install InventoryTools plugin to track parts.</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% if fc_characters %}
+<!-- Character Info -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-person"></i> Characters</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            {% for char in fc_characters %}
+            <div class="col-md-4 mb-3">
+                <div class="d-flex justify-content-between align-items-center p-2 rounded" style="background: rgba(255,255,255,0.05);">
+                    <div>
+                        <strong>{{ char.name }}</strong>
+                        <small class="text-muted d-block">{{ char.world }}</small>
+                    </div>
+                    <div class="text-end">
+                        <small class="text-info d-block" title="Ceruleum">{{ "{:,}".format(char.ceruleum) }} tanks</small>
+                        <small class="text-info d-block" title="Repair Kits">{{ "{:,}".format(char.repair_kits) }} kits</small>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.summary-card {
+    transition: transform 0.2s ease;
+}
+.summary-card:hover {
+    transform: translateY(-2px);
+}
+#sub-table tbody tr.at-target {
+    background: rgba(40, 167, 69, 0.15);
+}
+#sub-table tbody tr.at-target td {
+    color: rgba(255, 255, 255, 0.6);
+}
+.exp-bar-mini.progress {
+    height: 4px;
+    width: 60px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    margin: 0 auto;
+}
+#sub-table tbody tr.future-sub {
+    background: rgba(108, 117, 125, 0.1);
+    border-top: 1px dashed rgba(255, 255, 255, 0.2);
+}
+.part-item {
+    transition: background 0.2s ease;
+}
+.part-item:hover {
+    background: rgba(255,255,255,0.1) !important;
+}
+.part-item img {
+    border-radius: 4px;
+    background: rgba(0,0,0,0.2);
+}
+.min-width-0 {
+    min-width: 0;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const fcId = '{{ fc_id }}';
+    const targetLevel = {{ target_level }};
+
+    // Fetch leveling data
+    const apiUrl = new URL('{{ url_for("stats.fc_leveling_data", fc_id=fc_id) }}', window.location.origin);
+    apiUrl.searchParams.set('target', targetLevel);
+
+    fetch(apiUrl)
+        .then(response => response.json())
+        .then(data => {
+            renderSummary(data.estimate);
+            renderSubmarines(data.estimate.submarines);
+        })
+        .catch(error => {
+            console.error('Error fetching leveling data:', error);
+            document.getElementById('sub-tbody').innerHTML = `
+                <tr><td colspan="8" class="text-center text-danger py-4">Error loading data</td></tr>
+            `;
+        });
+
+    function renderSummary(estimate) {
+        const totalSubs = estimate.total_subs;
+        const maxSubs = estimate.max_subs || 4;
+        const pendingUnlocks = estimate.pending_unlocks || 0;
+        const atTarget = estimate.subs_at_target;
+        const belowTarget = estimate.subs_below_target;
+        // Completion % is based on 4 subs at target (the end goal)
+        const completionPct = Math.round((atTarget / maxSubs) * 100);
+
+        document.getElementById('subs-at-target').textContent = atTarget + '/' + maxSubs;
+        document.getElementById('subs-leveling').textContent = belowTarget + (pendingUnlocks > 0 ? ` (+${pendingUnlocks} pending)` : '');
+        document.getElementById('completion-pct').textContent = completionPct + '%';
+
+        // Show estimates if any subs need leveling OR slots need unlocking
+        if (belowTarget > 0 || pendingUnlocks > 0) {
+            document.getElementById('est-days').textContent = estimate.estimates.expected.days + 'd';
+            document.getElementById('est-optimistic').textContent = estimate.estimates.optimistic.days + ' days';
+            document.getElementById('est-expected').textContent = estimate.estimates.expected.days + ' days';
+            document.getElementById('est-pessimistic').textContent = estimate.estimates.pessimistic.days + ' days';
+
+            if (estimate.slowest_sub) {
+                document.getElementById('slowest-sub-info').textContent =
+                    'Bottleneck: ' + estimate.slowest_sub + ' (determines FC completion time)';
+            }
+        } else {
+            document.getElementById('est-days').textContent = 'Done!';
+            document.getElementById('est-optimistic').textContent = 'Complete';
+            document.getElementById('est-expected').textContent = 'Complete';
+            document.getElementById('est-pessimistic').textContent = 'Complete';
+            document.getElementById('slowest-sub-info').textContent = 'All 4 submarines at target level!';
+        }
+
+        // Update progress bar (based on 4 subs total)
+        const levelingPct = Math.round((belowTarget / maxSubs) * 100);
+        const pendingPct = Math.round((pendingUnlocks / maxSubs) * 100);
+
+        let progressHtml;
+        if (completionPct === 100) {
+            progressHtml = `<div class="progress-bar bg-success" style="width: 100%">All 4 subs at target!</div>`;
+        } else {
+            progressHtml = `
+                <div class="progress-bar bg-success" style="width: ${completionPct}%" title="${atTarget} at target">${atTarget > 0 ? atTarget + ' done' : ''}</div>
+                <div class="progress-bar bg-warning" style="width: ${levelingPct}%" title="${belowTarget} leveling">${belowTarget > 0 ? belowTarget + ' leveling' : ''}</div>
+                ${pendingUnlocks > 0 ? `<div class="progress-bar bg-secondary" style="width: ${pendingPct}%" title="${pendingUnlocks} slots to unlock">${pendingUnlocks} locked</div>` : ''}
+            `;
+        }
+        document.getElementById('leveling-progress').innerHTML = progressHtml;
+    }
+
+    function renderSubmarines(submarines) {
+        const tbody = document.getElementById('sub-tbody');
+
+        if (!submarines || submarines.length === 0) {
+            tbody.innerHTML = `
+                <tr><td colspan="8" class="text-center text-muted py-4">No submarines found</td></tr>
+            `;
+            return;
+        }
+
+        // Sort: leveling subs first (by expected days desc), then at-target subs, then future/locked subs
+        submarines.sort((a, b) => {
+            // Future subs go last
+            if (a.is_future_sub && !b.is_future_sub) return 1;
+            if (!a.is_future_sub && b.is_future_sub) return -1;
+            // At-target subs go after leveling subs
+            if (a.already_at_target && !b.already_at_target) return 1;
+            if (!a.already_at_target && b.already_at_target) return -1;
+            // Sort leveling subs by days remaining (longest first)
+            if (!a.already_at_target && !b.already_at_target && !a.is_future_sub && !b.is_future_sub) {
+                return b.estimates.expected.days - a.estimates.expected.days;
+            }
+            // Sort future subs by unlock rank
+            if (a.is_future_sub && b.is_future_sub) {
+                return (a.unlock_rank || 0) - (b.unlock_rank || 0);
+            }
+            return (a.current_level || 0) - (b.current_level || 0);
+        });
+
+        tbody.innerHTML = submarines.map(sub => {
+            const atTarget = sub.already_at_target;
+            const isFuture = sub.is_future_sub;
+            const expProgress = sub.exp_progress || 0;
+
+            if (isFuture) {
+                const unlockSector = sub.unlock_sector || '?';
+                return `
+                    <tr class="future-sub" style="opacity: 0.7; font-style: italic;">
+                        <td>
+                            <i class="bi bi-lock text-muted me-1"></i>
+                            ${sub.submarine_name}
+                        </td>
+                        <td class="text-center text-muted">-</td>
+                        <td class="text-muted">-</td>
+                        <td class="text-center text-muted">
+                            <small>Discover ${unlockSector}</small>
+                        </td>
+                        <td class="text-center text-success">${sub.estimates.optimistic.days}d</td>
+                        <td class="text-center text-warning fw-bold">${sub.estimates.expected.days}d</td>
+                        <td class="text-center text-danger">${sub.estimates.pessimistic.days}d</td>
+                        <td class="text-center">
+                            <span class="badge bg-secondary">Locked</span>
+                        </td>
+                    </tr>
+                `;
+            }
+
+            return `
+                <tr class="${atTarget ? 'at-target' : ''}">
+                    <td>
+                        <strong>${sub.submarine_name}</strong>
+                        ${sub.on_unlock_plan ? '<i class="bi bi-diagram-3 text-info ms-1" title="On unlock plan"></i>' : ''}
+                    </td>
+                    <td class="text-center">
+                        ${sub.current_level}
+                        <small class="text-muted">/ ${sub.target_level}</small>
+                    </td>
+                    <td><code>${sub.build || '-'}</code></td>
+                    <td class="text-center">
+                        ${atTarget ? '-' : `
+                            <div class="progress exp-bar-mini">
+                                <div class="progress-bar bg-info" role="progressbar" style="width: ${expProgress}%"></div>
+                            </div>
+                            <small class="text-muted">${Math.round(expProgress)}%</small>
+                        `}
+                    </td>
+                    <td class="text-center text-success">${atTarget ? '-' : sub.estimates.optimistic.days + 'd'}</td>
+                    <td class="text-center text-warning fw-bold">${atTarget ? '-' : sub.estimates.expected.days + 'd'}</td>
+                    <td class="text-center text-danger">${atTarget ? '-' : sub.estimates.pessimistic.days + 'd'}</td>
+                    <td class="text-center">
+                        ${atTarget
+                            ? '<span class="badge bg-success">At Target</span>'
+                            : '<span class="badge bg-warning text-dark">Leveling</span>'
+                        }
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+})();
+</script>
+{% endblock %}

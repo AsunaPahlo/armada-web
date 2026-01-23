@@ -451,3 +451,138 @@ def rebuild_daily_stats():
         flash(f'Error rebuilding daily stats: {e}', 'error')
 
     return redirect(url_for('stats.index'))
+
+
+@stats_bp.route('/fc/<fc_id>')
+@login_required
+def fc_detail(fc_id):
+    """FC detail page with leveling estimates."""
+    from app.models.app_settings import AppSettings
+    from app.models.fc_housing import get_fc_housing
+    from app.services.submarine_data import get_inventory_parts_with_details
+
+    target_level = AppSettings.get_int('target_submarine_level', 90)
+
+    # Get fleet data
+    fleet = get_fleet_manager()
+    accounts = fleet.get_data(force_refresh=False)
+
+    # Find FC info and submarines
+    fc_info = None
+    fc_submarines = []
+    fc_characters = []
+    fc_world = ''
+
+    # Aggregate inventory parts across all characters in this FC
+    fc_inventory_parts = {}
+
+    for account in accounts:
+        # Check FC data for name
+        for fid, info in account.fc_data.items():
+            if str(fid) == str(fc_id):
+                fc_info = info
+                break
+
+        # Collect submarines and characters from this FC
+        for char in account.characters:
+            if str(char.fc_id) == str(fc_id):
+                fc_world = char.world
+                fc_characters.append({
+                    'name': char.name,
+                    'world': char.world,
+                    'ceruleum': char.ceruleum,
+                    'repair_kits': char.repair_kits,
+                    'gil': char.gil,
+                    'unlocked_sectors': getattr(char, 'unlocked_sectors', []),
+                    'inventory_parts': getattr(char, 'inventory_parts', {})
+                })
+                fc_submarines.extend(char.submarines)
+
+                # Aggregate inventory parts for the FC
+                char_parts = getattr(char, 'inventory_parts', {})
+                for item_id, count in char_parts.items():
+                    item_id = int(item_id)
+                    fc_inventory_parts[item_id] = fc_inventory_parts.get(item_id, 0) + count
+
+    fc_name = fc_info.name if fc_info else f'FC-{fc_id}'
+
+    # Get FC housing address
+    fc_housing = get_fc_housing(fc_id)
+    fc_address = fc_housing.address if fc_housing else None
+
+    # Convert inventory parts to detailed list with icons
+    inventory_parts_list = get_inventory_parts_with_details(fc_inventory_parts)
+
+    return render_template('fc_detail.html',
+                           fc_id=fc_id,
+                           fc_name=fc_name,
+                           fc_world=fc_world,
+                           fc_address=fc_address,
+                           fc_characters=fc_characters,
+                           target_level=target_level,
+                           total_subs=len(fc_submarines),
+                           inventory_parts=inventory_parts_list)
+
+
+@stats_bp.route('/fc/<fc_id>/leveling')
+@login_required
+def fc_leveling_data(fc_id):
+    """JSON API endpoint for FC leveling estimates."""
+    from app.models.app_settings import AppSettings
+    from app.services.leveling_estimator import leveling_estimator
+
+    target_level = request.args.get('target', 90, type=int)
+    target_level = max(1, min(125, target_level))
+
+    # Get fleet data
+    fleet = get_fleet_manager()
+    accounts = fleet.get_data(force_refresh=False)
+
+    # Find FC submarines
+    fc_info = None
+    fc_submarines = []
+    fc_world = ''
+
+    for account in accounts:
+        # Check FC data for name
+        for fid, info in account.fc_data.items():
+            if str(fid) == str(fc_id):
+                fc_info = info
+                break
+
+        # Collect submarines from this FC
+        for char in account.characters:
+            if str(char.fc_id) == str(fc_id):
+                fc_world = char.world
+                fc_submarines.extend(char.submarines)
+
+    fc_name = fc_info.name if fc_info else f'FC-{fc_id}'
+
+    # Calculate leveling estimates
+    estimate = leveling_estimator.estimate_fc_leveling(
+        fc_subs=fc_submarines,
+        target_level=target_level,
+        fc_id=str(fc_id),
+        fc_name=fc_name,
+        world=fc_world
+    )
+
+    return jsonify({
+        'target_level': target_level,
+        'estimate': estimate
+    })
+
+
+@stats_bp.route('/fc/<fc_id>/settings', methods=['POST'])
+@login_required
+def fc_leveling_settings(fc_id):
+    """Update target level setting from FC detail page."""
+    from app.models.app_settings import AppSettings
+
+    target_level = request.form.get('target_level', type=int)
+    if target_level is not None:
+        target_level = max(1, min(125, target_level))
+        AppSettings.set('target_submarine_level', target_level)
+        flash(f'Target level updated to {target_level}', 'success')
+
+    return redirect(url_for('stats.fc_detail', fc_id=fc_id))

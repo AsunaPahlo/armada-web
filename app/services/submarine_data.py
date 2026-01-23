@@ -192,6 +192,130 @@ CLASS_SHORTCUTS = {
 }
 
 
+# =============================================================================
+# SUBMARINE PART ICONS
+# =============================================================================
+# XIVAPI icon URLs for submarine parts
+# Icon paths fetched from XIVAPI item endpoints
+
+SUB_PARTS_ICONS = {
+    # Shark-class
+    21792: "https://xivapi.com/i/027000/027782.png",  # Shark-class Bow
+    21793: "https://xivapi.com/i/027000/027802.png",  # Shark-class Bridge
+    21794: "https://xivapi.com/i/027000/027842.png",  # Shark-class Pressure Hull
+    21795: "https://xivapi.com/i/027000/027822.png",  # Shark-class Stern
+
+    # Unkiu-class
+    21796: "https://xivapi.com/i/027000/027781.png",  # Unkiu-class Bow
+    21797: "https://xivapi.com/i/027000/027801.png",  # Unkiu-class Bridge
+    21798: "https://xivapi.com/i/027000/027841.png",  # Unkiu-class Pressure Hull
+    21799: "https://xivapi.com/i/027000/027821.png",  # Unkiu-class Stern
+
+    # Whale-class
+    22526: "https://xivapi.com/i/027000/027783.png",  # Whale-class Bow
+    22527: "https://xivapi.com/i/027000/027803.png",  # Whale-class Bridge
+    22528: "https://xivapi.com/i/027000/027843.png",  # Whale-class Pressure Hull
+    22529: "https://xivapi.com/i/027000/027823.png",  # Whale-class Stern
+
+    # Coelacanth-class
+    23903: "https://xivapi.com/i/027000/027784.png",  # Coelacanth-class Bow
+    23904: "https://xivapi.com/i/027000/027804.png",  # Coelacanth-class Bridge
+    23905: "https://xivapi.com/i/027000/027844.png",  # Coelacanth-class Pressure Hull
+    23906: "https://xivapi.com/i/027000/027824.png",  # Coelacanth-class Stern
+
+    # Syldra-class
+    24344: "https://xivapi.com/i/027000/027785.png",  # Syldra-class Bow
+    24345: "https://xivapi.com/i/027000/027805.png",  # Syldra-class Bridge
+    24346: "https://xivapi.com/i/027000/027845.png",  # Syldra-class Pressure Hull
+    24347: "https://xivapi.com/i/027000/027825.png",  # Syldra-class Stern
+
+    # Modified Shark-class
+    24348: "https://xivapi.com/i/027000/027787.png",  # Modified Shark-class Bow
+    24349: "https://xivapi.com/i/027000/027807.png",  # Modified Shark-class Bridge
+    24350: "https://xivapi.com/i/027000/027847.png",  # Modified Shark-class Pressure Hull
+    24351: "https://xivapi.com/i/027000/027827.png",  # Modified Shark-class Stern
+
+    # Modified Unkiu-class
+    24352: "https://xivapi.com/i/027000/027786.png",  # Modified Unkiu-class Bow
+    24353: "https://xivapi.com/i/027000/027806.png",  # Modified Unkiu-class Bridge
+    24354: "https://xivapi.com/i/027000/027846.png",  # Modified Unkiu-class Pressure Hull
+    24355: "https://xivapi.com/i/027000/027826.png",  # Modified Unkiu-class Stern
+
+    # Modified Whale-class
+    24356: "https://xivapi.com/i/027000/027788.png",  # Modified Whale-class Bow
+    24357: "https://xivapi.com/i/027000/027808.png",  # Modified Whale-class Bridge
+    24358: "https://xivapi.com/i/027000/027848.png",  # Modified Whale-class Pressure Hull
+    24359: "https://xivapi.com/i/027000/027828.png",  # Modified Whale-class Stern
+
+    # Modified Coelacanth-class
+    24360: "https://xivapi.com/i/027000/027789.png",  # Modified Coelacanth-class Bow
+    24361: "https://xivapi.com/i/027000/027809.png",  # Modified Coelacanth-class Bridge
+    24362: "https://xivapi.com/i/027000/027849.png",  # Modified Coelacanth-class Pressure Hull
+    24363: "https://xivapi.com/i/027000/027829.png",  # Modified Coelacanth-class Stern
+
+    # Modified Syldra-class
+    24364: "https://xivapi.com/i/027000/027790.png",  # Modified Syldra-class Bow
+    24365: "https://xivapi.com/i/027000/027810.png",  # Modified Syldra-class Bridge
+    24366: "https://xivapi.com/i/027000/027850.png",  # Modified Syldra-class Pressure Hull
+    24367: "https://xivapi.com/i/027000/027830.png",  # Modified Syldra-class Stern
+}
+
+
+def get_part_icon_url(item_id: int) -> str:
+    """Get the XIVAPI icon URL for a submarine part."""
+    return SUB_PARTS_ICONS.get(item_id, "")
+
+
+def get_inventory_parts_with_details(inventory_parts: dict) -> list:
+    """
+    Convert inventory_parts dict to a list with full details.
+
+    Args:
+        inventory_parts: Dict of item_id -> count
+
+    Returns:
+        List of dicts with: item_id, name, icon_url, count, short_code
+    """
+    result = []
+    for item_id, count in inventory_parts.items():
+        item_id = int(item_id)
+        name = SUB_PARTS_LOOKUP.get(item_id, f"Unknown({item_id})")
+        icon_url = SUB_PARTS_ICONS.get(item_id, "")
+
+        # Get short code from name
+        short_code = "?"
+        for prefix, code in CLASS_SHORTCUTS.items():
+            if name.startswith(prefix):
+                short_code = code
+                break
+
+        # Determine part type from name
+        part_type = "Unknown"
+        if "Bow" in name:
+            part_type = "Bow"
+        elif "Bridge" in name:
+            part_type = "Bridge"
+        elif "Hull" in name:
+            part_type = "Hull"
+        elif "Stern" in name:
+            part_type = "Stern"
+
+        result.append({
+            'item_id': item_id,
+            'name': name,
+            'icon_url': icon_url,
+            'count': count,
+            'short_code': short_code,
+            'part_type': part_type
+        })
+
+    # Sort by class (short_code) then by part type
+    part_order = {'Hull': 0, 'Stern': 1, 'Bow': 2, 'Bridge': 3}
+    result.sort(key=lambda x: (x['short_code'], part_order.get(x['part_type'], 99)))
+
+    return result
+
+
 def get_route_name_from_points(points: list) -> str:
     """
     Get route name from list of point IDs using Lumina database.

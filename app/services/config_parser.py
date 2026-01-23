@@ -39,6 +39,7 @@ class SubmarineInfo:
     gil_per_day: float = 0.0
     tanks_per_day: float = 0.0
     kits_per_day: float = 0.0
+    unlock_plan_guid: str = ""  # GUID of selected unlock plan (if any)
 
 
 @dataclass
@@ -56,6 +57,7 @@ class CharacterInfo:
     enabled_subs: list = field(default_factory=list)
     sent_voyages_by_day: dict = field(default_factory=dict)
     unlocked_sectors: list = field(default_factory=list)
+    inventory_parts: dict = field(default_factory=dict)  # item_id -> count
 
     @property
     def ready_subs(self) -> int:
@@ -93,6 +95,7 @@ class AccountData:
     characters: list = field(default_factory=list)
     fc_data: dict = field(default_factory=dict)  # FC ID -> FCInfo
     route_plans: dict = field(default_factory=dict)  # GUID -> name
+    unlock_plans: dict = field(default_factory=dict)  # GUID -> unlock plan info
     last_updated: datetime = None
 
     @property
@@ -354,6 +357,17 @@ class ConfigParser:
                     'points': points
                 }
 
+        # Parse unlock plans
+        for plan in data.get('SubmarineUnlockPlans', []):
+            guid = plan.get('GUID', '')
+            if guid:
+                account.unlock_plans[guid] = {
+                    'name': plan.get('Name', ''),
+                    'excluded_routes': plan.get('ExcludedRoutes', []),
+                    'unlock_subs': plan.get('UnlockSubs', False),
+                    'enforce_plan': plan.get('EnforcePlan', False)
+                }
+
         # Parse FC data
         fc_data_raw = data.get('FCData', {})
         if isinstance(fc_data_raw, dict):
@@ -407,6 +421,7 @@ class ConfigParser:
                 # Get additional data if available
                 add_data = additional_sub_data.get(sub_name, {})
                 build = self._get_build_string(add_data) if add_data else ""
+                unlock_plan_guid = add_data.get('SelectedUnlockPlan', '')
 
                 # Calculate exp progress
                 current_exp = add_data.get('CurrentExp', 0)
@@ -473,7 +488,8 @@ class ConfigParser:
                     enabled=sub_name in character.enabled_subs,
                     gil_per_day=gil_per_day,
                     tanks_per_day=tanks_per_day,
-                    kits_per_day=kits_per_day
+                    kits_per_day=kits_per_day,
+                    unlock_plan_guid=unlock_plan_guid
                 )
 
                 character.submarines.append(submarine)
@@ -554,6 +570,17 @@ class ConfigParser:
             else:
                 account.route_plans[guid] = {'name': str(plan_data), 'points': []}
 
+        # Parse unlock plans
+        unlock_plans_raw = plugin_data.get('unlock_plans', {})
+        for guid, plan_data in unlock_plans_raw.items():
+            if isinstance(plan_data, dict):
+                account.unlock_plans[guid] = {
+                    'name': plan_data.get('name', ''),
+                    'excluded_routes': plan_data.get('excluded_routes', []),
+                    'unlock_subs': plan_data.get('unlock_subs', False),
+                    'enforce_plan': plan_data.get('enforce_plan', False)
+                }
+
         # Parse FC data
         fc_data_raw = plugin_data.get('fc_data', {})
         for fc_id_str, fc_info in fc_data_raw.items():
@@ -589,6 +616,15 @@ class ConfigParser:
             if not isinstance(char_data, dict):
                 continue
 
+            # Parse inventory_parts - convert string keys to int
+            raw_inventory = char_data.get('inventory_parts', {})
+            inventory_parts = {}
+            for item_id_str, count in raw_inventory.items():
+                try:
+                    inventory_parts[int(item_id_str)] = int(count)
+                except (ValueError, TypeError):
+                    pass
+
             character = CharacterInfo(
                 cid=int(char_data.get('cid', 0)),
                 name=char_data.get('name', 'Unknown'),
@@ -599,7 +635,8 @@ class ConfigParser:
                 repair_kits=char_data.get('repair_kits', 0),
                 num_sub_slots=char_data.get('num_sub_slots', 0),
                 enabled_subs=char_data.get('enabled_subs', []),
-                unlocked_sectors=char_data.get('unlocked_sectors', [])
+                unlocked_sectors=char_data.get('unlocked_sectors', []),
+                inventory_parts=inventory_parts
             )
 
             # Parse submarines
@@ -645,6 +682,9 @@ class ConfigParser:
                 current_exp = sub_data.get('current_exp', 0)
                 next_level_exp = sub_data.get('next_level_exp', 1)
                 exp_progress = (current_exp / next_level_exp * 100) if next_level_exp > 0 else 0
+
+                # Get unlock plan if assigned
+                unlock_plan_guid = sub_data.get('selected_unlock_plan', '')
 
                 # Get route info - prefer current_route_points (actual voyage) over selected plan
                 current_route_points = sub_data.get('current_route_points', [])
@@ -695,7 +735,8 @@ class ConfigParser:
                     enabled=sub_name in character.enabled_subs,
                     gil_per_day=gil_per_day,
                     tanks_per_day=tanks_per_day,
-                    kits_per_day=kits_per_day
+                    kits_per_day=kits_per_day,
+                    unlock_plan_guid=unlock_plan_guid
                 )
 
                 character.submarines.append(submarine)

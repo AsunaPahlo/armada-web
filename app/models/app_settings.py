@@ -25,6 +25,7 @@ class AppSettings(db.Model):
         'repair_kit_stack_size': ('999', 'Number of kits per stack'),
         'rebuild_window_start': ('1', 'Start hour for DailyStats rebuild window (0-23)'),
         'rebuild_window_end': ('7', 'End hour for DailyStats rebuild window (0-23)'),
+        'target_submarine_level': ('90', 'Target level for submarine leveling estimates'),
     }
 
     @classmethod

@@ -4,8 +4,9 @@ Armada services
 from app.services.config_parser import ConfigParser
 from app.services.fleet_manager import FleetManager
 from app.services.stats_tracker import StatsTracker
+from app.services.leveling_estimator import LevelingEstimator, leveling_estimator
 
-__all__ = ['ConfigParser', 'FleetManager', 'StatsTracker', 'get_fleet_manager']
+__all__ = ['ConfigParser', 'FleetManager', 'StatsTracker', 'LevelingEstimator', 'leveling_estimator', 'get_fleet_manager']
 
 # Single shared FleetManager instance
 _shared_fleet_manager: FleetManager = None
