@@ -221,6 +221,14 @@ function updateSheet(sheetName, columns, rows) {
   for (let i = 1; i <= columns.length; i++) {
     sheet.autoResizeColumn(i);
   }
+
+  // Add filter to make it a proper table with dropdowns
+  if (rows.length > 0) {
+    const filterRange = sheet.getRange(1, 1, rows.length + 1, columns.length);
+    const existingFilter = sheet.getFilter();
+    if (existingFilter) existingFilter.remove();
+    filterRange.createFilter();
+  }
 }
 
 function onOpen() {

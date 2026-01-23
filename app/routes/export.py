@@ -30,6 +30,7 @@ WORLD_TO_DATACENTER = {
     'Goblin': 'Crystal', 'Malboro': 'Crystal', 'Mateus': 'Crystal', 'Zalera': 'Crystal',
     # NA - Dynamis
     'Halicarnassus': 'Dynamis', 'Maduin': 'Dynamis', 'Marilith': 'Dynamis', 'Seraph': 'Dynamis',
+    'Cuchulainn': 'Dynamis', 'Golem': 'Dynamis', 'Kraken': 'Dynamis', 'Rafflesia': 'Dynamis',
     # EU - Chaos
     'Cerberus': 'Chaos', 'Louisoix': 'Chaos', 'Moogle': 'Chaos', 'Omega': 'Chaos',
     'Phantom': 'Chaos', 'Ragnarok': 'Chaos', 'Sagittarius': 'Chaos', 'Spriggan': 'Chaos',
