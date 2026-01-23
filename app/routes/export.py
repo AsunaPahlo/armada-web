@@ -187,8 +187,8 @@ def sheets_export_api():
     farming_routes = set(r.route_name for r in RouteStats.query.all() if r.gil_per_sub_day and r.gil_per_sub_day > 0)
 
     # Format output rows
-    all_rows = []
-    by_tag = {}  # tag_name -> list of rows
+    untagged_rows = []  # FCs with no tags go here
+    by_tag = {}  # tag_name -> list of rows (tagged FCs only)
 
     for fc_id_str, fc in fc_data.items():
         housing = fc['housing']
@@ -227,25 +227,25 @@ def sheets_export_api():
             'plot': plot or '',
             'route': route_display,
             'house_size': house_size,
-            'tags': [t['name'] for t in fc['tags']],
         }
 
-        all_rows.append(row)
-
-        # Group by tag
-        for tag in fc['tags']:
-            tag_name = tag['name']
-            if tag_name not in by_tag:
-                by_tag[tag_name] = []
-            by_tag[tag_name].append(row)
+        # FCs with no tags go to untagged list, tagged FCs go to their tag sheets
+        if not fc['tags']:
+            untagged_rows.append(row)
+        else:
+            for tag in fc['tags']:
+                tag_name = tag['name']
+                if tag_name not in by_tag:
+                    by_tag[tag_name] = []
+                by_tag[tag_name].append(row)
 
     # Sort rows by FC name
-    all_rows.sort(key=lambda r: r['fc_name'].lower())
+    untagged_rows.sort(key=lambda r: r['fc_name'].lower())
     for tag_name in by_tag:
         by_tag[tag_name].sort(key=lambda r: r['fc_name'].lower())
 
     return jsonify({
-        'all': all_rows,
+        'untagged': untagged_rows,
         'by_tag': by_tag,
         'columns': [
             'character', 'fc_name', 'datacenter', 'world',

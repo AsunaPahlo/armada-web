@@ -133,12 +133,23 @@ const COLORS = {
 function refreshAllData() {
   const data = fetchArmadaData();
   if (!data) return;
-  updateSheet('All FCs', data.columns, data.all);
+
+  let totalCount = 0;
+
+  // Untagged FCs go to "Untagged" sheet
+  if (data.untagged && data.untagged.length > 0) {
+    updateSheet('Untagged', data.columns, data.untagged);
+    totalCount += data.untagged.length;
+  }
+
+  // Tagged FCs go to their respective tag sheets
   for (const [tagName, rows] of Object.entries(data.by_tag)) {
     updateSheet(tagName, data.columns, rows);
+    totalCount += rows.length;
   }
+
   SpreadsheetApp.getActiveSpreadsheet().toast(
-    'Updated ' + data.all.length + ' FCs', 'Sync Complete'
+    'Updated ' + totalCount + ' FCs', 'Sync Complete'
   );
 }
 
