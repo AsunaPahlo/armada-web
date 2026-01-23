@@ -169,10 +169,25 @@ class FleetManager:
             received_at: When the server received the data
         """
         with self._lock:
+            # Get old state before merging for activity tracking
+            old_data = self._plugin_data_raw.get(plugin_id, [])
+            is_first_update = not old_data
+
             # Merge unlock_sectors data - preserve existing data when new data is empty
             # The plugin can only read unlock data for the currently logged-in character's FC,
             # so we need to preserve unlock data for other characters/FCs
             accounts_data = self._merge_unlock_data(plugin_id, accounts_data)
+
+            # Track activity changes (compare old vs new state)
+            try:
+                from app.services.activity_tracker import activity_tracker
+                activity_tracker.detect_and_log_changes(
+                    old_data=old_data,
+                    new_data=accounts_data,
+                    is_first_update=is_first_update
+                )
+            except Exception as e:
+                print(f"[FleetManager] Activity tracking error: {e}")
 
             # Parse each account from the plugin
             parsed_accounts = []

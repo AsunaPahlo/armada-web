@@ -586,3 +586,39 @@ def fc_leveling_settings(fc_id):
         flash(f'Target level updated to {target_level}', 'success')
 
     return redirect(url_for('stats.fc_detail', fc_id=fc_id))
+
+
+@stats_bp.route('/fc/<fc_id>/activity')
+@login_required
+def fc_activity(fc_id):
+    """API endpoint for FC activity log with pagination."""
+    from app.models.activity_log import ActivityLog
+
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 25, type=int)
+    activity_type = request.args.get('type', None, type=str)
+
+    # Clamp per_page
+    per_page = min(max(per_page, 10), 100)
+
+    # Build filter for activity types
+    activity_types = None
+    if activity_type:
+        activity_types = [activity_type]
+
+    pagination = ActivityLog.get_fc_activity(
+        fc_id=str(fc_id),
+        page=page,
+        per_page=per_page,
+        activity_types=activity_types
+    )
+
+    return jsonify({
+        'activities': [a.to_dict() for a in pagination.items],
+        'page': pagination.page,
+        'pages': pagination.pages,
+        'per_page': per_page,
+        'total': pagination.total,
+        'has_next': pagination.has_next,
+        'has_prev': pagination.has_prev
+    })

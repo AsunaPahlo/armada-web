@@ -251,8 +251,9 @@
                                 <i class="bi bi-chevron-right"></i>
                             </td>
                             <td>
-                                <a href="{{ url_for('stats.fc_detail', fc_id=fc.fc_id) }}" class="text-decoration-none text-white">
-                                    <strong>{{ fc.fc_name or "Unknown FC" }}</strong>
+                                <strong>{{ fc.fc_name or "Unknown FC" }}</strong>
+                                <a href="{{ url_for('stats.fc_detail', fc_id=fc.fc_id) }}" class="text-decoration-none ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="FC Details & Activity Log">
+                                    <i class="bi bi-info-circle text-primary fc-info-icon"></i>
                                 </a>
                                 {% if fc.house_address %}
                                 <i class="bi bi-house-door-fill text-info ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ fc.house_address }}"></i>
@@ -406,8 +407,9 @@
                     <div>
                         <h5 class="mb-0">
                             <i class="bi bi-building"></i>
-                            <a href="{{ url_for('stats.fc_detail', fc_id=fc.fc_id) }}" class="text-decoration-none text-white">
-                                {{ fc.fc_name or "Unknown FC" }}
+                            {{ fc.fc_name or "Unknown FC" }}
+                            <a href="{{ url_for('stats.fc_detail', fc_id=fc.fc_id) }}" class="text-decoration-none ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="FC Details & Activity Log">
+                                <i class="bi bi-info-circle text-primary fc-info-icon" style="font-size: 0.8em;"></i>
                             </a>
                             {% if fc.house_address %}
                             <i class="bi bi-house-door-fill text-info ms-1" style="font-size: 0.8em;" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ fc.house_address }}"></i>
@@ -818,6 +820,18 @@ table.sub-table tbody tr.sub-soon:hover {
 .fc-row.search-hidden,
 .fc-card-wrapper.search-hidden {
     display: none !important;
+}
+
+/* FC info and unlock link icons */
+.fc-info-icon,
+.unlock-link-icon {
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+}
+
+.fc-info-icon:hover,
+.unlock-link-icon:hover {
+    opacity: 1;
 }
 </style>
 {% endblock %}
