@@ -127,3 +127,90 @@ class RouteStats(db.Model):
 
     def __repr__(self):
         return f'<RouteStats {self.route_name} {self.gil_per_sub_day}g/sub/day>'
+
+
+class HousingPlotSize(db.Model):
+    """
+    Housing plot size data from HousingLandSet.csv
+    Maps district + plot number to size (Small/Medium/Large)
+    """
+
+    __tablename__ = 'housing_plot_sizes'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    district_id = db.Column(db.Integer, nullable=False, index=True)  # 0=Mist, 1=LavenderBeds, 2=Goblet, 3=Shirogane, 4=Empyreum
+    plot_number = db.Column(db.Integer, nullable=False)  # 1-60 (1-30 main, 31-60 subdivision)
+    size = db.Column(db.Integer, nullable=False)  # 0=Small, 1=Medium, 2=Large
+
+    __table_args__ = (
+        db.UniqueConstraint('district_id', 'plot_number', name='unique_district_plot'),
+        db.Index('idx_district_plot', 'district_id', 'plot_number'),
+    )
+
+    # District ID to name mapping
+    DISTRICT_NAMES = {
+        0: 'Mist',
+        1: 'The Lavender Beds',
+        2: 'The Goblet',
+        3: 'Shirogane',
+        4: 'Empyreum',
+    }
+
+    # Size ID to name mapping
+    SIZE_NAMES = {
+        0: 'Small',
+        1: 'Medium',
+        2: 'Large',
+    }
+
+    @property
+    def size_name(self) -> str:
+        return self.SIZE_NAMES.get(self.size, 'Unknown')
+
+    @property
+    def district_name(self) -> str:
+        return self.DISTRICT_NAMES.get(self.district_id, f'District {self.district_id}')
+
+    def __repr__(self):
+        return f'<HousingPlotSize {self.district_name} P{self.plot_number}: {self.size_name}>'
+
+    # Name aliases for flexible district matching
+    DISTRICT_ALIASES = {
+        'mist': 0,
+        'the lavender beds': 1,
+        'lavender beds': 1,
+        'lavenderbed': 1,
+        'lb': 1,
+        'the goblet': 2,
+        'goblet': 2,
+        'gob': 2,
+        'shirogane': 3,
+        'shiro': 3,
+        'empyreum': 4,
+        'emp': 4,
+    }
+
+    @classmethod
+    def get_size(cls, district: str, plot: int) -> str:
+        """
+        Get house size for a district and plot number.
+
+        Args:
+            district: District name (Mist, The Lavender Beds, Lavender Beds, Goblet, etc.)
+            plot: Plot number (1-60)
+
+        Returns:
+            Size name (Small, Medium, Large) or empty string if not found
+        """
+        if not district or not plot:
+            return ''
+
+        # Map district name to ID using aliases
+        district_lower = district.lower().strip()
+        district_id = cls.DISTRICT_ALIASES.get(district_lower)
+
+        if district_id is None:
+            return ''
+
+        entry = cls.query.filter_by(district_id=district_id, plot_number=plot).first()
+        return entry.size_name if entry else ''

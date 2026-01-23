@@ -91,6 +91,148 @@
             </div>
         </div>
 
+        <!-- Google Sheets Integration -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-table"></i> Google Sheets Integration</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    Connect Google Sheets to automatically pull FC data using Apps Script.
+                    This provides: Character @ World, FC Name, Datacenter, World, Housing Area, Ward, Plot, Route, House Size, and Lifestream address.
+                </p>
+
+                <div class="mb-3">
+                    <label class="form-label">API Token</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control font-monospace" id="sheets-token" readonly placeholder="No token generated">
+                        <button class="btn btn-outline-primary" type="button" id="copy-token-btn" title="Copy to clipboard">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                        <button class="btn btn-primary" type="button" id="generate-token-btn">
+                            <i class="bi bi-key"></i> Generate New Token
+                        </button>
+                    </div>
+                    <small class="text-muted">This token allows Google Sheets to access your FC data. Keep it secret.</small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">API Endpoint</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control font-monospace" id="sheets-api-url" readonly value="">
+                        <button class="btn btn-outline-primary" type="button" id="copy-url-btn" title="Copy to clipboard">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <hr>
+
+                <h6><i class="bi bi-code-slash"></i> Google Apps Script</h6>
+                <p class="text-muted small">
+                    Copy this script into your Google Sheet (Extensions > Apps Script). Then run <code>refreshAllData()</code> or set up a time-based trigger.
+                </p>
+                <div class="position-relative">
+                    <pre class="bg-dark p-3 rounded" style="max-height: 300px; overflow-y: auto;"><code id="apps-script-code">// Armada Fleet Google Sheets Integration
+// Paste your API URL below (get it from Armada Export settings)
+const API_URL = 'YOUR_API_URL_HERE';
+
+/**
+ * Main function - refreshes all data from Armada
+ * Run this manually or set up a time trigger
+ */
+function refreshAllData() {
+  const data = fetchArmadaData();
+  if (!data) return;
+
+  // Update "All FCs" sheet
+  updateSheet('All FCs', data.columns, data.all);
+
+  // Update tag-specific sheets
+  for (const [tagName, rows] of Object.entries(data.by_tag)) {
+    updateSheet(tagName, data.columns, rows);
+  }
+
+  // Log completion
+  SpreadsheetApp.getActiveSpreadsheet().toast(
+    `Updated ${data.all.length} FCs at ${new Date().toLocaleString()}`,
+    'Armada Sync Complete'
+  );
+}
+
+/**
+ * Fetch data from Armada API
+ */
+function fetchArmadaData() {
+  try {
+    const response = UrlFetchApp.fetch(API_URL, {
+      muteHttpExceptions: true
+    });
+
+    if (response.getResponseCode() !== 200) {
+      SpreadsheetApp.getUi().alert('Error: ' + response.getContentText());
+      return null;
+    }
+
+    return JSON.parse(response.getContentText());
+  } catch (e) {
+    SpreadsheetApp.getUi().alert('Failed to fetch data: ' + e.message);
+    return null;
+  }
+}
+
+/**
+ * Update or create a sheet with data
+ */
+function updateSheet(sheetName, columns, rows) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(sheetName);
+
+  // Create sheet if it doesn't exist
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+  }
+
+  // Clear existing data
+  sheet.clearContents();
+
+  // Headers (formatted nicely)
+  const headers = columns.map(col => {
+    return col.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  });
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  sheet.getRange(1, 1, 1, headers.length)
+    .setFontWeight('bold')
+    .setBackground('#4a5568');
+
+  // Data rows
+  if (rows.length > 0) {
+    const dataRows = rows.map(row => columns.map(col => row[col] || ''));
+    sheet.getRange(2, 1, dataRows.length, columns.length).setValues(dataRows);
+  }
+
+  // Auto-resize columns
+  for (let i = 1; i <= columns.length; i++) {
+    sheet.autoResizeColumn(i);
+  }
+}
+
+/**
+ * Add custom menu when spreadsheet opens
+ */
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('Armada')
+    .addItem('Refresh Data', 'refreshAllData')
+    .addToUi();
+}</code></pre>
+                    <button class="btn btn-sm btn-outline-secondary position-absolute top-0 end-0 m-2" onclick="copyScript()">
+                        <i class="bi bi-clipboard"></i> Copy
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <div class="card mt-4">
             <div class="card-header">
                 <h5 class="mb-0"><i class="bi bi-info-circle"></i> Export Information</h5>
@@ -141,6 +283,80 @@ document.addEventListener('DOMContentLoaded', function() {
     // Don't pre-fill to show "last 30 days" default behavior
     // document.getElementById('start-date').value = startDate.toISOString().split('T')[0];
     // document.getElementById('end-date').value = endDate.toISOString().split('T')[0];
+
+    // Load existing token
+    loadSheetsToken();
 });
+
+// Google Sheets Integration
+const baseUrl = window.location.origin;
+const apiEndpoint = '/export/api/sheets';
+
+function loadSheetsToken() {
+    fetch('{{ url_for("export.get_sheets_token") }}')
+        .then(response => response.json())
+        .then(data => {
+            updateTokenDisplay(data.token);
+        })
+        .catch(err => console.error('Failed to load token:', err));
+}
+
+function updateTokenDisplay(token) {
+    const tokenInput = document.getElementById('sheets-token');
+    const urlInput = document.getElementById('sheets-api-url');
+
+    if (token) {
+        tokenInput.value = token;
+        urlInput.value = baseUrl + apiEndpoint + '?token=' + token;
+    } else {
+        tokenInput.value = '';
+        tokenInput.placeholder = 'No token generated - click Generate';
+        urlInput.value = '';
+    }
+}
+
+document.getElementById('generate-token-btn').addEventListener('click', function() {
+    if (!confirm('Generate a new token? This will invalidate the previous token.')) {
+        return;
+    }
+
+    fetch('{{ url_for("export.generate_sheets_token") }}', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            updateTokenDisplay(data.token);
+            alert('New token generated successfully!');
+        })
+        .catch(err => {
+            console.error('Failed to generate token:', err);
+            alert('Failed to generate token');
+        });
+});
+
+document.getElementById('copy-token-btn').addEventListener('click', function() {
+    const tokenInput = document.getElementById('sheets-token');
+    if (tokenInput.value) {
+        navigator.clipboard.writeText(tokenInput.value);
+        this.innerHTML = '<i class="bi bi-check"></i>';
+        setTimeout(() => { this.innerHTML = '<i class="bi bi-clipboard"></i>'; }, 2000);
+    }
+});
+
+document.getElementById('copy-url-btn').addEventListener('click', function() {
+    const urlInput = document.getElementById('sheets-api-url');
+    if (urlInput.value) {
+        navigator.clipboard.writeText(urlInput.value);
+        this.innerHTML = '<i class="bi bi-check"></i>';
+        setTimeout(() => { this.innerHTML = '<i class="bi bi-clipboard"></i>'; }, 2000);
+    }
+});
+
+function copyScript() {
+    const code = document.getElementById('apps-script-code').textContent;
+    navigator.clipboard.writeText(code);
+
+    const btn = event.target.closest('button');
+    btn.innerHTML = '<i class="bi bi-check"></i> Copied';
+    setTimeout(() => { btn.innerHTML = '<i class="bi bi-clipboard"></i> Copy'; }, 2000);
+}
 </script>
 {% endblock %}

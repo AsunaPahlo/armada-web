@@ -3,15 +3,247 @@ Data export routes for downloading fleet data as CSV files.
 """
 import csv
 import io
+import secrets
 from datetime import datetime, timedelta
-from flask import Blueprint, Response, render_template, request
+from flask import Blueprint, Response, render_template, request, jsonify
 from flask_login import login_required
 
 from app import db
 from app.models.voyage_loot import VoyageLoot, VoyageLootItem
 from app.models.fc_housing import get_all_fc_housing
+from app.models.app_settings import AppSettings
+from app.models.tag import get_all_fc_tags_map, get_all_tags
 
 export_bp = Blueprint('export', __name__)
+
+
+# World -> Datacenter mapping
+WORLD_TO_DATACENTER = {
+    # NA - Aether
+    'Adamantoise': 'Aether', 'Cactuar': 'Aether', 'Faerie': 'Aether', 'Gilgamesh': 'Aether',
+    'Jenova': 'Aether', 'Midgardsormr': 'Aether', 'Sargatanas': 'Aether', 'Siren': 'Aether',
+    # NA - Primal
+    'Behemoth': 'Primal', 'Excalibur': 'Primal', 'Exodus': 'Primal', 'Famfrit': 'Primal',
+    'Hyperion': 'Primal', 'Lamia': 'Primal', 'Leviathan': 'Primal', 'Ultros': 'Primal',
+    # NA - Crystal
+    'Balmung': 'Crystal', 'Brynhildr': 'Crystal', 'Coeurl': 'Crystal', 'Diabolos': 'Crystal',
+    'Goblin': 'Crystal', 'Malboro': 'Crystal', 'Mateus': 'Crystal', 'Zalera': 'Crystal',
+    # NA - Dynamis
+    'Halicarnassus': 'Dynamis', 'Maduin': 'Dynamis', 'Marilith': 'Dynamis', 'Seraph': 'Dynamis',
+    # EU - Chaos
+    'Cerberus': 'Chaos', 'Louisoix': 'Chaos', 'Moogle': 'Chaos', 'Omega': 'Chaos',
+    'Phantom': 'Chaos', 'Ragnarok': 'Chaos', 'Sagittarius': 'Chaos', 'Spriggan': 'Chaos',
+    # EU - Light
+    'Alpha': 'Light', 'Lich': 'Light', 'Odin': 'Light', 'Phoenix': 'Light',
+    'Raiden': 'Light', 'Shiva': 'Light', 'Twintania': 'Light', 'Zodiark': 'Light',
+    # JP - Elemental
+    'Aegis': 'Elemental', 'Atomos': 'Elemental', 'Carbuncle': 'Elemental', 'Garuda': 'Elemental',
+    'Gungnir': 'Elemental', 'Kujata': 'Elemental', 'Tonberry': 'Elemental', 'Typhon': 'Elemental',
+    # JP - Gaia
+    'Alexander': 'Gaia', 'Bahamut': 'Gaia', 'Durandal': 'Gaia', 'Fenrir': 'Gaia',
+    'Ifrit': 'Gaia', 'Ridill': 'Gaia', 'Tiamat': 'Gaia', 'Ultima': 'Gaia',
+    # JP - Mana
+    'Anima': 'Mana', 'Asura': 'Mana', 'Chocobo': 'Mana', 'Hades': 'Mana',
+    'Ixion': 'Mana', 'Masamune': 'Mana', 'Pandaemonium': 'Mana', 'Titan': 'Mana',
+    # JP - Meteor
+    'Belias': 'Meteor', 'Mandragora': 'Meteor', 'Ramuh': 'Meteor', 'Shinryu': 'Meteor',
+    'Unicorn': 'Meteor', 'Valefor': 'Meteor', 'Yojimbo': 'Meteor', 'Zeromus': 'Meteor',
+    # OCE - Materia
+    'Bismarck': 'Materia', 'Ravana': 'Materia', 'Sephirot': 'Materia', 'Sophia': 'Materia', 'Zurvan': 'Materia',
+}
+
+# District name abbreviations for Lifestream
+DISTRICT_ABBREV = {
+    'Mist': 'Mist',
+    'The Lavender Beds': 'LB',
+    'Lavender Beds': 'LB',
+    'The Goblet': 'Gob',
+    'Goblet': 'Gob',
+    'Shirogane': 'Shiro',
+    'Empyreum': 'Emp',
+}
+
+
+def get_datacenter(world: str) -> str:
+    """Get datacenter name from world name."""
+    return WORLD_TO_DATACENTER.get(world, 'Unknown')
+
+
+def get_house_size(district: str, plot: int) -> str:
+    """
+    Get house size from Lumina database for the given district and plot.
+    """
+    if not district or not plot:
+        return ''
+
+    from app.services.lumina_service import get_house_size as lumina_get_house_size
+    return lumina_get_house_size(district, plot)
+
+
+def get_lifestream_address(district: str, ward: int, plot: int) -> str:
+    """
+    Generate Lifestream plugin teleport address.
+    Format: "District W# P#" or "District W# P# (Sub)" for subdivision
+    """
+    if not district or not ward or not plot:
+        return ''
+
+    abbrev = DISTRICT_ABBREV.get(district, district[:4] if district else '')
+    is_subdivision = plot > 30
+
+    if is_subdivision:
+        return f"{abbrev} W{ward} P{plot - 30} (Sub)"
+    return f"{abbrev} W{ward} P{plot}"
+
+
+def verify_export_token(token: str) -> bool:
+    """Verify the export token matches the stored one."""
+    stored_token = AppSettings.get('sheets_export_token')
+    if not stored_token:
+        return False
+    return secrets.compare_digest(token, stored_token)
+
+
+@export_bp.route('/sheets/token', methods=['POST'])
+@login_required
+def generate_sheets_token():
+    """Generate a new token for Google Sheets API access."""
+    token = secrets.token_urlsafe(32)
+    AppSettings.set('sheets_export_token', token, 'Token for Google Sheets export API')
+    return jsonify({'token': token})
+
+
+@export_bp.route('/sheets/token', methods=['GET'])
+@login_required
+def get_sheets_token():
+    """Get the current Google Sheets export token."""
+    token = AppSettings.get('sheets_export_token')
+    return jsonify({'token': token or None})
+
+
+@export_bp.route('/api/sheets')
+def sheets_export_api():
+    """
+    JSON API endpoint for Google Sheets to fetch FC data.
+    Requires token authentication via query parameter.
+
+    Returns:
+        JSON with 'all' (all FCs) and 'by_tag' (FCs grouped by tag name)
+    """
+    token = request.args.get('token', '')
+    if not token or not verify_export_token(token):
+        return jsonify({'error': 'Invalid or missing token'}), 401
+
+    from app.services import get_fleet_manager
+
+    fleet = get_fleet_manager()
+    accounts = fleet.get_data(force_refresh=True)
+    fc_housing = get_all_fc_housing()
+    fc_tags_map = get_all_fc_tags_map()
+
+    # Build FC data
+    fc_data = {}
+    for account in accounts:
+        for char in account.characters:
+            fc_id = char.fc_id
+            fc_id_str = str(fc_id) if fc_id else 'unknown'
+
+            if fc_id_str not in fc_data:
+                fc_info = account.fc_data.get(fc_id)
+                fc_name = fc_info.name if fc_info and fc_info.name else f"FC-{fc_id}"
+                housing = fc_housing.get(fc_id_str)
+
+                # Get unique routes from all submarines in this FC
+                routes = set()
+
+                fc_data[fc_id_str] = {
+                    'fc_id': fc_id_str,
+                    'fc_name': fc_name,
+                    'characters': [],
+                    'housing': housing,
+                    'tags': fc_tags_map.get(fc_id_str, []),
+                    'routes': routes,
+                }
+
+            # Add character info
+            fc_entry = fc_data[fc_id_str]
+
+            # Collect routes from submarines
+            for sub in char.submarines:
+                route_name = ''
+                if hasattr(sub, 'route_name') and sub.route_name:
+                    route_name = sub.route_name
+                elif hasattr(sub, 'route') and sub.route:
+                    route_name = sub.route
+                if route_name:
+                    fc_entry['routes'].add(route_name)
+
+            # Add character if not already added
+            char_key = f"{char.name}@{char.world}"
+            existing_chars = [c['key'] for c in fc_entry['characters']]
+            if char_key not in existing_chars:
+                fc_entry['characters'].append({
+                    'key': char_key,
+                    'name': char.name,
+                    'world': char.world,
+                    'datacenter': get_datacenter(char.world),
+                })
+
+    # Format output rows
+    all_rows = []
+    by_tag = {}  # tag_name -> list of rows
+
+    for fc_id_str, fc in fc_data.items():
+        housing = fc['housing']
+        world = housing.world if housing else (fc['characters'][0]['world'] if fc['characters'] else '')
+        datacenter = get_datacenter(world)
+        district = housing.district if housing else ''
+        ward = housing.ward if housing else None
+        plot = housing.plot if housing else None
+
+        # Get first character for the "Character @ World" field
+        char_display = ''
+        if fc['characters']:
+            c = fc['characters'][0]
+            char_display = f"{c['name']} @ {c['world']}"
+
+        row = {
+            'character': char_display,
+            'fc_name': fc['fc_name'],
+            'datacenter': datacenter,
+            'world': world,
+            'housing_area': district,
+            'ward': ward or '',
+            'plot': plot or '',
+            'route': ', '.join(sorted(fc['routes'])),
+            'house_size': get_house_size(district, plot),
+            'lifestream_address': get_lifestream_address(district, ward, plot),
+            'tags': [t['name'] for t in fc['tags']],
+        }
+
+        all_rows.append(row)
+
+        # Group by tag
+        for tag in fc['tags']:
+            tag_name = tag['name']
+            if tag_name not in by_tag:
+                by_tag[tag_name] = []
+            by_tag[tag_name].append(row)
+
+    # Sort rows by FC name
+    all_rows.sort(key=lambda r: r['fc_name'].lower())
+    for tag_name in by_tag:
+        by_tag[tag_name].sort(key=lambda r: r['fc_name'].lower())
+
+    return jsonify({
+        'all': all_rows,
+        'by_tag': by_tag,
+        'columns': [
+            'character', 'fc_name', 'datacenter', 'world',
+            'housing_area', 'ward', 'plot', 'route', 'house_size', 'lifestream_address'
+        ],
+        'generated_at': datetime.utcnow().isoformat() + 'Z'
+    })
 
 
 @export_bp.route('/')

@@ -12,7 +12,7 @@ import requests
 from app import db
 from app.models.lumina import (
     DataVersion, SubmarinePart, SubmarineExploration,
-    SubmarineMap, SubmarineRank
+    SubmarineMap, SubmarineRank, HousingPlotSize
 )
 
 logger = logging.getLogger(__name__)
@@ -24,6 +24,7 @@ CSV_FILES = {
     'submarine_explorations': f"{GITHUB_BASE_URL}/SubmarineExploration.csv",
     'submarine_maps': f"{GITHUB_BASE_URL}/SubmarineMap.csv",
     'submarine_ranks': f"{GITHUB_BASE_URL}/SubmarineRank.csv",
+    'housing_plot_sizes': f"{GITHUB_BASE_URL}/HousingLandSet.csv",
 }
 
 # Update interval (24 hours - once per day)
@@ -291,6 +292,73 @@ class LuminaDataService:
         logger.info(f"[Lumina] Updated {count} submarine ranks")
         return count
 
+    def update_housing_plot_sizes(self, force: bool = False) -> int:
+        """Update housing plot sizes from HousingLandSet.csv"""
+        table_name = 'housing_plot_sizes'
+
+        if not force and not self.needs_update(table_name):
+            return 0
+
+        content = self.fetch_csv(CSV_FILES[table_name], table_name)
+        if content is None:
+            return 0
+
+        # Parse CSV - this one has a different structure
+        # Row 0: headers, Row 1: types (skip), Row 2+: data
+        # Each row is a district (0-4)
+        # Columns: #, LandSet[0].*, LandSet[1].*, ... LandSet[59].*
+        lines = content.strip().split('\n')
+        if len(lines) < 3:
+            return 0
+
+        # Parse header to find PlotSize column indices
+        header = lines[0].split(',')
+        plot_size_cols = {}  # plot_index -> column_index
+        import re
+        for col_idx, col_name in enumerate(header):
+            match = re.search(r'LandSet\[(\d+)\]\.PlotSize', col_name)
+            if match:
+                plot_num = int(match.group(1))
+                plot_size_cols[plot_num] = col_idx
+
+        count = 0
+        # Data rows start at line 2 (skip header and type row)
+        for line in lines[2:]:
+            try:
+                values = line.split(',')
+                district_id = int(values[0])
+
+                for plot_index, col_idx in plot_size_cols.items():
+                    plot_number = plot_index + 1  # Convert 0-indexed to 1-indexed
+                    size = int(values[col_idx])
+
+                    entry = HousingPlotSize.query.filter_by(
+                        district_id=district_id,
+                        plot_number=plot_number
+                    ).first()
+
+                    if not entry:
+                        entry = HousingPlotSize(
+                            district_id=district_id,
+                            plot_number=plot_number
+                        )
+                        db.session.add(entry)
+
+                    entry.size = size
+                    count += 1
+
+            except (ValueError, IndexError) as e:
+                logger.warning(f"[Lumina] Error parsing housing row: {e}")
+                continue
+
+        version = DataVersion.query.filter_by(table_name=table_name).first()
+        if version:
+            version.row_count = count
+
+        db.session.commit()
+        logger.info(f"[Lumina] Updated {count} housing plot sizes")
+        return count
+
     def update_all(self, force: bool = False) -> dict:
         """Update all Lumina data tables."""
         results = {
@@ -298,6 +366,7 @@ class LuminaDataService:
             'explorations': self.update_submarine_explorations(force),
             'maps': self.update_submarine_maps(force),
             'ranks': self.update_submarine_ranks(force),
+            'housing': self.update_housing_plot_sizes(force),
         }
         total = sum(results.values())
         if total > 0:
@@ -309,8 +378,9 @@ class LuminaDataService:
         # Check if we have any data
         parts_count = SubmarinePart.query.count()
         explorations_count = SubmarineExploration.query.count()
+        housing_count = HousingPlotSize.query.count()
 
-        if parts_count == 0 or explorations_count == 0:
+        if parts_count == 0 or explorations_count == 0 or housing_count == 0:
             logger.info("[Lumina] No data found, performing initial load...")
             self.update_all(force=True)
             return True
@@ -361,3 +431,17 @@ def get_map_name(map_id: int) -> str:
     """Get map name by ID."""
     map_entry = SubmarineMap.query.get(map_id)
     return map_entry.name if map_entry else f"Unknown ({map_id})"
+
+
+def get_house_size(district: str, plot: int) -> str:
+    """
+    Get house size for a district and plot number.
+
+    Args:
+        district: District name (Mist, The Lavender Beds, Lavender Beds, The Goblet, Goblet, Shirogane, Empyreum)
+        plot: Plot number (1-60)
+
+    Returns:
+        Size name (Small, Medium, Large) or empty string if not found
+    """
+    return HousingPlotSize.get_size(district, plot)
