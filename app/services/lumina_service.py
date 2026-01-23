@@ -303,12 +303,11 @@ class LuminaDataService:
         if content is None:
             return 0
 
-        # Parse CSV - this one has a different structure
-        # Row 0: headers, Row 1: types (skip), Row 2+: data
-        # Each row is a district (0-4)
+        # Parse CSV - HousingLandSet.csv has NO type row (unlike other CSVs)
+        # Row 0: headers, Row 1+: data (5 districts: 0-4)
         # Columns: #, LandSet[0].*, LandSet[1].*, ... LandSet[59].*
         lines = content.strip().split('\n')
-        if len(lines) < 3:
+        if len(lines) < 2:
             return 0
 
         # Parse header to find PlotSize column indices
@@ -322,8 +321,8 @@ class LuminaDataService:
                 plot_size_cols[plot_num] = col_idx
 
         count = 0
-        # Data rows start at line 2 (skip header and type row)
-        for line in lines[2:]:
+        # Data rows start at line 1 (no type row in this CSV)
+        for line in lines[1:]:
             try:
                 values = line.split(',')
                 district_id = int(values[0])

@@ -77,23 +77,16 @@ def get_house_size(district: str, plot: int) -> str:
         return ''
 
     from app.services.lumina_service import get_house_size as lumina_get_house_size
+    from app.models.lumina import HousingPlotSize
+
+    # Ensure housing data is loaded - check for Mist (district 0) specifically
+    # since earlier bug skipped it
+    mist_exists = HousingPlotSize.query.filter_by(district_id=0).first()
+    if not mist_exists:
+        from app.services.lumina_service import lumina_service
+        lumina_service.update_housing_plot_sizes(force=True)
+
     return lumina_get_house_size(district, plot)
-
-
-def get_lifestream_address(district: str, ward: int, plot: int) -> str:
-    """
-    Generate Lifestream plugin teleport address.
-    Format: "District W# P#" or "District W# P# (Sub)" for subdivision
-    """
-    if not district or not ward or not plot:
-        return ''
-
-    abbrev = DISTRICT_ABBREV.get(district, district[:4] if district else '')
-    is_subdivision = plot > 30
-
-    if is_subdivision:
-        return f"{abbrev} W{ward} P{plot - 30} (Sub)"
-    return f"{abbrev} W{ward} P{plot}"
 
 
 def verify_export_token(token: str) -> bool:
@@ -189,6 +182,10 @@ def sheets_export_api():
                     'datacenter': get_datacenter(char.world),
                 })
 
+    # Get list of known farming routes from RouteStats
+    from app.models.lumina import RouteStats
+    farming_routes = set(r.route_name for r in RouteStats.query.all() if r.gil_per_sub_day and r.gil_per_sub_day > 0)
+
     # Format output rows
     all_rows = []
     by_tag = {}  # tag_name -> list of rows
@@ -207,6 +204,19 @@ def sheets_export_api():
             c = fc['characters'][0]
             char_display = f"{c['name']} @ {c['world']}"
 
+        # Determine route - check if any are farming routes, otherwise LEVELING
+        routes = fc['routes']
+        route_display = 'LEVELING'
+        if routes:
+            # Check if any route is a known farming route
+            farming_found = [r for r in routes if r in farming_routes]
+            if farming_found:
+                route_display = ', '.join(sorted(farming_found))
+            # If no farming routes found, it's leveling
+
+        # Get house size - try with and without "The " prefix
+        house_size = get_house_size(district, plot) if district and plot else ''
+
         row = {
             'character': char_display,
             'fc_name': fc['fc_name'],
@@ -215,9 +225,8 @@ def sheets_export_api():
             'housing_area': district,
             'ward': ward or '',
             'plot': plot or '',
-            'route': ', '.join(sorted(fc['routes'])),
-            'house_size': get_house_size(district, plot),
-            'lifestream_address': get_lifestream_address(district, ward, plot),
+            'route': route_display,
+            'house_size': house_size,
             'tags': [t['name'] for t in fc['tags']],
         }
 
@@ -240,7 +249,7 @@ def sheets_export_api():
         'by_tag': by_tag,
         'columns': [
             'character', 'fc_name', 'datacenter', 'world',
-            'housing_area', 'ward', 'plot', 'route', 'house_size', 'lifestream_address'
+            'housing_area', 'ward', 'plot', 'route', 'house_size'
         ],
         'generated_at': datetime.utcnow().isoformat() + 'Z'
     })

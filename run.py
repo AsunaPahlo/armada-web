@@ -22,7 +22,7 @@ def main():
     # Create Flask app
     app = create_app()
 
-    # Get configurationw
+    # Get configuration
     host = os.environ.get('ARMADA_HOST', '0.0.0.0')
     port = int(os.environ.get('ARMADA_PORT', 5000))
     debug = os.environ.get('ARMADA_DEBUG', 'false').lower() == 'true'
