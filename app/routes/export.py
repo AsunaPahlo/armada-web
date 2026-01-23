@@ -79,11 +79,13 @@ def get_house_size(district: str, plot: int) -> str:
     from app.services.lumina_service import get_house_size as lumina_get_house_size
     from app.models.lumina import HousingPlotSize
 
-    # Ensure housing data is loaded - check for Mist (district 0) specifically
-    # since earlier bug skipped it
-    mist_exists = HousingPlotSize.query.filter_by(district_id=0).first()
-    if not mist_exists:
+    # Ensure housing data is loaded - check we have all 300 plots (5 districts × 60 plots)
+    total_count = HousingPlotSize.query.count()
+    if total_count < 300:
         from app.services.lumina_service import lumina_service
+        # Clear old incomplete data and reload
+        HousingPlotSize.query.delete()
+        db.session.commit()
         lumina_service.update_housing_plot_sizes(force=True)
 
     return lumina_get_house_size(district, plot)
