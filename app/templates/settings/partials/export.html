@@ -217,9 +217,22 @@ function updateSheet(sheetName, columns, rows) {
     }
   }
 
-  // Auto-resize columns
-  for (let i = 1; i <= columns.length; i++) {
-    sheet.autoResizeColumn(i);
+  // Set specific column widths (adjust these values as needed)
+  const columnWidths = {
+    'character': 180,
+    'fc_name': 150,
+    'datacenter': 90,
+    'world': 100,
+    'housing_area': 120,
+    'ward': 50,
+    'plot': 50,
+    'route': 120,
+    'house_size': 80,
+    'notes': 200
+  };
+  for (let i = 0; i < columns.length; i++) {
+    const width = columnWidths[columns[i]] || 100;
+    sheet.setColumnWidth(i + 1, width);
   }
 
   // Add filter to make it a proper table with dropdowns
