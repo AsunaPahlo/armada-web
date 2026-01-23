@@ -294,7 +294,9 @@ class ArmadaDashboard {
                     <i class="bi ${isExpanded ? 'bi-chevron-down' : 'bi-chevron-right'}"></i>
                 </td>
                 <td>
-                    <strong>${fc.fc_name || 'Unknown FC'}</strong>
+                    <a href="/stats/fc/${fcIdStr}" class="text-decoration-none text-white">
+                        <strong>${fc.fc_name || 'Unknown FC'}</strong>
+                    </a>
                     ${fc.house_address ? `<i class="bi bi-house-door-fill text-info ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="${fc.house_address}"></i>` : ''}
                     <a href="/unlocks?fc_id=${fcIdStr}" class="text-decoration-none ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="View Sector Unlocks">
                         <i class="bi bi-diagram-3 text-muted unlock-link-icon"></i>
@@ -554,7 +556,9 @@ class ArmadaDashboard {
                         <div>
                             <h5 class="mb-0">
                                 <i class="bi bi-building"></i>
-                                ${fc.fc_name || 'Unknown FC'}
+                                <a href="/stats/fc/${fcIdStr}" class="text-decoration-none text-white">
+                                    ${fc.fc_name || 'Unknown FC'}
+                                </a>
                                 ${fc.house_address ? `<i class="bi bi-house-door-fill text-info ms-1" style="font-size: 0.8em;" data-bs-toggle="tooltip" data-bs-placement="top" title="${fc.house_address}"></i>` : ''}
                                 <a href="/unlocks?fc_id=${fcIdStr}" class="text-decoration-none ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="View Sector Unlocks">
                                     <i class="bi bi-diagram-3 text-muted unlock-link-icon" style="font-size: 0.8em;"></i>
