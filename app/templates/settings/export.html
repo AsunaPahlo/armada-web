@@ -99,7 +99,7 @@
             <div class="card-body">
                 <p class="text-muted">
                     Connect Google Sheets to automatically pull FC data using Apps Script.
-                    This provides: Character @ World, FC Name, Datacenter, World, Housing Area, Ward, Plot, Route, House Size, and Lifestream address.
+                    This provides: Character @ World, FC Name, Datacenter, World, Housing Area, Ward, Plot, Route, and House Size.
                 </p>
 
                 <div class="mb-3">
@@ -134,81 +134,104 @@
                 </p>
                 <div class="position-relative">
                     <pre class="bg-dark p-3 rounded" style="max-height: 300px; overflow-y: auto;"><code id="apps-script-code">// Armada Fleet Google Sheets Integration
-// Paste your API URL below (get it from Armada Export settings)
 const API_URL = 'YOUR_API_URL_HERE';
 
-/**
- * Main function - refreshes all data from Armada
- * Run this manually or set up a time trigger
- */
+// Color scheme
+const COLORS = {
+  header: '#1a1a2e',
+  headerText: '#ffffff',
+  rowEven: '#f8f9fa',
+  rowOdd: '#ffffff',
+  border: '#dee2e6',
+  leveling: '#fff3cd',
+  levelingText: '#856404'
+};
+
 function refreshAllData() {
   const data = fetchArmadaData();
   if (!data) return;
 
-  // Update "All FCs" sheet
-  updateSheet('All FCs', data.columns, data.all);
+  let totalCount = 0;
 
-  // Update tag-specific sheets
-  for (const [tagName, rows] of Object.entries(data.by_tag)) {
-    updateSheet(tagName, data.columns, rows);
+  // Untagged FCs go to "Untagged" sheet
+  if (data.untagged && data.untagged.length > 0) {
+    updateSheet('Untagged', data.columns, data.untagged);
+    totalCount += data.untagged.length;
   }
 
-  // Log completion
+  // Tagged FCs go to their respective tag sheets
+  for (const [tagName, rows] of Object.entries(data.by_tag)) {
+    updateSheet(tagName, data.columns, rows);
+    totalCount += rows.length;
+  }
+
   SpreadsheetApp.getActiveSpreadsheet().toast(
-    `Updated ${data.all.length} FCs at ${new Date().toLocaleString()}`,
-    'Armada Sync Complete'
+    'Updated ' + totalCount + ' FCs', 'Sync Complete'
   );
 }
 
-/**
- * Fetch data from Armada API
- */
 function fetchArmadaData() {
   try {
-    const response = UrlFetchApp.fetch(API_URL, {
-      muteHttpExceptions: true
-    });
-
+    const response = UrlFetchApp.fetch(API_URL, {muteHttpExceptions: true});
     if (response.getResponseCode() !== 200) {
       SpreadsheetApp.getUi().alert('Error: ' + response.getContentText());
       return null;
     }
-
     return JSON.parse(response.getContentText());
   } catch (e) {
-    SpreadsheetApp.getUi().alert('Failed to fetch data: ' + e.message);
+    SpreadsheetApp.getUi().alert('Failed: ' + e.message);
     return null;
   }
 }
 
-/**
- * Update or create a sheet with data
- */
 function updateSheet(sheetName, columns, rows) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(sheetName);
+  if (!sheet) sheet = ss.insertSheet(sheetName);
+  sheet.clear();
 
-  // Create sheet if it doesn't exist
-  if (!sheet) {
-    sheet = ss.insertSheet(sheetName);
-  }
-
-  // Clear existing data
-  sheet.clearContents();
-
-  // Headers (formatted nicely)
-  const headers = columns.map(col => {
-    return col.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-  });
-  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-  sheet.getRange(1, 1, 1, headers.length)
+  // Format headers
+  const headers = columns.map(c =>
+    c.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+  );
+  const headerRange = sheet.getRange(1, 1, 1, headers.length);
+  headerRange.setValues([headers])
     .setFontWeight('bold')
-    .setBackground('#4a5568');
+    .setBackground(COLORS.header)
+    .setFontColor(COLORS.headerText)
+    .setHorizontalAlignment('center');
 
-  // Data rows
+  // Freeze header row
+  sheet.setFrozenRows(1);
+
   if (rows.length > 0) {
     const dataRows = rows.map(row => columns.map(col => row[col] || ''));
-    sheet.getRange(2, 1, dataRows.length, columns.length).setValues(dataRows);
+    const dataRange = sheet.getRange(2, 1, dataRows.length, columns.length);
+    dataRange.setValues(dataRows);
+
+    // Alternating row colors
+    for (let i = 0; i < dataRows.length; i++) {
+      const rowRange = sheet.getRange(i + 2, 1, 1, columns.length);
+      rowRange.setBackground(i % 2 === 0 ? COLORS.rowEven : COLORS.rowOdd);
+    }
+
+    // Add borders to all data
+    const allDataRange = sheet.getRange(1, 1, rows.length + 1, columns.length);
+    allDataRange.setBorder(true, true, true, true, true, true,
+      COLORS.border, SpreadsheetApp.BorderStyle.SOLID);
+
+    // Highlight LEVELING cells in Route column
+    const routeIdx = columns.indexOf('route');
+    if (routeIdx !== -1) {
+      for (let i = 0; i < dataRows.length; i++) {
+        if (dataRows[i][routeIdx] === 'LEVELING') {
+          const cell = sheet.getRange(i + 2, routeIdx + 1);
+          cell.setBackground(COLORS.leveling)
+            .setFontColor(COLORS.levelingText)
+            .setFontWeight('bold');
+        }
+      }
+    }
   }
 
   // Auto-resize columns
@@ -217,12 +240,8 @@ function updateSheet(sheetName, columns, rows) {
   }
 }
 
-/**
- * Add custom menu when spreadsheet opens
- */
 function onOpen() {
-  SpreadsheetApp.getUi()
-    .createMenu('Armada')
+  SpreadsheetApp.getUi().createMenu('Armada')
     .addItem('Refresh Data', 'refreshAllData')
     .addToUi();
 }</code></pre>
