@@ -172,15 +172,13 @@
         {% endif %}
 
         {% if inventory_parts %}
-        <!-- Parts Inventory (collapsible) -->
+        <!-- Parts Inventory -->
         <div class="card">
-            <div class="card-header py-2" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#parts-collapse">
+            <div class="card-header py-2">
                 <i class="bi bi-box-seam me-2"></i>Parts Inventory
                 <span class="badge bg-secondary ms-2">{{ inventory_parts|length }}</span>
-                <i class="bi bi-chevron-down float-end"></i>
             </div>
-            <div class="collapse" id="parts-collapse">
-                <div class="card-body py-2">
+            <div class="card-body py-2">
                     <div class="row g-1">
                         {% for part in inventory_parts %}
                         <div class="col-6">
@@ -194,7 +192,6 @@
                     </div>
                 </div>
             </div>
-        </div>
         {% endif %}
     </div>
 </div>
@@ -442,7 +439,7 @@
     let activityPage = 1;
     let activityPages = 1;
     let activityTotal = 0;
-    const activityPerPage = 25;
+    const activityPerPage = 10;
 
     function loadActivityLog(page = 1) {
         const activityUrl = new URL(`{{ url_for("stats.fc_activity", fc_id=fc_id) }}`, window.location.origin);
