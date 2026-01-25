@@ -28,6 +28,12 @@ class FCHousing(db.Model):
         """Return formatted house address."""
         return f"{self.district} Ward {self.ward} Plot {self.plot}"
 
+    @property
+    def house_size(self) -> str:
+        """Return house size from Lumina data."""
+        from app.models.lumina import HousingPlotSize
+        return HousingPlotSize.get_size(self.district, self.plot)
+
     def to_dict(self):
         return {
             'fc_id': self.fc_id,

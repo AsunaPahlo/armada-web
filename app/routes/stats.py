@@ -514,6 +514,7 @@ def fc_detail(fc_id):
     # Get FC housing address
     fc_housing = get_fc_housing(fc_id)
     fc_address = fc_housing.address if fc_housing else None
+    fc_house_size = fc_housing.house_size if fc_housing else None
 
     # Convert inventory parts to detailed list with icons
     inventory_parts_list = get_inventory_parts_with_details(fc_inventory_parts)
@@ -523,6 +524,7 @@ def fc_detail(fc_id):
                            fc_name=fc_name,
                            fc_world=fc_world,
                            fc_address=fc_address,
+                           fc_house_size=fc_house_size,
                            fc_characters=fc_characters,
                            fc_notes=fc_notes,
                            target_level=target_level,

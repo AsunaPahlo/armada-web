@@ -291,12 +291,20 @@ class LevelingEstimator:
             exp_progress = getattr(submarine, 'exp_progress', 0)
             build = getattr(submarine, 'build', '')
             unlock_plan_guid = getattr(submarine, 'unlock_plan_guid', '')
+            voyage_status = getattr(submarine, 'status', 'unknown')
+            hours_remaining = getattr(submarine, 'hours_remaining', 0)
+            route_name = getattr(submarine, 'route_name', '')
+            return_time = getattr(submarine, 'return_time', None)
         else:
             current_level = submarine.get('level', 1)
             sub_name = submarine.get('name', 'Unknown')
             exp_progress = submarine.get('exp_progress', 0)
             build = submarine.get('build', '')
             unlock_plan_guid = submarine.get('unlock_plan_guid', '')
+            voyage_status = submarine.get('status', 'unknown')
+            hours_remaining = submarine.get('hours_remaining', 0)
+            route_name = submarine.get('route_name', '')
+            return_time = submarine.get('return_time', None)
 
         # Already at or above target
         if current_level >= target_level:
@@ -316,6 +324,10 @@ class LevelingEstimator:
                 'unlock_plan_name': '',
                 'exp_progress': exp_progress,
                 'build': build,
+                'voyage_status': voyage_status,
+                'hours_remaining': round(hours_remaining, 2) if hours_remaining else 0,
+                'route': route_name,
+                'return_time': return_time.isoformat() if return_time else None,
             }
 
         # Calculate base hours
@@ -343,6 +355,10 @@ class LevelingEstimator:
             'unlock_plan_name': '',
             'exp_progress': exp_progress,
             'build': build,
+            'voyage_status': voyage_status,
+            'hours_remaining': round(hours_remaining, 2) if hours_remaining else 0,
+            'route': route_name,
+            'return_time': return_time.isoformat() if return_time else None,
         }
 
     def _get_hours_for_sub_with_rng(self, from_level: int, to_level: int, discovery_rate: float) -> float:
