@@ -231,6 +231,14 @@ server {
 
 See [Armada Info](https://armadaxiv.com/)
 
+## Widgets
+
+Widgets to display your Armada data:
+
+- **[Armada Rainmeter](https://github.com/AsunaPahlo/Armada-Rainmeter/)** — Desktop widget for Windows using Rainmeter
+- **[MMM-Armada](https://github.com/AsunaPahlo/MMM-Armada/)** — MagicMirror module for smart mirror displays
+
+
 ## License
 
 This project is licensed under the MIT License.
