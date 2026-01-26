@@ -192,7 +192,7 @@ openssl rand -hex 32
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `SECRET_KEY` | Encryption key for sessions and sensitive data | (required in production) |
+| `SECRET_KEY` | Encryption key for sessions and sensitive data | (required) |
 | `ARMADA_USERNAME` | Initial admin username | `admin` |
 | `ARMADA_PASSWORD` | Initial admin password | `armada` |
 | `ARMADA_HOST` | Host to bind to | `0.0.0.0` |
