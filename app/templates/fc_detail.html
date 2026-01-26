@@ -162,8 +162,9 @@
                         <small class="text-muted">{{ char.world }}</small>
                     </div>
                     <div class="text-end small">
-                        <span class="text-muted">{{ "{:,}".format(char.ceruleum) }}</span> <i class="bi bi-droplet-fill text-info"></i><br>
-                        <span class="text-muted">{{ "{:,}".format(char.repair_kits) }}</span> <i class="bi bi-wrench text-secondary"></i>
+                        <span class="text-warning">{{ "{:,}".format(char.gil) }}</span> <img src="{{ url_for('static', filename='gil_icon.png') }}" alt="Gil" style="width: 14px; height: 14px;"><br>
+                        <span class="text-muted">{{ "{:,}".format(char.ceruleum) }}</span> <i class="bi bi-droplet-fill text-info"></i>
+                        <span class="text-muted ms-1">{{ "{:,}".format(char.repair_kits) }}</span> <i class="bi bi-wrench text-secondary"></i>
                     </div>
                 </div>
                 {% endfor %}
