@@ -40,7 +40,7 @@ Armada consists of two components:
 
 Don't want to self-host? We offer managed hosting so you can skip the server setup.
 
-**[Contact on Discord](#)** to get started.
+**[Contact on Discord](https://discord.com/users/140284823448190976)** to get started.
 
 ### Option 2: Self-Host with Docker Image (Recommended)
 
