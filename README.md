@@ -128,6 +128,7 @@ Don't want to self-host? We offer managed hosting so you can skip the server set
 ## Plugin Installation
 
 Once your server is running, install the Dalamud plugin to start sending data:
+> **Note:** This plugin requires the following plugins to be installed and enabled: AutoRetainer, AllaganTools
 
 1. Open the Plugin Installer in-game: `/xlplugins`
 2. Go to **Settings** → **Experimental**
