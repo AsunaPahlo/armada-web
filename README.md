@@ -229,7 +229,7 @@ server {
 
 ## Screenshots
 
-*Coming soon*
+See [Armada Info](https://armadaxiv.com/)
 
 ## Contributing
 
