@@ -7,9 +7,14 @@ import json
 from datetime import datetime, timedelta
 from typing import Optional
 
+from sqlalchemy.exc import SQLAlchemyError
+
 from app import db
 from app.models.voyage import Voyage
 from app.models.voyage_loot import VoyageLoot, VoyageLootItem
+from app.utils.logging import get_logger
+
+logger = get_logger('LootTracker')
 
 
 class LootTracker:
@@ -137,9 +142,9 @@ class LootTracker:
                     item_count=len(items)
                 )
             except Exception as e:
-                print(f"[LootTracker] Warning: Failed to update daily stats: {e}")
+                logger.warning(f" Failed to update daily stats: {e}")
 
-            print(f"[LootTracker] Recorded loot for {submarine_name}: {len(items)} items, {total_gil_value:,} gil")
+            logger.info(f"Recorded loot for {submarine_name}: {len(items)} items, {total_gil_value:,} gil")
 
             return {
                 'success': True,
@@ -150,7 +155,7 @@ class LootTracker:
 
         except Exception as e:
             db.session.rollback()
-            print(f"[LootTracker] Error recording loot: {e}")
+            logger.warning(f"Error recording loot: {e}")
             return {
                 'success': False,
                 'error': str(e)
@@ -180,17 +185,17 @@ class LootTracker:
             start_time = captured_at - window
             end_time = captured_at + window
 
-            print(f"[LootTracker] Looking for voyage: fc_id={fc_id}, sub={submarine_name}")
-            print(f"[LootTracker] Window: {start_time} to {end_time}")
+            logger.info(f"Looking for voyage: fc_id={fc_id}, sub={submarine_name}")
+            logger.info(f"Window: {start_time} to {end_time}")
 
             # First check what voyages exist for this submarine
             all_voyages = Voyage.query.filter(
                 Voyage.fc_id == fc_id,
                 Voyage.submarine_name == submarine_name
             ).all()
-            print(f"[LootTracker] Found {len(all_voyages)} voyages for this sub/FC")
+            logger.info(f"Found {len(all_voyages)} voyages for this sub/FC")
             for v in all_voyages:
-                print(f"[LootTracker]   ID {v.id}: recorded_at={v.recorded_at}, in_window={start_time <= v.recorded_at <= end_time}")
+                logger.info(f"  ID {v.id}: recorded_at={v.recorded_at}, in_window={start_time <= v.recorded_at <= end_time}")
 
             # Simple query without complex ordering
             voyage = Voyage.query.filter(
@@ -201,14 +206,14 @@ class LootTracker:
             ).order_by(Voyage.recorded_at.desc()).first()
 
             if voyage:
-                print(f"[LootTracker] Matched voyage ID {voyage.id}")
+                logger.info(f"Matched voyage ID {voyage.id}")
             else:
-                print(f"[LootTracker] No matching voyage found")
+                logger.info(f"No matching voyage found")
 
             return voyage
 
         except Exception as e:
-            print(f"[LootTracker] Error finding matching voyage: {e}")
+            logger.warning(f"Error finding matching voyage: {e}")
             import traceback
             traceback.print_exc()
             return None
@@ -246,12 +251,12 @@ class LootTracker:
                 # Also store route_points on voyage if not set
                 if not voyage.route_points:
                     voyage.route_points = json.dumps(sectors)
-                print(f"[LootTracker] Set voyage duration: {duration:.2f} hours for {submarine_name}")
+                logger.info(f"Set voyage duration: {duration:.2f} hours for {submarine_name}")
             else:
-                print(f"[LootTracker] Could not calculate duration for {submarine_name} (build: {voyage.submarine_build})")
+                logger.info(f"Could not calculate duration for {submarine_name} (build: {voyage.submarine_build})")
 
         except Exception as e:
-            print(f"[LootTracker] Error calculating voyage duration: {e}")
+            logger.warning(f"Error calculating voyage duration: {e}")
             import traceback
             traceback.print_exc()
 

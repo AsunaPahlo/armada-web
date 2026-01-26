@@ -15,6 +15,10 @@ Uses Lumina database data for:
 from dataclasses import dataclass
 from typing import Optional
 
+from app.utils.logging import get_logger
+
+logger = get_logger('LevelingEstimator')
+
 
 class LevelingEstimator:
     """
@@ -149,7 +153,7 @@ class LevelingEstimator:
                 self._use_fallback_data()
 
         except Exception as e:
-            print(f"[LevelingEstimator] Error loading data: {e}")
+            logger.warning(f"Error loading data: {e}")
             self._use_fallback_data()
 
     def _use_fallback_data(self):

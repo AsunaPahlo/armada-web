@@ -2,12 +2,20 @@
 Armada - FFXIV Submarine Fleet Dashboard
 Flask application factory
 """
+import logging
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_socketio import SocketIO
+from sqlalchemy.exc import SQLAlchemyError
+
+from app.utils.logging import setup_logging, get_logger
 
 __version__ = '1.0.0'
+
+# Set up logging before anything else
+setup_logging()
+logger = get_logger('Startup')
 
 db = SQLAlchemy()
 login_manager = LoginManager()
@@ -88,11 +96,11 @@ def create_app(config_name=None):
         from app.models.daily_stats import DailyStats
         if DailyStats.query.count() == 0:
             try:
-                print("[Startup] DailyStats table empty, rebuilding from historical data...")
+                logger.info("DailyStats table empty, rebuilding from historical data...")
                 DailyStats.rebuild_from_raw_data()
-            except Exception as e:
+            except SQLAlchemyError as e:
                 db.session.rollback()
-                print(f"[Startup] Warning: Could not rebuild DailyStats: {e}")
+                logger.warning(f"Could not rebuild DailyStats: {e}")
 
         # Load Lumina game data on startup
         from app.services.lumina_service import lumina_service
@@ -115,6 +123,7 @@ def create_app(config_name=None):
 def _init_scheduler(app):
     """Initialize APScheduler for background tasks like DailyStats rebuild."""
     global scheduler
+    sched_logger = get_logger('Scheduler')
 
     # Only start scheduler once (avoid duplicates in multi-worker setups)
     if scheduler is not None:
@@ -178,19 +187,17 @@ def _init_scheduler(app):
 
                         # If no subs returning in next hour, rebuild
                         if soonest_return is None or soonest_return > one_hour_from_now:
-                            print(f"[Scheduler] Safe window detected (next return: {soonest_return or 'none'}). Starting DailyStats rebuild...")
+                            sched_logger.info(f"Safe window detected (next return: {soonest_return or 'none'}). Starting DailyStats rebuild...")
                             from app.models.daily_stats import DailyStats
                             count = DailyStats.rebuild_from_raw_data()
                             last_rebuild_date['value'] = today
-                            print(f"[Scheduler] DailyStats rebuild complete. {count} records.")
+                            sched_logger.info(f"DailyStats rebuild complete. {count} records.")
                         else:
                             mins_until = int((soonest_return - now).total_seconds() / 60)
-                            print(f"[Scheduler] Sub returning in {mins_until} mins, skipping rebuild check.")
+                            sched_logger.debug(f"Sub returning in {mins_until} mins, skipping rebuild check.")
 
                     except Exception as e:
-                        print(f"[Scheduler] Smart rebuild check failed: {e}")
-                        import traceback
-                        traceback.print_exc()
+                        sched_logger.exception(f"Smart rebuild check failed: {e}")
 
             # Check every 30 minutes for a safe rebuild window
             scheduler.add_job(
@@ -202,10 +209,9 @@ def _init_scheduler(app):
             )
 
             scheduler.start()
-            print("[Scheduler] Background scheduler started. DailyStats rebuild will run once daily between 1-7 AM when no subs are returning for 1 hour.")
+            sched_logger.info("Background scheduler started. DailyStats rebuild will run once daily between 1-7 AM when no subs are returning for 1 hour.")
 
         except ImportError:
-            print("[Scheduler] APScheduler not installed. Background tasks disabled.")
-            print("[Scheduler] Install with: pip install apscheduler")
+            sched_logger.warning("APScheduler not installed. Background tasks disabled. Install with: pip install apscheduler")
         except Exception as e:
-            print(f"[Scheduler] Failed to start scheduler: {e}")
+            sched_logger.exception(f"Failed to start scheduler: {e}")

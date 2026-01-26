@@ -3,6 +3,7 @@ Alert system models for notification configuration and history tracking.
 """
 from datetime import datetime
 from app import db
+from app.utils.crypto import encrypt_value, decrypt_value
 
 
 class AlertSettings(db.Model):
@@ -35,7 +36,7 @@ class AlertSettings(db.Model):
     smtp_host = db.Column(db.String(255), nullable=True)
     smtp_port = db.Column(db.Integer, default=587)
     smtp_username = db.Column(db.String(255), nullable=True)
-    smtp_password = db.Column(db.String(255), nullable=True)
+    _smtp_password = db.Column('smtp_password', db.String(500), nullable=True)
     smtp_use_tls = db.Column(db.Boolean, default=True)
     smtp_use_auth = db.Column(db.Boolean, default=True)
     smtp_from_address = db.Column(db.String(255), nullable=True)
@@ -43,13 +44,46 @@ class AlertSettings(db.Model):
 
     # Pushover settings
     pushover_enabled = db.Column(db.Boolean, default=False)
-    pushover_user_key = db.Column(db.String(100), nullable=True)
-    pushover_api_token = db.Column(db.String(100), nullable=True)
+    _pushover_user_key = db.Column('pushover_user_key', db.String(500), nullable=True)
+    _pushover_api_token = db.Column('pushover_api_token', db.String(500), nullable=True)
     pushover_priority = db.Column(db.Integer, default=0)  # -2 to 2
 
     # Discord webhook settings
     discord_enabled = db.Column(db.Boolean, default=False)
-    discord_webhook_url = db.Column(db.String(500), nullable=True)
+    _discord_webhook_url = db.Column('discord_webhook_url', db.String(1000), nullable=True)
+
+    # Encrypted property accessors
+    @property
+    def smtp_password(self):
+        return decrypt_value(self._smtp_password)
+
+    @smtp_password.setter
+    def smtp_password(self, value):
+        self._smtp_password = encrypt_value(value) if value else None
+
+    @property
+    def pushover_user_key(self):
+        return decrypt_value(self._pushover_user_key)
+
+    @pushover_user_key.setter
+    def pushover_user_key(self, value):
+        self._pushover_user_key = encrypt_value(value) if value else None
+
+    @property
+    def pushover_api_token(self):
+        return decrypt_value(self._pushover_api_token)
+
+    @pushover_api_token.setter
+    def pushover_api_token(self, value):
+        self._pushover_api_token = encrypt_value(value) if value else None
+
+    @property
+    def discord_webhook_url(self):
+        return decrypt_value(self._discord_webhook_url)
+
+    @discord_webhook_url.setter
+    def discord_webhook_url(self, value):
+        self._discord_webhook_url = encrypt_value(value) if value else None
 
     # Browser toast settings
     browser_toast_enabled = db.Column(db.Boolean, default=True)

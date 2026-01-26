@@ -55,10 +55,10 @@ def create_user():
         flash('Password is required', 'error')
         return redirect(url_for('users.index'))
 
-    if len(password) < 4:
+    if len(password) < 8:
         if request.is_json:
-            return jsonify({'success': False, 'message': 'Password must be at least 4 characters'}), 400
-        flash('Password must be at least 4 characters', 'error')
+            return jsonify({'success': False, 'message': 'Password must be at least 8 characters'}), 400
+        flash('Password must be at least 8 characters', 'error')
         return redirect(url_for('users.index'))
 
     # Validate role
@@ -255,10 +255,10 @@ def reset_password(user_id):
     if not new_password:
         new_password = generate_random_password()
 
-    if len(new_password) < 4:
+    if len(new_password) < 8:
         if request.is_json:
-            return jsonify({'success': False, 'message': 'Password must be at least 4 characters'}), 400
-        flash('Password must be at least 4 characters', 'error')
+            return jsonify({'success': False, 'message': 'Password must be at least 8 characters'}), 400
+        flash('Password must be at least 8 characters', 'error')
         return redirect(url_for('users.index'))
 
     user.set_password(new_password)

@@ -7,6 +7,9 @@ from flask_login import login_required, current_user
 
 from app import db
 from app.services import get_fleet_manager
+from app.utils.logging import get_logger
+
+logger = get_logger('Mobile')
 
 mobile_bp = Blueprint('mobile', __name__, url_prefix='/m')
 
@@ -233,7 +236,7 @@ def api_stats():
         })
 
     except Exception as e:
-        print(f"[Mobile Stats] Error: {e}")
+        logger.error(f" Error: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500

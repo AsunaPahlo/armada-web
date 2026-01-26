@@ -54,13 +54,22 @@ def get_all_tags():
 
 def get_fc_tags(fc_id: str) -> list:
     """Get all tags assigned to a specific FC."""
-    assignments = FCTagAssignment.query.filter_by(fc_id=str(fc_id)).all()
+    from sqlalchemy.orm import joinedload
+    assignments = FCTagAssignment.query.options(
+        joinedload(FCTagAssignment.tag)
+    ).filter_by(fc_id=str(fc_id)).all()
     return [a.tag.to_dict() for a in assignments if a.tag]
 
 
 def get_all_fc_tags_map() -> dict:
-    """Get a mapping of fc_id -> list of tag dicts for all FCs."""
-    assignments = FCTagAssignment.query.all()
+    """Get a mapping of fc_id -> list of tag dicts for all FCs.
+
+    Uses eager loading to fetch all tags in a single query instead of N+1.
+    """
+    from sqlalchemy.orm import joinedload
+    assignments = FCTagAssignment.query.options(
+        joinedload(FCTagAssignment.tag)
+    ).all()
     fc_tags = {}
     for a in assignments:
         fc_id = a.fc_id

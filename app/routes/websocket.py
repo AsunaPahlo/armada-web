@@ -12,6 +12,11 @@ import time
 from datetime import datetime
 
 from app.services import get_fleet_manager
+from app.utils.logging import get_logger
+
+logger = get_logger('WebSocket')
+plugin_logger = get_logger('Plugin')
+lumina_logger = get_logger('Lumina')
 
 
 def decompress_data(compressed_base64: str) -> list:
@@ -101,7 +106,7 @@ class PluginNamespace(Namespace):
 
     def on_connect(self):
         """Handle plugin connection."""
-        print(f"[Plugin] Connection attempt from {request.sid}")
+        plugin_logger.info(f"Connection attempt from {request.sid}")
         # Connection is allowed, but authentication happens on 'authenticate' event
 
     def on_disconnect(self):
@@ -109,7 +114,7 @@ class PluginNamespace(Namespace):
         sid = request.sid
         if sid in _plugin_connections:
             plugin_id = _plugin_connections.pop(sid)
-            print(f"[Plugin] Disconnected: {plugin_id}")
+            plugin_logger.info(f"Disconnected: {plugin_id}")
             # Note: We intentionally don't clear plugin data on disconnect
             # so that the data persists across restarts and reconnections
 
@@ -119,7 +124,7 @@ class PluginNamespace(Namespace):
                 'plugin_id': plugin_id
             }, room='dashboard', namespace='/')
         else:
-            print(f"[Plugin] Disconnected: {sid} (unauthenticated)")
+            plugin_logger.info(f"Disconnected: {sid} (unauthenticated)")
 
     def on_authenticate(self, data):
         """
@@ -138,7 +143,7 @@ class PluginNamespace(Namespace):
         plugin_version = data.get('plugin_version', 'unknown')
 
         if not self._validate_api_key(api_key):
-            print(f"[Plugin] Authentication failed for {plugin_id}")
+            plugin_logger.info(f"Authentication failed for {plugin_id}")
             emit('auth_response', {
                 'success': False,
                 'error': 'Invalid API key'
@@ -148,7 +153,7 @@ class PluginNamespace(Namespace):
         # Store connection mapping
         _plugin_connections[request.sid] = plugin_id
 
-        print(f"[Plugin] Authenticated: {plugin_id} v{plugin_version}")
+        plugin_logger.info(f"Authenticated: {plugin_id} v{plugin_version}")
         emit('auth_response', {
             'success': True,
             'message': f'Welcome {plugin_id}'
@@ -196,9 +201,9 @@ class PluginNamespace(Namespace):
             try:
                 compressed_data = data.get('data', '')
                 accounts = decompress_data(compressed_data)
-                print(f"[Plugin] Decompressed data from {plugin_id}")
+                plugin_logger.info(f"Decompressed data from {plugin_id}")
             except Exception as e:
-                print(f"[Plugin] Failed to decompress data: {e}")
+                plugin_logger.info(f"Failed to decompress data: {e}")
                 emit('data_response', {
                     'success': False,
                     'error': f'Decompression failed: {str(e)}'
@@ -215,16 +220,16 @@ class PluginNamespace(Namespace):
             'accounts': accounts
         }
 
-        print(f"[Plugin] Received fleet data from {plugin_id}: {len(accounts)} accounts")
+        plugin_logger.info(f"Received fleet data from {plugin_id}: {len(accounts)} accounts")
 
         # Update FleetManager with plugin data (including metadata for persistence)
         try:
             app = current_app._get_current_object()
             fleet = get_ws_fleet_manager(app)
             fleet.set_plugin_data(plugin_id, accounts, timestamp=timestamp, received_at=received_at)
-            print(f"[Plugin] Updated FleetManager with data from {plugin_id}")
+            plugin_logger.info(f"Updated FleetManager with data from {plugin_id}")
         except Exception as e:
-            print(f"[Plugin] Error updating FleetManager: {e}")
+            plugin_logger.warning(f"Error updating FleetManager: {e}")
 
         # Acknowledge receipt
         emit('data_response', {
@@ -250,9 +255,9 @@ class PluginNamespace(Namespace):
             with app.app_context():
                 data = fleet.get_dashboard_data()
                 main_socketio.emit('dashboard_update', data, room='dashboard', namespace='/')
-                print(f"[Plugin] Broadcast dashboard update to clients")
+                plugin_logger.info(f"Broadcast dashboard update to clients")
         except Exception as e:
-            print(f"[Plugin] Error broadcasting dashboard update: {e}")
+            plugin_logger.warning(f"Error broadcasting dashboard update: {e}")
 
     def on_ping(self):
         """Respond to keepalive ping."""
@@ -301,7 +306,7 @@ class PluginNamespace(Namespace):
         plugin_id = _plugin_connections.get(request.sid, 'unknown')
         submarine_name = data.get('submarine_name', 'unknown')
 
-        print(f"[Plugin] Received voyage loot from {plugin_id}: {submarine_name}")
+        plugin_logger.info(f"Received voyage loot from {plugin_id}: {submarine_name}")
 
         # Record loot using loot tracker service
         try:
@@ -321,7 +326,7 @@ class PluginNamespace(Namespace):
                 }, room='dashboard', namespace='/')
 
         except Exception as e:
-            print(f"[Plugin] Error recording loot: {e}")
+            plugin_logger.warning(f"Error recording loot: {e}")
             emit('loot_response', {
                 'success': False,
                 'error': str(e)
@@ -455,7 +460,7 @@ def start_background_updates(socketio: SocketIO, app, interval: int = 30):
                     alert_service.check_alerts(data)
 
             except Exception as e:
-                print(f"[WebSocket] Update error: {e}")
+                logger.info(f"Update error: {e}")
 
             time.sleep(interval)
 
@@ -491,9 +496,9 @@ def start_lumina_updates(app):
             with app.app_context():
                 linked = stats_tracker.link_all_unlinked_loot()
                 if linked > 0:
-                    print(f"[StatsTracker] Linked {linked} unlinked loot records on startup")
+                    logger.info(f"Linked {linked} unlinked loot records on startup")
         except Exception as e:
-            print(f"[StatsTracker] Error linking loot on startup: {e}")
+            logger.warning(f"Error linking loot on startup: {e}")
 
         while _running:
             try:
@@ -505,30 +510,30 @@ def start_lumina_updates(app):
 
                 with app.app_context():
                     # Update Lumina game data
-                    print("[Lumina] Checking for game data updates...")
+                    lumina_logger.info(" Checking for game data updates...")
                     results = lumina_service.update_all()
                     total = sum(results.values())
                     if total > 0:
-                        print(f"[Lumina] Updated {total} rows from GitHub")
+                        lumina_logger.info(f"Updated {total} rows from GitHub")
                     else:
-                        print("[Lumina] No updates needed")
+                        lumina_logger.info(" No updates needed")
 
                     # Update route stats from community spreadsheet
-                    print("[RouteStats] Checking for route data updates...")
+                    lumina_logger.info(" Checking for route data updates...")
                     route_count = route_stats_service.update_route_stats()
                     if route_count > 0:
-                        print(f"[RouteStats] Updated {route_count} routes")
+                        lumina_logger.info(f"Updated {route_count} routes")
                     else:
-                        print("[RouteStats] No updates needed")
+                        lumina_logger.info(" No updates needed")
 
                     # Aggregate daily voyage stats
-                    print("[StatsTracker] Aggregating daily stats...")
+                    logger.info(" Aggregating daily stats...")
                     from app.services.stats_tracker import stats_tracker
                     stats_tracker.aggregate_daily_stats()
 
             except Exception as e:
-                print(f"[Lumina] Update error: {e}")
+                lumina_logger.info(f"Update error: {e}")
 
     _lumina_thread = threading.Thread(target=lumina_update_loop, daemon=True)
     _lumina_thread.start()
-    print("[Lumina] Background update thread started (6 hour interval)")
+    lumina_logger.info(" Background update thread started (6 hour interval)")

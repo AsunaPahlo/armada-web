@@ -12,7 +12,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable
 
+from sqlalchemy.exc import SQLAlchemyError
+
 from app.services.config_parser import ConfigParser, AccountData
+from app.utils.logging import get_logger
+
+logger = get_logger('FleetManager')
 
 # Default path for persisted plugin data
 PLUGIN_DATA_FILE = Path(__file__).parent.parent.parent / 'data' / 'plugin_data.json'
@@ -79,16 +84,16 @@ class FleetManager:
                             if parsed.characters:
                                 parsed_accounts.append(parsed)
                         except Exception as e:
-                            print(f"[FleetManager] Error parsing saved plugin data: {e}")
+                            logger.warning(f"Error parsing saved plugin data: {e}")
 
                     if parsed_accounts:
                         self._plugin_data[plugin_id] = parsed_accounts
 
                     if metadata.get('received_at'):
-                        print(f"[FleetManager] Loaded plugin data for {plugin_id} (last data: {metadata.get('received_at')})")
+                        logger.info(f"Loaded plugin data for {plugin_id} (last data: {metadata.get('received_at')})")
 
         except Exception as e:
-            print(f"[FleetManager] Error loading plugin data file: {e}")
+            logger.warning(f"Error loading plugin data file: {e}")
 
     def _save_plugin_data(self):
         """Save plugin data to file for persistence."""
@@ -109,7 +114,7 @@ class FleetManager:
             with open(PLUGIN_DATA_FILE, 'w', encoding='utf-8') as f:
                 json.dump(save_data, f, indent=2)
         except Exception as e:
-            print(f"[FleetManager] Error saving plugin data: {e}")
+            logger.warning(f"Error saving plugin data: {e}")
 
     def add_account(self, nickname: str, config_path: str):
         """Add an account to monitor."""
@@ -187,7 +192,7 @@ class FleetManager:
                     is_first_update=is_first_update
                 )
             except Exception as e:
-                print(f"[FleetManager] Activity tracking error: {e}")
+                logger.info(f"Activity tracking error: {e}")
 
             # Parse each account from the plugin
             parsed_accounts = []
@@ -197,7 +202,7 @@ class FleetManager:
                     if parsed.characters:  # Only add if there's actual data
                         parsed_accounts.append(parsed)
                 except Exception as e:
-                    print(f"[FleetManager] Error parsing plugin data: {e}")
+                    logger.warning(f"Error parsing plugin data: {e}")
 
             if parsed_accounts:
                 self._plugin_data[plugin_id] = parsed_accounts
@@ -320,7 +325,7 @@ class FleetManager:
             from app.services.stats_tracker import stats_tracker
             stats_tracker.record_snapshot(accounts)
         except Exception as e:
-            print(f"[FleetManager] Stats recording error: {e}")
+            logger.info(f"Stats recording error: {e}")
 
         # Get known production routes from database
         from app.models.lumina import RouteStats
@@ -332,10 +337,10 @@ class FleetManager:
             hidden_fc_ids = get_hidden_fc_ids()
             fc_configs = get_all_fc_configs()
             if hidden_fc_ids:
-                print(f"[FleetManager] Hidden FC IDs: {hidden_fc_ids}")
+                logger.info(f"Hidden FC IDs: {hidden_fc_ids}")
         except Exception as e:
             # fc_configs table may not exist yet on first run
-            print(f"[FleetManager] FC config load error (may be first run): {e}")
+            logger.info(f"FC config load error (may be first run): {e}")
             hidden_fc_ids = set()
             fc_configs = {}
 
@@ -344,7 +349,7 @@ class FleetManager:
             from app.models.fc_housing import get_all_fc_housing
             fc_housing = get_all_fc_housing()
         except Exception as e:
-            print(f"[FleetManager] FC housing load error (may be first run): {e}")
+            logger.info(f"FC housing load error (may be first run): {e}")
             fc_housing = {}
 
         # Aggregate totals
@@ -383,7 +388,7 @@ class FleetManager:
                         housing = fc_housing.get(fc_id_str)
                         house_address = housing.address if housing else None
                     except Exception as e:
-                        print(f"[FleetManager] Error getting house address for FC {fc_id_str}: {e}")
+                        logger.warning(f"Error getting house address for FC {fc_id_str}: {e}")
                         house_address = None
 
                     fc_summaries[fc_id_str] = {
@@ -631,7 +636,7 @@ class FleetManager:
                     try:
                         cb(data)
                     except Exception as e:
-                        print(f"[FleetManager] Callback error: {e}")
+                        logger.info(f"Callback error: {e}")
                 time.sleep(interval)
 
         self._update_thread = threading.Thread(target=update_loop, daemon=True)

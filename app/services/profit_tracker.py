@@ -13,6 +13,10 @@ from app.models.voyage_loot import VoyageLoot
 from app.models.app_settings import AppSettings
 from sqlalchemy import func
 
+from app.utils.logging import get_logger
+
+logger = get_logger('ProfitTracker')
+
 
 class ProfitTracker:
     """
@@ -73,7 +77,7 @@ class ProfitTracker:
                 'source': 'calculated'
             }
         except Exception as e:
-            print(f"[ProfitTracker] Using default consumption estimates: {e}")
+            logger.info(f"Using default consumption estimates: {e}")
             return {
                 'ceruleum_per_voyage': self.DEFAULT_CERULEUM_PER_VOYAGE,
                 'kits_per_voyage': self.DEFAULT_KITS_PER_VOYAGE,

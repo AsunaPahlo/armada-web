@@ -15,6 +15,9 @@ from app.services.submarine_data import (
     SUB_PARTS_LOOKUP, CLASS_SHORTCUTS,
     item_id_to_row_id, get_route_name_from_points
 )
+from app.utils.logging import get_logger
+
+logger = get_logger('ConfigParser')
 
 
 @dataclass
@@ -137,7 +140,7 @@ class ConfigParser:
                     config = json.load(f)
                     self.accounts = config.get('accounts', [])
             except Exception as e:
-                print(f"[ConfigParser] Error loading accounts config: {e}")
+                logger.warning(f"Error loading accounts config: {e}")
 
     def add_account(self, nickname: str, config_path: str):
         """Add an account configuration."""
@@ -341,7 +344,7 @@ class ConfigParser:
             with open(config_path, 'r', encoding='utf-8-sig') as f:
                 data = json.load(f)
         except Exception as e:
-            print(f"[ConfigParser] Error reading {config_path}: {e}")
+            logger.warning(f"Error reading {config_path}: {e}")
             return account
 
         current_time = datetime.now().timestamp()
@@ -606,7 +609,7 @@ class ConfigParser:
                             plot=int(fc_info.get('house_plot', 0))
                         )
                     except Exception as e:
-                        print(f"[ConfigParser] Error storing FC house address: {e}")
+                        logger.warning(f"Error storing FC house address: {e}")
             except (ValueError, TypeError):
                 pass
 

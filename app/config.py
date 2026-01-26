@@ -11,6 +11,11 @@ class Config:
     # Flask
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'armada-dev-secret-key-change-in-production'
 
+    # Session cookie security
+    SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access to session cookie
+    SESSION_COOKIE_SAMESITE = 'Lax'  # Prevent CSRF by blocking cross-site cookie sending
+    # SESSION_COOKIE_SECURE = True  # Uncomment if using HTTPS (breaks HTTP access)
+
     # Database
     BASEDIR = Path(__file__).parent.parent
     DATA_DIR = BASEDIR / 'data'

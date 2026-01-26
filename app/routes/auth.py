@@ -86,8 +86,8 @@ def change_password():
             flash('Current password is incorrect', 'error')
         elif new_password != confirm_password:
             flash('New passwords do not match', 'error')
-        elif len(new_password) < 4:
-            flash('Password must be at least 4 characters', 'error')
+        elif len(new_password) < 8:
+            flash('Password must be at least 8 characters', 'error')
         else:
             current_user.set_password(new_password)
             db.session.commit()

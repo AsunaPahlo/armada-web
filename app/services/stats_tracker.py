@@ -6,9 +6,14 @@ Records and queries per-voyage statistics.
 from datetime import datetime, date, timedelta
 from typing import Optional
 
+from sqlalchemy.exc import SQLAlchemyError
+
 from app import db
 from app.models.voyage import Voyage, VoyageStats
 from app.services.config_parser import AccountData, CharacterInfo, SubmarineInfo
+from app.utils.logging import get_logger
+
+logger = get_logger('StatsTracker')
 
 
 class StatsTracker:
@@ -61,11 +66,11 @@ class StatsTracker:
                 count += 1
 
             if count > 0:
-                print(f"[StatsTracker] Loaded {count} submarine states from voyages")
+                logger.info(f"Loaded {count} submarine states from voyages")
 
             self._state_loaded = True
         except Exception as e:
-            print(f"[StatsTracker] Error loading previous states: {e}")
+            logger.warning(f"Error loading previous states: {e}")
             self._state_loaded = True  # Don't retry on error
 
     def record_snapshot(self, accounts: list[AccountData]):
@@ -119,16 +124,16 @@ class StatsTracker:
                                             returned=True
                                         )
                                     except Exception as e:
-                                        print(f"[StatsTracker] Warning: Failed to update daily stats: {e}")
+                                        logger.warning(f" Failed to update daily stats: {e}")
                             except Exception as e:
                                 db.session.rollback()
-                                print(f"[StatsTracker] Error recording voyage for {sub.name}: {e}")
+                                logger.warning(f"Error recording voyage for {sub.name}: {e}")
 
                     # Update state cache
                     self._previous_states[key] = sub.return_time
 
         if voyages_recorded > 0:
-            print(f"[StatsTracker] Recorded {voyages_recorded} new voyage(s)")
+            logger.info(f"Recorded {voyages_recorded} new voyage(s)")
 
     def _record_voyage(self, account: AccountData, char: CharacterInfo,
                        sub: SubmarineInfo, fc_name: str, collected_time: datetime,
@@ -238,10 +243,10 @@ class StatsTracker:
                     loot.voyage_id = voyage.id
                     if not loot.route_name and voyage.route_name:
                         loot.route_name = voyage.route_name
-                    print(f"[StatsTracker] Linked loot ID {loot.id} to voyage ID {voyage.id}")
+                    logger.info(f"Linked loot ID {loot.id} to voyage ID {voyage.id}")
 
         except Exception as e:
-            print(f"[StatsTracker] Error linking loot to voyage: {e}")
+            logger.warning(f"Error linking loot to voyage: {e}")
 
     def mark_voyage_collected(self, character_cid: int, submarine_name: str,
                                return_time: datetime) -> bool:
@@ -388,10 +393,10 @@ class StatsTracker:
                     voyage.was_collected = True
                     voyage.collected_at = voyage.return_time  # Assume collected at return time
                 db.session.commit()
-                print(f"[StatsTracker] Auto-marked {len(pending_voyages)} past voyage(s) as collected for {submarine_name}")
+                logger.info(f"Auto-marked {len(pending_voyages)} past voyage(s) as collected for {submarine_name}")
         except Exception as e:
             db.session.rollback()
-            print(f"[StatsTracker] Error marking past voyages collected: {e}")
+            logger.warning(f"Error marking past voyages collected: {e}")
 
     def aggregate_daily_stats(self, target_date: date = None):
         """
@@ -468,10 +473,10 @@ class StatsTracker:
 
         try:
             db.session.commit()
-            print(f"[StatsTracker] Aggregated daily stats for {target_date}: {len(fc_stats)} FCs")
+            logger.info(f"Aggregated daily stats for {target_date}: {len(fc_stats)} FCs")
         except Exception as e:
             db.session.rollback()
-            print(f"[StatsTracker] Error aggregating daily stats: {e}")
+            logger.warning(f"Error aggregating daily stats: {e}")
 
     def get_daily_stats(self, days: int = 30, fc_id: int = None) -> list[dict]:
         """
@@ -610,13 +615,13 @@ class StatsTracker:
 
             if linked_count > 0:
                 db.session.commit()
-                print(f"[StatsTracker] Linked {linked_count} existing loot records to voyages")
+                logger.info(f"Linked {linked_count} existing loot records to voyages")
 
             return linked_count
 
         except Exception as e:
             db.session.rollback()
-            print(f"[StatsTracker] Error linking unlinked loot: {e}")
+            logger.warning(f"Error linking unlinked loot: {e}")
             return 0
 
 

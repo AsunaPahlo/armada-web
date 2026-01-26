@@ -4,6 +4,9 @@ Updated incrementally when new voyage/loot data arrives.
 """
 from datetime import datetime, date
 from app import db
+from app.utils.logging import get_logger
+
+logger = get_logger('DailyStats')
 
 
 class DailyStats(db.Model):
@@ -192,14 +195,14 @@ class DailyStats(db.Model):
                 return datetime.strptime(d, '%Y-%m-%d').date()
             return d
 
-        print("[DailyStats] Starting rebuild from raw data...")
+        logger.info(" Starting rebuild from raw data...")
 
         # Clear existing data
         cls.query.delete()
         db.session.commit()
 
         # Aggregate voyages by date and fc_id
-        print("[DailyStats] Aggregating voyages...")
+        logger.info(" Aggregating voyages...")
         voyage_data = db.session.query(
             func.date(Voyage.return_time).label('stats_date'),
             Voyage.fc_id,
@@ -231,7 +234,7 @@ class DailyStats(db.Model):
                 fleet_stats[fleet_key]['routes'][row.route_name] += row.count
 
         # Aggregate loot by date and fc_id
-        print("[DailyStats] Aggregating loot...")
+        logger.info(" Aggregating loot...")
         loot_data = db.session.query(
             func.date(VoyageLoot.captured_at).label('stats_date'),
             VoyageLoot.fc_id,
@@ -254,7 +257,7 @@ class DailyStats(db.Model):
             fleet_stats[fleet_key]['items'] = fleet_stats[fleet_key].get('items', 0) + int(row.items or 0)
 
         # Create records
-        print("[DailyStats] Creating summary records...")
+        logger.info(" Creating summary records...")
         count = 0
 
         try:
@@ -291,11 +294,11 @@ class DailyStats(db.Model):
                 count += 1
 
             db.session.commit()
-            print(f"[DailyStats] Rebuild complete. Created {count} records.")
+            logger.info(f"Rebuild complete. Created {count} records.")
             return count
         except Exception as e:
             db.session.rollback()
-            print(f"[DailyStats] Error during rebuild: {e}")
+            logger.error(f"Error during rebuild: {e}")
             raise
 
     def __repr__(self):

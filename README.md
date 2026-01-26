@@ -173,6 +173,31 @@ docker exec armada python scripts/manage_users.py list
 
 > **Note:** Replace `admin` with your username. Resetting a password also unlocks the account.
 
+## Configuration
+
+### SECRET_KEY
+
+The `SECRET_KEY` environment variable is used for:
+- Session security (login cookies)
+- Encrypting sensitive data in the database (SMTP passwords, API tokens, webhook URLs)
+
+> **Important:** If you change your `SECRET_KEY` after setup, any encrypted credentials (SMTP password, Pushover keys, Discord webhook) will become unreadable. You'll need to re-enter them in the Alerts settings.
+
+Generate a secure key:
+```bash
+openssl rand -hex 32
+```
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `SECRET_KEY` | Encryption key for sessions and sensitive data | (required in production) |
+| `ARMADA_USERNAME` | Initial admin username | `admin` |
+| `ARMADA_PASSWORD` | Initial admin password | `armada` |
+| `ARMADA_HOST` | Host to bind to | `0.0.0.0` |
+| `ARMADA_PORT` | Port to listen on | `5000` |
+
 ## Exposing to the Internet
 
 To connect game clients from outside your local network, you'll need to expose the server. Some options:

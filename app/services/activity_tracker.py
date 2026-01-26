@@ -7,8 +7,13 @@ to the activity log table.
 import json
 from typing import Optional
 
+from sqlalchemy.exc import SQLAlchemyError
+
 from app import db
 from app.models.activity_log import ActivityLog
+from app.utils.logging import get_logger
+
+logger = get_logger('ActivityTracker')
 
 
 class ActivityTracker:
@@ -286,7 +291,7 @@ class ActivityTracker:
                 db.session.commit()
             except Exception as e:
                 db.session.rollback()
-                print(f"[ActivityTracker] Error committing changes: {e}")
+                logger.warning(f"Error committing changes: {e}")
                 return 0
 
         return changes_logged
