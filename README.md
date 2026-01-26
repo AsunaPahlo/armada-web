@@ -16,7 +16,7 @@ A real-time submarine and airship fleet monitoring dashboard for FINAL FANTASY X
 Armada consists of two components:
 
 1. **Server (Web Dashboard)** — A self-hosted web application that displays your fleet data
-2. **Dalamud Plugin** — Runs in-game and sends submarine data to the server
+2. **[Dalamud Plugin](https://github.com/AsunaPahlo/armada)** — Runs in-game and sends submarine data to the server 
 
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
