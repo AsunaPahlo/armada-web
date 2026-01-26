@@ -200,7 +200,7 @@ openssl rand -hex 32
 
 ## Exposing to the Internet
 
-To connect game clients from outside your local network, you'll need to expose the server. Some options:
+To connect game clients and also access the dashboard from outside your local network, you'll need to expose the server. Some options:
 
 - **Reverse Proxy** — Use nginx or Caddy with SSL (recommended)
 - **Cloudflare Tunnel** — Free, secure tunnel without port forwarding
