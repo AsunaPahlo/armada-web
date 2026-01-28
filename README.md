@@ -16,7 +16,7 @@ A real-time submarine and airship fleet monitoring dashboard for FINAL FANTASY X
 Armada consists of two components:
 
 1. **Server (Web Dashboard)** — A self-hosted web application that displays your fleet data
-2. **Dalamud Plugin** — Runs in-game and sends submarine data to the server
+2. **[Armada Dalamud Plugin](https://github.com/AsunaPahlo/armada)** — Runs in-game and sends submarine data to the server 
 
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
@@ -128,6 +128,7 @@ Don't want to self-host? We offer managed hosting so you can skip the server set
 ## Plugin Installation
 
 Once your server is running, install the Dalamud plugin to start sending data:
+> **Note:** This plugin requires the following plugins to be installed and enabled: AutoRetainer, AllaganTools
 
 1. Open the Plugin Installer in-game: `/xlplugins`
 2. Go to **Settings** → **Experimental**
@@ -192,7 +193,7 @@ openssl rand -hex 32
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `SECRET_KEY` | Encryption key for sessions and sensitive data | (required in production) |
+| `SECRET_KEY` | Encryption key for sessions and sensitive data | (required) |
 | `ARMADA_USERNAME` | Initial admin username | `admin` |
 | `ARMADA_PASSWORD` | Initial admin password | `armada` |
 | `ARMADA_HOST` | Host to bind to | `0.0.0.0` |
@@ -200,7 +201,7 @@ openssl rand -hex 32
 
 ## Exposing to the Internet
 
-To connect game clients from outside your local network, you'll need to expose the server. Some options:
+To connect game clients and also access the dashboard from outside your local network, you'll need to expose the server. Some options:
 
 - **Reverse Proxy** — Use nginx or Caddy with SSL (recommended)
 - **Cloudflare Tunnel** — Free, secure tunnel without port forwarding
