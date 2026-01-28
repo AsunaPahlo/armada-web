@@ -268,7 +268,12 @@ class ActivityTracker:
             old_fc_sectors = old_sectors.get(fc_id, set())
             newly_unlocked = new_fc_sectors - old_fc_sectors
 
-            if newly_unlocked and fc_id in self._initialized_fcs:
+            # Only log if:
+            # 1. There are newly unlocked sectors
+            # 2. We've seen this FC before
+            # 3. The old data actually had some sectors (empty means "unknown", not "none")
+            #    This prevents logging all sectors as "new" on first real unlock data
+            if newly_unlocked and fc_id in self._initialized_fcs and old_fc_sectors:
                 fc_name = fc_info.get(fc_id, f'FC-{fc_id}')
 
                 # Get sector names for display
