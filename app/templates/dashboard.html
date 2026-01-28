@@ -135,8 +135,8 @@
 <!-- Duplicate Submarines Warning -->
 {% set fcs_with_duplicates = data.fc_summaries|selectattr('has_duplicate_subs')|list %}
 {% if fcs_with_duplicates %}
-<div class="alert alert-warning alert-dismissible fade show mb-3" role="alert">
-    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+<div class="alert alert-dismissible fade show mb-3 border border-warning" role="alert" style="background-color: rgba(255, 193, 7, 0.1); color: inherit;">
+    <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>
     <strong>Duplicate submarines detected</strong> in {{ fcs_with_duplicates|length }} FC(s):
     {% for fc in fcs_with_duplicates %}{{ fc.fc_name }}{% if not loop.last %}, {% endif %}{% endfor %}.
     <br><small class="text-muted">This happens when multiple characters in the same FC report submarine data. In AutoRetainer, make sure 'Enable Deployables' in the Exclusion section of settings is not lit up green for characters that don't manage submarines.</small>
