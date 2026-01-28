@@ -250,16 +250,18 @@ class ActivityTracker:
             fc_id, sub_name = key
             if key not in new_state:
                 # Submarine was removed
-                fc_name = fc_info.get(fc_id, f'FC-{fc_id}')
-                ActivityLog.log_activity(
-                    fc_id=fc_id,
-                    fc_name=fc_name,
-                    activity_type=ActivityLog.TYPE_SUBMARINE_REMOVED,
-                    submarine_name=sub_name,
-                    character_name=old_sub.get('character'),
-                    old_value=old_sub.get('build')
-                )
-                changes_logged += 1
+                # Only log if we've seen this FC before (not first update)
+                if fc_id in self._initialized_fcs:
+                    fc_name = fc_info.get(fc_id, f'FC-{fc_id}')
+                    ActivityLog.log_activity(
+                        fc_id=fc_id,
+                        fc_name=fc_name,
+                        activity_type=ActivityLog.TYPE_SUBMARINE_REMOVED,
+                        submarine_name=sub_name,
+                        character_name=old_sub.get('character'),
+                        old_value=old_sub.get('build')
+                    )
+                    changes_logged += 1
 
         # Check for sector unlocks per FC
         for fc_id, new_fc_sectors in new_sectors.items():
@@ -314,6 +316,19 @@ class ActivityTracker:
     def is_first_update_for_fc(self, fc_id: str) -> bool:
         """Check if this is the first update for an FC."""
         return str(fc_id) not in self._initialized_fcs
+
+    def initialize_from_existing_data(self, accounts_data: list[dict]) -> None:
+        """
+        Initialize the tracker with existing FC IDs from loaded data.
+
+        Call this on startup after loading persisted plugin data to prevent
+        spurious "removed" or "added" activity entries.
+        """
+        for account in accounts_data:
+            for char in account.get('characters', []):
+                fc_id = str(char.get('fc_id', ''))
+                if fc_id and fc_id != '0':
+                    self._initialized_fcs.add(fc_id)
 
 
 # Singleton instance

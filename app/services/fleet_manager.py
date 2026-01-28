@@ -89,6 +89,13 @@ class FleetManager:
                     if parsed_accounts:
                         self._plugin_data[plugin_id] = parsed_accounts
 
+                    # Initialize activity tracker with existing FCs to prevent spurious activity entries
+                    try:
+                        from app.services.activity_tracker import activity_tracker
+                        activity_tracker.initialize_from_existing_data(accounts_data)
+                    except Exception as e:
+                        logger.warning(f"Error initializing activity tracker: {e}")
+
                     if metadata.get('received_at'):
                         logger.info(f"Loaded plugin data for {plugin_id} (last data: {metadata.get('received_at')})")
 
