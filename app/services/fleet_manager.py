@@ -374,6 +374,11 @@ class FleetManager:
         for account in accounts:
             for char in account.characters:
                 fc_id = char.fc_id
+
+                # Skip characters with no FC (fc_id = 0 means FC data couldn't be read or not in FC)
+                if not fc_id or fc_id == 0:
+                    continue
+
                 fc_info = account.fc_data.get(fc_id)
                 fc_name = fc_info.name if fc_info and fc_info.name else f"FC-{fc_id}"
 
