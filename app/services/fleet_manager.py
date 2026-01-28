@@ -505,6 +505,11 @@ class FleetManager:
             fc = fc_summaries[fc_id]
             fc['accounts'] = list(fc['accounts'])
 
+            # Flag FCs with potential duplicate submarines
+            # - More than 4 subs is impossible (definite duplicates)
+            # - Multiple characters in same FC could report the same subs
+            fc['has_duplicate_subs'] = fc['total_subs'] > 4 or len(fc['characters']) > 1
+
             # If all subs have the same route, set unified_route
             routes = fc['routes']
             if len(routes) == 1:

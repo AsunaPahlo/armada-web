@@ -153,6 +153,10 @@
         <div class="card mb-3">
             <div class="card-header py-2">
                 <i class="bi bi-people me-2"></i>Characters
+                {% if fc_characters|length > 1 %}
+                <i class="bi bi-info-circle text-info ms-2" data-bs-toggle="tooltip" data-bs-placement="right"
+                   title="Multiple characters in this FC can cause duplicate submarine data. In AutoRetainer, make sure 'Enable Deployables' is not lit up green for characters that don't manage submarines."></i>
+                {% endif %}
             </div>
             <div class="card-body py-2">
                 {% for char in fc_characters %}
