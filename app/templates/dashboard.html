@@ -247,7 +247,8 @@
                             data-tags="{{ tag_ids|join(',') }}"
                             data-tag-names="{{ tag_names|join(' ') }}"
                             data-accounts="{{ fc.accounts|join(' ') }}"
-                            data-notes="{{ fc.notes or '' }}">
+                            data-notes="{{ fc.notes or '' }}"
+                            data-world="{{ fc.world or '' }}">
                             <td class="expand-toggle" style="cursor: pointer;">
                                 <i class="bi bi-chevron-right"></i>
                             </td>
@@ -402,7 +403,7 @@
         {% for fc in data.fc_summaries|sort(attribute='soonest_return') %}
         {% set card_tag_ids = [] %}{% set card_tag_names = [] %}{% for t in fc.tags %}{% set _ = card_tag_ids.append(t['id']|string) %}{% set _ = card_tag_names.append(t['name']) %}{% endfor %}
         {% set char_names = [] %}{% for c in fc.characters %}{% set _ = char_names.append(c['name']) %}{% endfor %}
-        <div class="col-lg-6 col-xl-4 mb-4 fc-card-wrapper" data-tags="{{ card_tag_ids|join(',') }}" data-tag-names="{{ card_tag_names|join(' ') }}" data-characters="{{ char_names|join(' ') }}" data-accounts="{{ fc.accounts|join(' ') }}" data-notes="{{ fc.notes or '' }}">
+        <div class="col-lg-6 col-xl-4 mb-4 fc-card-wrapper" data-tags="{{ card_tag_ids|join(',') }}" data-tag-names="{{ card_tag_names|join(' ') }}" data-characters="{{ char_names|join(' ') }}" data-accounts="{{ fc.accounts|join(' ') }}" data-notes="{{ fc.notes or '' }}" data-world="{{ fc.world or '' }}">
             <div class="card fc-card" data-fc-id="{{ fc.fc_id|string }}">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <div>
@@ -1305,10 +1306,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 const tagNames = (row.dataset.tagNames || '').toLowerCase();
                 const accounts = (row.dataset.accounts || '').toLowerCase();
                 const notes = (row.dataset.notes || '').toLowerCase();
+                const world = (row.dataset.world || '').toLowerCase();
                 const fcId = row.dataset.fcId;
                 const detailRow = document.querySelector(`.fc-detail-row[data-fc-id="${fcId}"]`);
 
-                const matches = query === '' || fcName.includes(query) || character.includes(query) || tagNames.includes(query) || accounts.includes(query) || notes.includes(query);
+                const matches = query === '' || fcName.includes(query) || character.includes(query) || tagNames.includes(query) || accounts.includes(query) || notes.includes(query) || world.includes(query);
 
                 if (matches) {
                     row.classList.remove('search-hidden');
@@ -1325,8 +1327,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 const tagNames = (card.dataset.tagNames || '').toLowerCase();
                 const accounts = (card.dataset.accounts || '').toLowerCase();
                 const notes = (card.dataset.notes || '').toLowerCase();
+                const world = (card.dataset.world || '').toLowerCase();
 
-                const matches = query === '' || fcName.includes(query) || characters.includes(query) || tagNames.includes(query) || accounts.includes(query) || notes.includes(query);
+                const matches = query === '' || fcName.includes(query) || characters.includes(query) || tagNames.includes(query) || accounts.includes(query) || notes.includes(query) || world.includes(query);
 
                 if (matches) {
                     card.classList.remove('search-hidden');
