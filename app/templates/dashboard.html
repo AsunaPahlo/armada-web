@@ -275,6 +275,11 @@
                                 <a href="{{ url_for('unlocks.index') }}?fc_id={{ fc.fc_id }}" class="text-decoration-none ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="View Sector Unlocks">
                                     <i class="bi bi-diagram-3 text-muted unlock-link-icon"></i>
                                 </a>
+                                {% if fc.needs_dive_credits %}
+                                <i class="bi bi-ticket-perforated text-danger ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Need {{ fc.dive_credits_needed }} more dive credits for slot {{ fc.unlocked_slots + 1 }}"></i>
+                                {% elif fc.dive_credits > 0 and fc.unlocked_slots < 4 %}
+                                <i class="bi bi-ticket-perforated text-success ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ fc.dive_credits }} dive credits available"></i>
+                                {% endif %}
                                 {% for tag in fc.tags %}
                                 <span class="badge bg-{{ tag.color }} ms-1 fc-tag-badge">{{ tag.name }}</span>
                                 {% endfor %}
@@ -431,6 +436,11 @@
                             <a href="{{ url_for('unlocks.index') }}?fc_id={{ fc.fc_id }}" class="text-decoration-none ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="View Sector Unlocks">
                                 <i class="bi bi-diagram-3 text-muted unlock-link-icon" style="font-size: 0.8em;"></i>
                             </a>
+                            {% if fc.needs_dive_credits %}
+                            <i class="bi bi-ticket-perforated text-danger ms-1" style="font-size: 0.8em;" data-bs-toggle="tooltip" data-bs-placement="top" title="Need {{ fc.dive_credits_needed }} more dive credits for slot {{ fc.unlocked_slots + 1 }}"></i>
+                            {% elif fc.dive_credits > 0 and fc.unlocked_slots < 4 %}
+                            <i class="bi bi-ticket-perforated text-success ms-1" style="font-size: 0.8em;" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ fc.dive_credits }} dive credits available"></i>
+                            {% endif %}
                             {% for tag in fc.tags %}
                             <span class="badge bg-{{ tag.color }} ms-1 fc-tag-badge">{{ tag.name }}</span>
                             {% endfor %}

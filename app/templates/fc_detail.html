@@ -178,6 +178,9 @@
                         {% endif %}
                         <span class="text-muted">{{ "{:,}".format(char.ceruleum) }}</span> <i class="bi bi-droplet-fill text-info"></i>
                         <span class="text-muted ms-1">{{ "{:,}".format(char.repair_kits) }}</span> <i class="bi bi-wrench text-secondary"></i>
+                        {% if char.dive_credits %}
+                        <span class="text-muted ms-1">{{ char.dive_credits }}</span> <i class="bi bi-ticket-perforated text-primary" title="Dive Credits"></i>
+                        {% endif %}
                     </div>
                 </div>
                 {% endfor %}
@@ -234,6 +237,13 @@
 #sub-table tbody tr.future-sub {
     opacity: 0.6;
 }
+#sub-table tbody tr.future-sub.needs-credits {
+    opacity: 0.8;
+    background-color: rgba(220, 53, 69, 0.15) !important;
+}
+#sub-table tbody tr.future-sub.needs-credits td {
+    color: #f8d7da;
+}
 #sub-table.all-at-target .leveling-col {
     display: none;
 }
@@ -287,7 +297,11 @@
         .then(response => response.json())
         .then(data => {
             renderSummary(data.estimate);
-            renderSubmarines(data.estimate.submarines);
+            renderSubmarines(data.estimate.submarines, {
+                diveCredits: data.dive_credits || 0,
+                unlockedSlots: data.unlocked_slots || 0,
+                cumulativeCosts: data.cumulative_costs || [1, 4, 9, 16]
+            });
         })
         .catch(error => {
             console.error('Error fetching leveling data:', error);
@@ -349,8 +363,9 @@
         }
     }
 
-    function renderSubmarines(submarines) {
+    function renderSubmarines(submarines, diveInfo) {
         const tbody = document.getElementById('sub-tbody');
+        const { diveCredits, unlockedSlots, cumulativeCosts } = diveInfo;
 
         if (!submarines || submarines.length === 0) {
             tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-3">No submarines found</td></tr>`;
@@ -372,15 +387,23 @@
             return (a.current_level || 0) - (b.current_level || 0);
         });
 
-        tbody.innerHTML = submarines.map(sub => {
+        // Count actual submarines to determine next slot to unlock
+        const actualSubCount = submarines.filter(s => !s.is_future_sub).length;
+
+        tbody.innerHTML = submarines.map((sub, index) => {
             const atTarget = sub.already_at_target;
             const isFuture = sub.is_future_sub;
             const voyageStatus = sub.voyage_status || 'unknown';
             const hoursRemaining = sub.hours_remaining || 0;
 
             // Format voyage status badge
-            function getStatusBadge() {
-                if (isFuture) return '<span class="badge bg-secondary">Locked</span>';
+            function getStatusBadge(needsCredits = false, creditsNeeded = 0) {
+                if (isFuture) {
+                    if (needsCredits) {
+                        return `<span class="badge bg-danger" title="Need ${creditsNeeded} more dive credits">Need ${creditsNeeded} <i class="bi bi-ticket-perforated"></i></span>`;
+                    }
+                    return '<span class="badge bg-secondary">Locked</span>';
+                }
                 if (atTarget) {
                     // At target level - show voyage status
                     if (voyageStatus === 'ready') {
@@ -414,13 +437,32 @@
 
             if (isFuture) {
                 const unlockSector = sub.unlock_sector || '?';
+                // Calculate which slot this future sub would be
+                // Future subs appear after actual subs in the sorted list
+                const futureSubIndex = submarines.filter(s => !s.is_future_sub).length +
+                    submarines.filter(s => s.is_future_sub).indexOf(sub);
+                const slotNumber = futureSubIndex + 1; // 1-indexed slot number
+
+                // Calculate credits needed FROM CURRENT STATE (not absolute)
+                // Slot costs: [1, 3, 5, 7] for slots 1, 2, 3, 4
+                const slotCosts = [1, 3, 5, 7];
+                let creditsNeededFromCurrent = 0;
+                for (let i = unlockedSlots; i < slotNumber && i < 4; i++) {
+                    creditsNeededFromCurrent += slotCosts[i];
+                }
+
+                // Check if we have enough dive credits to unlock up to this slot
+                const needsMoreCredits = slotNumber > unlockedSlots && diveCredits < creditsNeededFromCurrent;
+                const creditsShort = needsMoreCredits ? creditsNeededFromCurrent - diveCredits : 0;
+                const rowClass = needsMoreCredits ? 'future-sub needs-credits' : 'future-sub';
+
                 return `
-                    <tr class="future-sub">
-                        <td class="ps-3"><i class="bi bi-lock text-muted me-1"></i>${sub.submarine_name} <small class="text-muted">(${unlockSector})</small></td>
+                    <tr class="${rowClass}">
+                        <td class="ps-3"><i class="bi bi-lock ${needsMoreCredits ? 'text-danger' : 'text-muted'} me-1"></i>${sub.submarine_name} <small class="text-muted">(${unlockSector})</small></td>
                         <td class="text-center text-muted">-</td>
                         <td class="text-muted">-</td>
                         <td class="text-center leveling-col text-warning">${sub.estimates.expected.days}d</td>
-                        <td class="text-center pe-3">${getStatusBadge()}</td>
+                        <td class="text-center pe-3">${getStatusBadge(needsMoreCredits, creditsShort)}</td>
                     </tr>
                 `;
             }

@@ -478,8 +478,10 @@ def fc_detail(fc_id):
     fc_characters = []
     fc_world = ''
 
-    # Aggregate inventory parts across all characters in this FC
+    # Aggregate inventory parts and dive credits across all characters in this FC
     fc_inventory_parts = {}
+    fc_dive_credits = 0
+    fc_unlocked_slots = 0
 
     for account in accounts:
         # Check FC data for name
@@ -499,10 +501,17 @@ def fc_detail(fc_id):
                     'repair_kits': char.repair_kits,
                     'gil': char.gil,
                     'salvage_value': getattr(char, 'salvage_value', 0),
+                    'dive_credits': getattr(char, 'dive_credits', 0),
                     'unlocked_sectors': getattr(char, 'unlocked_sectors', []),
                     'inventory_parts': getattr(char, 'inventory_parts', {})
                 })
                 fc_submarines.extend(char.submarines)
+
+                # Aggregate dive credits for the FC
+                fc_dive_credits += getattr(char, 'dive_credits', 0)
+
+                # Track max unlocked slots (all chars in same FC share slots)
+                fc_unlocked_slots = max(fc_unlocked_slots, getattr(char, 'num_sub_slots', 0))
 
                 # Aggregate inventory parts for the FC
                 char_parts = getattr(char, 'inventory_parts', {})
@@ -530,6 +539,8 @@ def fc_detail(fc_id):
                            fc_notes=fc_notes,
                            target_level=target_level,
                            total_subs=len(fc_submarines),
+                           fc_dive_credits=fc_dive_credits,
+                           fc_unlocked_slots=fc_unlocked_slots,
                            inventory_parts=inventory_parts_list)
 
 
@@ -547,10 +558,12 @@ def fc_leveling_data(fc_id):
     fleet = get_fleet_manager()
     accounts = fleet.get_data(force_refresh=False)
 
-    # Find FC submarines
+    # Find FC submarines and dive credits
     fc_info = None
     fc_submarines = []
     fc_world = ''
+    fc_dive_credits = 0
+    fc_unlocked_slots = 0
 
     for account in accounts:
         # Check FC data for name
@@ -564,6 +577,8 @@ def fc_leveling_data(fc_id):
             if str(char.fc_id) == str(fc_id):
                 fc_world = char.world
                 fc_submarines.extend(char.submarines)
+                fc_dive_credits += getattr(char, 'dive_credits', 0)
+                fc_unlocked_slots = max(fc_unlocked_slots, getattr(char, 'num_sub_slots', 0))
 
     fc_name = fc_info.name if fc_info else f'FC-{fc_id}'
 
@@ -576,9 +591,18 @@ def fc_leveling_data(fc_id):
         world=fc_world
     )
 
+    # Calculate dive credit requirements for each slot
+    # Cost: 1 for slot 1, 3 for slot 2, 5 for slot 3, 7 for slot 4
+    slot_costs = [1, 3, 5, 7]  # Cost to unlock each slot
+    cumulative_costs = [1, 4, 9, 16]  # Cumulative cost for 1, 2, 3, 4 slots
+
     return jsonify({
         'target_level': target_level,
-        'estimate': estimate
+        'estimate': estimate,
+        'dive_credits': fc_dive_credits,
+        'unlocked_slots': fc_unlocked_slots,
+        'slot_costs': slot_costs,
+        'cumulative_costs': cumulative_costs
     })
 
 

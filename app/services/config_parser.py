@@ -62,6 +62,7 @@ class CharacterInfo:
     unlocked_sectors: list = field(default_factory=list)
     inventory_parts: dict = field(default_factory=dict)  # item_id -> count
     salvage_value: int = 0  # Total gil value of salvage accessories in inventory
+    dive_credits: int = 0  # Dive credits in inventory (for unlocking submarine slots)
 
     @property
     def ready_subs(self) -> int:
@@ -641,7 +642,8 @@ class ConfigParser:
                 enabled_subs=char_data.get('enabled_subs', []),
                 unlocked_sectors=char_data.get('unlocked_sectors', []),
                 inventory_parts=inventory_parts,
-                salvage_value=int(char_data.get('salvage_value', 0))
+                salvage_value=int(char_data.get('salvage_value', 0)),
+                dive_credits=int(char_data.get('dive_credits', 0))
             )
 
             # Parse submarines

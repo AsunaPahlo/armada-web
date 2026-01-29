@@ -425,7 +425,11 @@ class FleetManager:
                         'kits_per_day': 0.0,
                         'soonest_return': None,
                         'soonest_return_time': None,
-                        'days_until_restock': None
+                        'days_until_restock': None,
+                        'dive_credits': 0,
+                        'unlocked_slots': 0,
+                        'needs_dive_credits': False,
+                        'dive_credits_needed': 0
                     }
 
                 # Aggregate supplies
@@ -440,6 +444,12 @@ class FleetManager:
                 })
                 fc_summaries[fc_id_str]['ceruleum'] += char.ceruleum
                 fc_summaries[fc_id_str]['repair_kits'] += char.repair_kits
+                fc_summaries[fc_id_str]['dive_credits'] += getattr(char, 'dive_credits', 0)
+                # Track max unlocked slots (all chars in same FC share slots)
+                fc_summaries[fc_id_str]['unlocked_slots'] = max(
+                    fc_summaries[fc_id_str]['unlocked_slots'],
+                    getattr(char, 'num_sub_slots', 0)
+                )
 
                 for sub in char.submarines:
                     # Recalculate status based on current time (not when data was parsed)
@@ -553,6 +563,20 @@ class FleetManager:
                 fc['mode'] = 'leveling'
             else:
                 fc['mode'] = 'mixed'
+
+            # Calculate if FC needs more dive credits for next slot
+            # Slot costs: 1, 3, 5, 7 for slots 1-4
+            slot_costs = [1, 3, 5, 7]
+            unlocked = fc['unlocked_slots']
+            credits = fc['dive_credits']
+            if unlocked < 4:
+                # Calculate credits needed for next slot
+                next_slot_cost = slot_costs[unlocked] if unlocked < 4 else 0
+                fc['needs_dive_credits'] = credits < next_slot_cost
+                fc['dive_credits_needed'] = max(0, next_slot_cost - credits)
+            else:
+                fc['needs_dive_credits'] = False
+                fc['dive_credits_needed'] = 0
 
         # Sort submarines by return time
         all_submarines.sort(key=lambda x: x['hours_remaining'])
