@@ -303,6 +303,7 @@ class ArmadaDashboard {
                     <a href="/unlocks?fc_id=${fcIdStr}" class="text-decoration-none ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="View Sector Unlocks">
                         <i class="bi bi-diagram-3 text-muted unlock-link-icon"></i>
                     </a>
+                    ${fc.needs_dive_credits ? `<i class="bi bi-ticket-perforated text-danger ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Need ${fc.dive_credits_needed} more dive credits for slot ${fc.unlocked_slots + 1}"></i>` : (fc.dive_credits > 0 && fc.unlocked_slots < 4 ? `<i class="bi bi-ticket-perforated text-success ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="${fc.dive_credits} dive credits available"></i>` : '')}
                     ${(fc.tags || []).map(t => `<span class="badge bg-${t.color} ms-1 fc-tag-badge">${t.name}</span>`).join('')}
                     ${(fc.routes || []).map(r => `<span class="badge bg-dark ms-1">${r}</span>`).join('')}
                     <br><small class="text-muted">${fc.accounts ? fc.accounts.join(', ') : ''}</small>
@@ -566,6 +567,7 @@ class ArmadaDashboard {
                                 <a href="/unlocks?fc_id=${fcIdStr}" class="text-decoration-none ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="View Sector Unlocks">
                                     <i class="bi bi-diagram-3 text-muted unlock-link-icon" style="font-size: 0.8em;"></i>
                                 </a>
+                                ${fc.needs_dive_credits ? `<i class="bi bi-ticket-perforated text-danger ms-1" style="font-size: 0.8em;" data-bs-toggle="tooltip" data-bs-placement="top" title="Need ${fc.dive_credits_needed} more dive credits for slot ${fc.unlocked_slots + 1}"></i>` : (fc.dive_credits > 0 && fc.unlocked_slots < 4 ? `<i class="bi bi-ticket-perforated text-success ms-1" style="font-size: 0.8em;" data-bs-toggle="tooltip" data-bs-placement="top" title="${fc.dive_credits} dive credits available"></i>` : '')}
                                 ${(fc.tags || []).map(t => `<span class="badge bg-${t.color} ms-1 fc-tag-badge">${t.name}</span>`).join('')}
                                 ${(fc.routes || []).map(r => `<span class="badge bg-dark ms-1">${r}</span>`).join('')}
                             </h5>
