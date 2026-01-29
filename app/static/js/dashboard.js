@@ -309,7 +309,7 @@ class ArmadaDashboard {
                     <br><small class="text-muted">${fc.accounts ? fc.accounts.join(', ') : ''}</small>
                 </td>
                 <td>
-                    ${fc.unified_character || '<span class="text-muted">-</span>'}
+                    ${fc.unified_character ? `${fc.unified_character}@${fc.world || ''}` : '<span class="text-muted">-</span>'}
                 </td>
                 <td class="text-center">
                     <span class="badge bg-secondary">${fc.total_subs}</span>
