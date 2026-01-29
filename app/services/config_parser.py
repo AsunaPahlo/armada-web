@@ -61,6 +61,7 @@ class CharacterInfo:
     sent_voyages_by_day: dict = field(default_factory=dict)
     unlocked_sectors: list = field(default_factory=list)
     inventory_parts: dict = field(default_factory=dict)  # item_id -> count
+    salvage_value: int = 0  # Total gil value of salvage accessories in inventory
 
     @property
     def ready_subs(self) -> int:
@@ -639,7 +640,8 @@ class ConfigParser:
                 num_sub_slots=char_data.get('num_sub_slots', 0),
                 enabled_subs=char_data.get('enabled_subs', []),
                 unlocked_sectors=char_data.get('unlocked_sectors', []),
-                inventory_parts=inventory_parts
+                inventory_parts=inventory_parts,
+                salvage_value=int(char_data.get('salvage_value', 0))
             )
 
             # Parse submarines

@@ -498,6 +498,7 @@ def fc_detail(fc_id):
                     'ceruleum': char.ceruleum,
                     'repair_kits': char.repair_kits,
                     'gil': char.gil,
+                    'salvage_value': getattr(char, 'salvage_value', 0),
                     'unlocked_sectors': getattr(char, 'unlocked_sectors', []),
                     'inventory_parts': getattr(char, 'inventory_parts', {})
                 })

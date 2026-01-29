@@ -173,6 +173,9 @@
                     </div>
                     <div class="text-end small">
                         <span class="text-warning">{{ "{:,}".format(char.gil) }}</span> <img src="{{ url_for('static', filename='gil_icon.png') }}" alt="Gil" style="width: 14px; height: 14px;"><br>
+                        {% if char.salvage_value %}
+                        <span class="text-info">{{ "{:,}".format(char.salvage_value) }}</span> <i class="bi bi-gem text-info" title="Salvage value"></i><br>
+                        {% endif %}
                         <span class="text-muted">{{ "{:,}".format(char.ceruleum) }}</span> <i class="bi bi-droplet-fill text-info"></i>
                         <span class="text-muted ms-1">{{ "{:,}".format(char.repair_kits) }}</span> <i class="bi bi-wrench text-secondary"></i>
                     </div>
