@@ -19,6 +19,9 @@ class ArmadaDashboard {
         this.currentPage = 1;
         this.pageSize = parseInt(localStorage.getItem('armada-page-size') || '10');
 
+        // Delegated tooltip instance (single instance handles all tooltips)
+        this.delegatedTooltip = null;
+
         this.init();
     }
 
@@ -375,16 +378,14 @@ class ArmadaDashboard {
     }
 
     initTooltips() {
-        // Initialize Bootstrap tooltips for newly added elements
-        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        tooltipTriggerList.forEach(function (tooltipTriggerEl) {
-            // Dispose existing tooltip if any
-            const existingTooltip = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
-            if (existingTooltip) {
-                existingTooltip.dispose();
-            }
-            new bootstrap.Tooltip(tooltipTriggerEl);
-        });
+        // Use delegated tooltips - single instance handles all tooltip triggers
+        // No cleanup needed when elements are replaced via innerHTML
+        if (!this.delegatedTooltip) {
+            this.delegatedTooltip = new bootstrap.Tooltip(document.body, {
+                selector: '[data-bs-toggle="tooltip"]',
+                trigger: 'hover focus'
+            });
+        }
     }
 
     renderFCSubmarines(submarines) {
@@ -936,6 +937,9 @@ class ArmadaDashboard {
         }
         if (this.socket) {
             this.socket.disconnect();
+        }
+        if (this.delegatedTooltip) {
+            this.delegatedTooltip.dispose();
         }
     }
 }

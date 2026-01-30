@@ -863,11 +863,7 @@ table.sub-table tbody tr.sub-soon:hover {
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize Bootstrap tooltips
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
+    // Tooltips are handled by delegated tooltip in dashboard.js - no individual initialization needed
 
     const tableView = document.getElementById('table-view');
     const cardView = document.getElementById('card-view');
