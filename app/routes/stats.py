@@ -276,6 +276,19 @@ def loot():
     # Get first page of history with pagination info
     history_data = loot_tracker.get_loot_history(days=days, page=1, per_page=50)
 
+    # Calculate total salvage value across all characters
+    total_salvage_value = 0
+    try:
+        fleet = get_fleet_manager()
+        accounts = fleet.get_data(force_refresh=False)
+        for account in accounts:
+            for char in account.characters:
+                total_salvage_value += getattr(char, 'salvage_value', 0)
+    except Exception:
+        pass  # If fleet data unavailable, leave as 0
+
+    summary['total_salvage_value'] = total_salvage_value
+
     return render_template('loot.html',
                            summary=summary,
                            loot_history=history_data['items'],
