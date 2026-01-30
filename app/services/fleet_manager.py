@@ -578,6 +578,9 @@ class FleetManager:
                 fc['needs_dive_credits'] = False
                 fc['dive_credits_needed'] = 0
 
+            # Calculate unbuilt submarines (slots unlocked but no sub built)
+            fc['unbuilt_subs'] = max(0, fc['unlocked_slots'] - fc['total_subs'])
+
         # Sort submarines by return time
         all_submarines.sort(key=lambda x: x['hours_remaining'])
 

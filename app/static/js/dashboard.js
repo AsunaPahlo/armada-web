@@ -315,7 +315,7 @@ class ArmadaDashboard {
                     ${fc.unified_character ? `${fc.unified_character}@${fc.world || ''}` : '<span class="text-muted">-</span>'}
                 </td>
                 <td class="text-center">
-                    <span class="badge bg-secondary">${fc.total_subs}</span>
+                    <span class="badge bg-secondary">${fc.total_subs}</span>${fc.unbuilt_subs > 0 ? `<span class="badge bg-warning text-dark" style="position: absolute; margin-left: 4px; margin-top: 3px;" data-bs-toggle="tooltip" data-bs-placement="top" title="${fc.unbuilt_subs} slot${fc.unbuilt_subs > 1 ? 's' : ''} unlocked but no submarine built"><i class="bi bi-hammer"></i> +${fc.unbuilt_subs}</span>` : ''}
                 </td>
                 <td class="text-center">
                     ${fc.ready_subs > 0
@@ -577,7 +577,7 @@ class ArmadaDashboard {
                         <div class="text-end">
                             <span class="badge ${fc.ready_subs > 0 ? 'bg-success' : 'bg-secondary'}">
                                 ${fc.ready_subs}/${fc.total_subs} Ready
-                            </span>
+                            </span>${fc.unbuilt_subs > 0 ? `<span class="badge bg-warning text-dark ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="${fc.unbuilt_subs} slot${fc.unbuilt_subs > 1 ? 's' : ''} unlocked but no submarine built"><i class="bi bi-hammer"></i> +${fc.unbuilt_subs}</span>` : ''}
                         </div>
                     </div>
                     <div class="card-body">
@@ -674,10 +674,13 @@ class ArmadaDashboard {
         if (!card) return;
 
         // Update ready count badge
-        const badge = card.querySelector('.badge');
-        if (badge) {
-            badge.textContent = `${fcData.ready_subs}/${fcData.total_subs} Ready`;
-            badge.className = 'badge ' + (fcData.ready_subs > 0 ? 'bg-success' : 'bg-secondary');
+        const badgeContainer = card.querySelector('.text-end');
+        if (badgeContainer) {
+            let html = `<span class="badge ${fcData.ready_subs > 0 ? 'bg-success' : 'bg-secondary'}">${fcData.ready_subs}/${fcData.total_subs} Ready</span>`;
+            if (fcData.unbuilt_subs > 0) {
+                html += `<span class="badge bg-warning text-dark ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="${fcData.unbuilt_subs} slot${fcData.unbuilt_subs > 1 ? 's' : ''} unlocked but no submarine built"><i class="bi bi-hammer"></i> +${fcData.unbuilt_subs}</span>`;
+            }
+            badgeContainer.innerHTML = html;
         }
 
         // Could update submarine list here if needed

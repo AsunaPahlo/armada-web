@@ -296,7 +296,7 @@
                                 {% endif %}
                             </td>
                             <td class="text-center">
-                                <span class="badge bg-secondary">{{ fc.total_subs }}</span>
+                                <span class="badge bg-secondary">{{ fc.total_subs }}</span>{% if fc.unbuilt_subs > 0 %}<span class="badge bg-warning text-dark" style="position: absolute; margin-left: 4px; margin-top: 3px;" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ fc.unbuilt_subs }} slot{{ 's' if fc.unbuilt_subs > 1 else '' }} unlocked but no submarine built"><i class="bi bi-hammer"></i> +{{ fc.unbuilt_subs }}</span>{% endif %}
                             </td>
                             <td class="text-center">
                                 {% if fc.ready_subs > 0 %}
@@ -453,7 +453,7 @@
                     <div class="text-end">
                         <span class="badge {% if fc.ready_subs > 0 %}bg-success{% else %}bg-secondary{% endif %}">
                             {{ fc.ready_subs }}/{{ fc.total_subs }} Ready
-                        </span>
+                        </span>{% if fc.unbuilt_subs > 0 %}<span class="badge bg-warning text-dark ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ fc.unbuilt_subs }} slot{{ 's' if fc.unbuilt_subs > 1 else '' }} unlocked but no submarine built"><i class="bi bi-hammer"></i> +{{ fc.unbuilt_subs }}</span>{% endif %}
                     </div>
                 </div>
                 <div class="card-body">
