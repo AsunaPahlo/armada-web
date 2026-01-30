@@ -31,6 +31,10 @@ class AlertSettings(db.Model):
     not_farming_level_threshold = db.Column(db.Integer, default=90)
     not_farming_cooldown_minutes = db.Column(db.Integer, default=60)
 
+    # Unbuilt submarines alert settings (FC has unlocked slots without submarines)
+    unbuilt_subs_enabled = db.Column(db.Boolean, default=False)
+    unbuilt_subs_cooldown_minutes = db.Column(db.Integer, default=1440)  # Daily default
+
     # Email (SMTP) settings
     email_enabled = db.Column(db.Boolean, default=False)
     smtp_host = db.Column(db.String(255), nullable=True)
@@ -121,6 +125,8 @@ class AlertSettings(db.Model):
             ('not_farming_enabled', 'BOOLEAN DEFAULT 0'),
             ('not_farming_level_threshold', 'INTEGER DEFAULT 90'),
             ('not_farming_cooldown_minutes', 'INTEGER DEFAULT 60'),
+            ('unbuilt_subs_enabled', 'BOOLEAN DEFAULT 0'),
+            ('unbuilt_subs_cooldown_minutes', 'INTEGER DEFAULT 1440'),
         ]
 
         for col_name, col_def in migrations:

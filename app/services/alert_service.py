@@ -83,6 +83,10 @@ class AlertService:
             if settings.not_farming_enabled:
                 pending_alerts.extend(self._check_not_farming(dashboard_data, settings))
 
+            # Check unbuilt submarines alerts (FC has unlocked slots without submarines)
+            if settings.unbuilt_subs_enabled:
+                pending_alerts.extend(self._check_unbuilt_submarines(dashboard_data, settings))
+
             # Dispatch batched alerts if any
             if pending_alerts:
                 logger.info(f"[AlertService] Batching {len(pending_alerts)} alerts into single notification")
@@ -252,6 +256,43 @@ class AlertService:
 
         return alerts
 
+    def _check_unbuilt_submarines(self, dashboard_data: dict, settings: AlertSettings) -> list[dict]:
+        """
+        Check for FCs with unlocked submarine slots that don't have submarines built.
+        Returns list of alert dicts.
+        """
+        alerts = []
+        cooldown_minutes = settings.unbuilt_subs_cooldown_minutes
+
+        for fc in dashboard_data.get('fc_summaries', []):
+            fc_id = str(fc.get('fc_id', ''))
+            fc_name = fc.get('fc_name', 'Unknown FC')
+            unbuilt_count = fc.get('unbuilt_subs', 0)
+
+            if unbuilt_count <= 0:
+                continue
+
+            # Check cooldown
+            if self._is_in_cooldown('unbuilt_subs', fc_id, cooldown_minutes):
+                continue
+
+            severity = 'warning'
+            slot_word = 'slot' if unbuilt_count == 1 else 'slots'
+            message = (
+                f"Unbuilt submarines: {fc_name} has {unbuilt_count} unlocked {slot_word} "
+                f"without a submarine built"
+            )
+
+            alerts.append({
+                'alert_type': 'unbuilt_subs',
+                'target_id': fc_id,
+                'target_name': fc_name,
+                'message': message,
+                'severity': severity
+            })
+
+        return alerts
+
     def _is_in_cooldown(self, alert_type: str, target_id: str, cooldown_minutes: int) -> bool:
         """Check if an alert is in cooldown period."""
         cutoff = datetime.utcnow() - timedelta(minutes=cooldown_minutes)
@@ -396,6 +437,7 @@ This is an automated alert from Armada Fleet Dashboard.
             'low_supply': '⛽',
             'idle_sub': '⏰',
             'not_farming': '💰',
+            'unbuilt_subs': '🔨',
             'test': '🔔'
         }
 
