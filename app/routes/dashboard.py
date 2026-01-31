@@ -81,8 +81,8 @@ def api_submarines():
     # Add tags to each submarine for search/display
     for sub in all_subs:
         sub_tags = fc_tags.get(str(sub.get('fc_id', '')), [])
-        sub['tags'] = [{'name': t.name, 'color': t.color} for t in sub_tags]
-        sub['tag_names'] = ' '.join(t.name for t in sub_tags).lower()
+        sub['tags'] = [{'name': t['name'], 'color': t['color']} for t in sub_tags]
+        sub['tag_names'] = ' '.join(t['name'] for t in sub_tags).lower()
 
     # Apply search filter
     if search:
