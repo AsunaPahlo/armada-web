@@ -4,19 +4,19 @@ A real-time submarine and airship fleet monitoring dashboard for FINAL FANTASY X
 
 ## Features
 
-- **Real-time Monitoring** — See voyage status, return times, and loot across your entire fleet
-- **Multi-Account Support** — Connect multiple game clients and view all submarines in one place
-- **Multi-FC Support** — Track submarines across different Free Companies
-- **Unified Dashboard** — Single pane of glass for all your fleet operations
-- **Voyage History** — Track past voyages and analyze returns
-- **Alerts & Notifications** — Know when supplies are low, subs are not going, subs are on wrong route
+- **Real-time Monitoring** - See voyage status, return times, and loot across your entire fleet
+- **Multi-Account Support** - Connect multiple game clients and view all submarines in one place
+- **Multi-FC Support** - Track submarines across different Free Companies
+- **Unified Dashboard** - Single pane of glass for all your fleet operations
+- **Voyage History** - Track past voyages and analyze returns
+- **Alerts & Notifications** - Know when supplies are low, subs are not going, subs are on wrong route
 
 ## How It Works
 
 Armada consists of two components:
 
-1. **Server (Web Dashboard)** — A self-hosted web application that displays your fleet data
-2. **[Armada Dalamud Plugin](https://github.com/AsunaPahlo/armada)** — Runs in-game and sends submarine data to the server 
+1. **Server (Web Dashboard)** - A self-hosted web application that displays your fleet data
+2. **[Armada Dalamud Plugin](https://github.com/AsunaPahlo/armada)** - Runs in-game and sends submarine data to the server 
 
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
@@ -203,9 +203,9 @@ openssl rand -hex 32
 
 To connect game clients and also access the dashboard from outside your local network, you'll need to expose the server. Some options:
 
-- **Reverse Proxy** — Use nginx or Caddy with SSL (recommended)
-- **Cloudflare Tunnel** — Free, secure tunnel without port forwarding
-- **Port Forwarding** — Forward port 5000 on your router (not recommended without SSL)
+- **Reverse Proxy** - Use nginx or Caddy with SSL (recommended)
+- **Cloudflare Tunnel** - Free, secure tunnel without port forwarding
+- **Port Forwarding** - Forward port 5000 on your router (not recommended without SSL)
 
 Example nginx configuration:
 
@@ -236,8 +236,8 @@ See [Armada Info](https://armadaxiv.com/)
 
 Widgets to display your Armada data:
 
-- **[Armada Rainmeter](https://github.com/AsunaPahlo/Armada-Rainmeter/)** — Desktop widget for Windows using Rainmeter
-- **[MMM-Armada](https://github.com/AsunaPahlo/MMM-Armada/)** — MagicMirror module for smart mirror displays
+- **[Armada Rainmeter](https://github.com/AsunaPahlo/Armada-Rainmeter/)** - Desktop widget for Windows using Rainmeter
+- **[MMM-Armada](https://github.com/AsunaPahlo/MMM-Armada/)** - MagicMirror module for smart mirror displays
 
 
 ## License
