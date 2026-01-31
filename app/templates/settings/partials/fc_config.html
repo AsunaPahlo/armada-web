@@ -15,11 +15,15 @@
             <div class="settings-card-title">
                 <i class="bi bi-info-circle"></i> About FC Visibility
             </div>
-            <p class="text-muted mb-0">
+            <p class="text-muted mb-3">
                 <i class="bi bi-eye text-info"></i> <strong>Visible</strong> -
                 Controls whether the FC appears in the dashboard, submarine views, and statistics.
-                Hidden FCs are completely excluded from all views and aggregate calculations
-                (total submarines, gil/day, supply forecasts, etc.).
+                Hidden FCs are completely excluded from all views and aggregate calculations.
+            </p>
+            <p class="text-muted mb-0">
+                <i class="bi bi-fuel-pump text-warning"></i> <strong>Exclude Supplies</strong> -
+                Excludes this FC's fuel and repair kits from the global restock calculations.
+                The FC will still appear in views but won't affect the "days until restock" totals.
             </p>
         </div>
     </div>
@@ -46,6 +50,7 @@
                             <th>Client</th>
                             <th class="text-center" style="width: 80px;">Subs</th>
                             <th class="text-center" style="width: 100px;">Visible</th>
+                            <th class="text-center" style="width: 100px;">Supplies</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -76,6 +81,17 @@
                                         title="Toggle visibility"
                                         {% if current_user.is_readonly %}disabled{% endif %}>
                                     <i class="bi bi-eye{% if not fc.visible %}-slash{% endif %} fs-5 {% if fc.visible %}text-info{% else %}text-secondary opacity-50{% endif %}"></i>
+                                </button>
+                            </td>
+                            <td class="text-center">
+                                <button type="button"
+                                        class="btn btn-link p-0 fc-toggle-btn{% if current_user.is_readonly %} disabled{% endif %}"
+                                        data-fc-id="{{ fc.fc_id }}"
+                                        data-setting="exclude_from_supply"
+                                        data-value="{{ 'true' if fc.exclude_from_supply else 'false' }}"
+                                        title="Toggle supply exclusion"
+                                        {% if current_user.is_readonly %}disabled{% endif %}>
+                                    <i class="bi bi-fuel-pump{% if not fc.exclude_from_supply %}-fill{% endif %} fs-5 {% if not fc.exclude_from_supply %}text-warning{% else %}text-secondary opacity-50{% endif %}"></i>
                                 </button>
                             </td>
                         </tr>
@@ -117,7 +133,7 @@
             const icon = this.querySelector('i');
             const originalClasses = icon.className;
 
-            // Optimistic UI update for visibility toggle
+            // Optimistic UI update
             if (setting === 'visible') {
                 if (newValue) {
                     icon.classList.remove('bi-eye-slash', 'text-secondary', 'opacity-50');
@@ -125,6 +141,15 @@
                 } else {
                     icon.classList.remove('bi-eye', 'text-info');
                     icon.classList.add('bi-eye-slash', 'text-secondary', 'opacity-50');
+                }
+            } else if (setting === 'exclude_from_supply') {
+                // Inverted: lit when included (false), dim when excluded (true)
+                if (newValue) {
+                    icon.classList.remove('bi-fuel-pump-fill', 'text-warning');
+                    icon.classList.add('bi-fuel-pump', 'text-secondary', 'opacity-50');
+                } else {
+                    icon.classList.remove('bi-fuel-pump', 'text-secondary', 'opacity-50');
+                    icon.classList.add('bi-fuel-pump-fill', 'text-warning');
                 }
             }
             this.dataset.value = newValue.toString();

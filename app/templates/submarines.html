@@ -72,6 +72,7 @@
             <option value="25" {% if pagination.per_page == 25 %}selected{% endif %}>25</option>
             <option value="50" {% if pagination.per_page == 50 %}selected{% endif %}>50</option>
             <option value="100" {% if pagination.per_page == 100 %}selected{% endif %}>100</option>
+            <option value="0" {% if pagination.per_page == pagination.total or pagination.per_page > 100 %}selected{% endif %}>All</option>
         </select>
     </div>
 </div>
@@ -382,14 +383,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Update pagination UI
     function updatePaginationUI() {
-        const startIdx = state.total === 0 ? 0 : (state.page - 1) * state.perPage + 1;
-        const endIdx = Math.min(state.page * state.perPage, state.total);
+        // Handle "All" mode (perPage === 0)
+        const isAllMode = state.perPage === 0;
+        const effectivePerPage = isAllMode ? state.total : state.perPage;
+        const startIdx = state.total === 0 ? 0 : (state.page - 1) * effectivePerPage + 1;
+        const endIdx = Math.min(state.page * effectivePerPage, state.total);
 
         pageInfo.textContent = state.total === 0 ? '0 submarines' : `${startIdx}-${endIdx} of ${formatNumber(state.total)}`;
         countBadge.textContent = formatNumber(state.total);
 
-        prevBtn.disabled = state.page <= 1 || state.loading;
-        nextBtn.disabled = state.page >= state.pages || state.loading;
+        prevBtn.disabled = state.page <= 1 || state.loading || isAllMode;
+        nextBtn.disabled = state.page >= state.pages || state.loading || isAllMode;
     }
 
     // Update header sort indicators

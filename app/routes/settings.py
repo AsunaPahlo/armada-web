@@ -120,6 +120,7 @@ def partial_fc_config():
                 'client_nickname': account.nickname,
                 'sub_count': sub_count,
                 'visible': config.visible if config else True,
+                'exclude_from_supply': config.exclude_from_supply if config else False,
                 'house_address': housing.address if housing else None
             })
 

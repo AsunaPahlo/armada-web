@@ -30,11 +30,17 @@ def submarines():
     # Get pagination params
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 50, type=int)
-    per_page = min(max(per_page, 10), 100)
 
     all_subs = data['submarines']
     total = len(all_subs)
-    pages = (total + per_page - 1) // per_page if total > 0 else 1
+
+    # Handle "All" option (per_page=0 means show all)
+    if per_page == 0:
+        per_page = total if total > 0 else 1
+        pages = 1
+    else:
+        per_page = min(max(per_page, 10), 100)
+        pages = (total + per_page - 1) // per_page if total > 0 else 1
 
     # Initial page of submarines (sorted by time ascending - soonest first)
     sorted_subs = sorted(all_subs, key=lambda x: x.get('hours_remaining', 999))
@@ -69,8 +75,6 @@ def api_submarines():
     sort_by = request.args.get('sort_by', 'time', type=str)
     sort_dir = request.args.get('sort_dir', 'asc', type=str)
     search = request.args.get('search', '', type=str).lower().strip()
-
-    per_page = min(max(per_page, 10), 100)
 
     all_subs = data['submarines']
 
@@ -111,9 +115,17 @@ def api_submarines():
 
     # Paginate
     total = len(all_subs)
-    pages = (total + per_page - 1) // per_page if total > 0 else 1
-    offset = (page - 1) * per_page
-    paginated = all_subs[offset:offset + per_page]
+
+    # Handle "All" option (per_page=0 means show all)
+    if per_page == 0:
+        per_page = total if total > 0 else 1
+        pages = 1
+        paginated = all_subs
+    else:
+        per_page = min(max(per_page, 10), 100)
+        pages = (total + per_page - 1) // per_page if total > 0 else 1
+        offset = (page - 1) * per_page
+        paginated = all_subs[offset:offset + per_page]
 
     return jsonify({
         'submarines': paginated,

@@ -340,15 +340,19 @@ class FleetManager:
 
         # Get FC visibility configuration (hidden FCs are excluded from views and stats)
         try:
-            from app.models.fc_config import get_hidden_fc_ids, get_all_fc_configs
+            from app.models.fc_config import get_hidden_fc_ids, get_all_fc_configs, get_supply_excluded_fc_ids
             hidden_fc_ids = get_hidden_fc_ids()
+            supply_excluded_fc_ids = get_supply_excluded_fc_ids()
             fc_configs = get_all_fc_configs()
             if hidden_fc_ids:
                 logger.info(f"Hidden FC IDs: {hidden_fc_ids}")
+            if supply_excluded_fc_ids:
+                logger.info(f"Supply-excluded FC IDs: {supply_excluded_fc_ids}")
         except Exception as e:
             # fc_configs table may not exist yet on first run
             logger.info(f"FC config load error (may be first run): {e}")
             hidden_fc_ids = set()
+            supply_excluded_fc_ids = set()
             fc_configs = {}
 
         # Get FC housing data
@@ -429,12 +433,14 @@ class FleetManager:
                         'dive_credits': 0,
                         'unlocked_slots': 0,
                         'needs_dive_credits': False,
-                        'dive_credits_needed': 0
+                        'dive_credits_needed': 0,
+                        'exclude_from_supply': fc_id_str in supply_excluded_fc_ids
                     }
 
-                # Aggregate supplies
-                total_ceruleum += char.ceruleum
-                total_repair_kits += char.repair_kits
+                # Aggregate supplies (skip FCs excluded from supply calculations)
+                if fc_id_str not in supply_excluded_fc_ids:
+                    total_ceruleum += char.ceruleum
+                    total_repair_kits += char.repair_kits
 
                 fc_summaries[fc_id_str]['accounts'].add(account.nickname)
                 fc_summaries[fc_id_str]['characters'].append({
@@ -479,8 +485,10 @@ class FleetManager:
                     if not sub.route_name or sub.route_name not in known_routes:
                         leveling_subs += 1
                     total_gil_per_day += sub.gil_per_day
-                    total_ceruleum_per_day += tanks_per_day
-                    total_kits_per_day += kits_per_day
+                    # Skip supply totals for FCs excluded from supply calculations
+                    if fc_id_str not in supply_excluded_fc_ids:
+                        total_ceruleum_per_day += tanks_per_day
+                        total_kits_per_day += kits_per_day
 
                     # Track routes for this FC
                     if sub.route_name:
@@ -591,6 +599,9 @@ class FleetManager:
         limiting_resource = 'none'
 
         for fc_id, fc in fc_summaries.items():
+            # Skip FCs excluded from supply calculations
+            if fc_id in supply_excluded_fc_ids:
+                continue
             if fc['days_until_restock'] is not None and fc['days_until_restock'] < min_days_until_restock:
                 min_days_until_restock = fc['days_until_restock']
                 limiting_fc = fc['fc_name']

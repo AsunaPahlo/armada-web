@@ -14,7 +14,7 @@ from app.decorators import writable_required
 fc_config_bp = Blueprint('fc_config', __name__)
 
 # Settings that can be toggled via the API
-ALLOWED_SETTINGS = {'visible'}  # Add more settings here as needed
+ALLOWED_SETTINGS = {'visible', 'exclude_from_supply'}
 
 
 @fc_config_bp.route('/')
@@ -71,6 +71,7 @@ def index():
                 'world': char.world,
                 'sub_count': sub_count,
                 'visible': config.visible if config else True,
+                'exclude_from_supply': config.exclude_from_supply if config else False,
                 'house_address': housing.address if housing else None
             })
 
