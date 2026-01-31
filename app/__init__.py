@@ -92,6 +92,9 @@ def create_app(config_name=None):
         from app.models import daily_stats  # noqa: F401
         db.create_all()
 
+        # Run migrations for any new columns added to existing tables
+        fc_config._migrate_fc_config_columns()
+
         # Auto-populate DailyStats from historical data if empty
         from app.models.daily_stats import DailyStats
         if DailyStats.query.count() == 0:
