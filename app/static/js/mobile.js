@@ -430,9 +430,9 @@
             const ceruleum = fc.ceruleum || 0;
             const kits = fc.repair_kits || 0;
 
-            // Determine resource status (low < 1000, critical < 500)
-            const ceruleumClass = ceruleum < 500 ? 'critical' : ceruleum < 1000 ? 'low' : '';
-            const kitsClass = kits < 50 ? 'critical' : kits < 100 ? 'low' : '';
+            // Determine resource status
+            const ceruleumClass = ceruleum < 200 ? 'critical' : ceruleum < 600 ? 'low' : '';
+            const kitsClass = kits < 100 ? 'critical' : kits < 300 ? 'low' : '';
 
             resourcesHtml = `
                 <div class="fc-resources">
