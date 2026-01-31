@@ -332,9 +332,9 @@ class ArmadaDashboard {
                 <td class="text-end text-warning">${this.formatNumber(fc.gil_per_day)}</td>
                 <td class="text-center">
                     <small>
-                        <span class="text-info" title="Ceruleum">${fc.ceruleum}</span>
+                        <i class="bi bi-fuel-pump ${fc.ceruleum < 200 ? 'text-danger' : fc.ceruleum < 600 ? 'text-warning' : 'text-success'}"></i> <span class="text-info" title="Ceruleum">${fc.ceruleum}</span>
                         /
-                        <span class="text-info" title="Repair Kits">${fc.repair_kits}</span>
+                        <i class="bi bi-wrench ${fc.repair_kits < 100 ? 'text-danger' : fc.repair_kits < 300 ? 'text-warning' : 'text-success'}"></i> <span class="text-info" title="Repair Kits">${fc.repair_kits}</span>
                     </small>
                 </td>
                 <td class="text-center">
@@ -589,11 +589,11 @@ class ArmadaDashboard {
                                 <strong class="text-warning">${this.formatNumber(fc.gil_per_day)}</strong>
                             </div>
                             <div class="col-4 text-center">
-                                <small class="text-muted d-block">Ceruleum</small>
+                                <small class="text-muted d-block"><i class="bi bi-fuel-pump ${fc.ceruleum < 200 ? 'text-danger' : fc.ceruleum < 600 ? 'text-warning' : 'text-success'}"></i> Ceruleum</small>
                                 <strong class="text-info">${this.formatNumber(fc.ceruleum)}</strong>
                             </div>
                             <div class="col-4 text-center">
-                                <small class="text-muted d-block">Repair Kits</small>
+                                <small class="text-muted d-block"><i class="bi bi-wrench ${fc.repair_kits < 100 ? 'text-danger' : fc.repair_kits < 300 ? 'text-warning' : 'text-success'}"></i> Repair Kits</small>
                                 <strong class="text-info">${this.formatNumber(fc.repair_kits)}</strong>
                             </div>
                         </div>

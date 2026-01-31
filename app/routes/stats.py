@@ -515,6 +515,7 @@ def fc_detail(fc_id):
                     'gil': char.gil,
                     'salvage_value': getattr(char, 'salvage_value', 0),
                     'dive_credits': getattr(char, 'dive_credits', 0),
+                    'free_inventory_slots': getattr(char, 'free_inventory_slots', 0),
                     'unlocked_sectors': getattr(char, 'unlocked_sectors', []),
                     'inventory_parts': getattr(char, 'inventory_parts', {})
                 })

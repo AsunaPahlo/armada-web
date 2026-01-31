@@ -176,10 +176,13 @@
                         {% if char.salvage_value %}
                         <span class="text-info">{{ "{:,}".format(char.salvage_value) }}</span> <i class="bi bi-gem text-info" title="Salvage value"></i><br>
                         {% endif %}
-                        <span class="text-muted">{{ "{:,}".format(char.ceruleum) }}</span> <i class="bi bi-droplet-fill text-info"></i>
-                        <span class="text-muted ms-1">{{ "{:,}".format(char.repair_kits) }}</span> <i class="bi bi-wrench text-secondary"></i>
+                        <span class="text-muted">{{ "{:,}".format(char.ceruleum) }}</span> <i class="bi bi-fuel-pump {% if char.ceruleum < 200 %}text-danger{% elif char.ceruleum < 600 %}text-warning{% else %}text-success{% endif %}"></i>
+                        <span class="text-muted ms-1">{{ "{:,}".format(char.repair_kits) }}</span> <i class="bi bi-wrench {% if char.repair_kits < 100 %}text-danger{% elif char.repair_kits < 300 %}text-warning{% else %}text-success{% endif %}"></i>
                         {% if char.dive_credits %}
                         <span class="text-muted ms-1">{{ char.dive_credits }}</span> <i class="bi bi-ticket-perforated text-primary" title="Dive Credits"></i>
+                        {% endif %}
+                        {% if char.free_inventory_slots %}
+                        <span class="ms-1 {% if char.free_inventory_slots < 20 %}text-danger{% elif char.free_inventory_slots < 40 %}text-warning{% else %}text-success{% endif %}">{{ char.free_inventory_slots }}/140</span> <i class="bi bi-box {% if char.free_inventory_slots < 20 %}text-danger{% elif char.free_inventory_slots < 40 %}text-warning{% else %}text-success{% endif %}" title="Free Inventory Slots"></i>
                         {% endif %}
                     </div>
                 </div>
