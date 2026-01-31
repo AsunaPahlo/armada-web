@@ -304,14 +304,14 @@ class ActivityTracker:
         return changes_logged
 
     def _get_sector_names(self, sector_ids: set) -> list[str]:
-        """Get sector abbreviations for a set of sector IDs."""
+        """Get sector letter codes for a set of sector IDs."""
         try:
             from app.models.lumina import SubmarineExploration
             names = []
             for sector_id in sector_ids:
                 sector = SubmarineExploration.query.get(sector_id)
                 if sector:
-                    names.append(sector.abbreviation or sector.destination or str(sector_id))
+                    names.append(sector.location or sector.destination or str(sector_id))
                 else:
                     names.append(str(sector_id))
             return names
