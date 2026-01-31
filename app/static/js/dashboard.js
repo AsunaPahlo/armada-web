@@ -293,7 +293,8 @@ class ArmadaDashboard {
                 data-tags="${tagIds}"
                 data-tag-names="${tagNames}"
                 data-accounts="${fc.accounts ? fc.accounts.join(' ') : ''}"
-                data-notes="${fc.notes || ''}">
+                data-notes="${fc.notes || ''}"
+                data-world="${fc.world || ''}">
                 <td class="expand-toggle" style="cursor: pointer;">
                     <i class="bi ${isExpanded ? 'bi-chevron-down' : 'bi-chevron-right'}"></i>
                 </td>
@@ -554,7 +555,7 @@ class ArmadaDashboard {
             const tagNames = (fc.tags || []).map(t => t.name).join(' ');
             const charNames = (fc.characters || []).map(c => c.name).join(' ');
             return `
-            <div class="col-lg-6 col-xl-4 mb-4 fc-card-wrapper" data-tags="${tagIds}" data-tag-names="${tagNames}" data-characters="${charNames}" data-accounts="${fc.accounts ? fc.accounts.join(' ') : ''}" data-notes="${fc.notes || ''}">
+            <div class="col-lg-6 col-xl-4 mb-4 fc-card-wrapper" data-tags="${tagIds}" data-tag-names="${tagNames}" data-characters="${charNames}" data-accounts="${fc.accounts ? fc.accounts.join(' ') : ''}" data-notes="${fc.notes || ''}" data-world="${fc.world || ''}">
                 <div class="card fc-card" data-fc-id="${fcIdStr}">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <div>
