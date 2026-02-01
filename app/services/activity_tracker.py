@@ -27,6 +27,7 @@ class ActivityTracker:
 
     def __init__(self):
         self._initialized_fcs = set()  # Track FCs we've seen before
+        self._pending_removals = {}  # Track subs missing for 1 update: (fc_id, sub_name) -> sub_data
 
     def _build_state_map(self, accounts_data: list[dict]) -> dict:
         """
@@ -245,23 +246,35 @@ class ActivityTracker:
                 )
                 changes_logged += 1
 
-        # Check for removed submarines
+        # Check for removed submarines (with grace period - must be missing 2+ consecutive updates)
+        # First, clear pending removals for submarines that reappeared
+        reappeared = [key for key in self._pending_removals if key in new_state]
+        for key in reappeared:
+            del self._pending_removals[key]
+
+        # Check for submarines missing in this update
         for key, old_sub in old_state.items():
             fc_id, sub_name = key
             if key not in new_state:
-                # Submarine was removed
-                # Only log if we've seen this FC before (not first update)
+                # Only process if we've seen this FC before (not first update)
                 if fc_id in self._initialized_fcs:
-                    fc_name = fc_info.get(fc_id, f'FC-{fc_id}')
-                    ActivityLog.log_activity(
-                        fc_id=fc_id,
-                        fc_name=fc_name,
-                        activity_type=ActivityLog.TYPE_SUBMARINE_REMOVED,
-                        submarine_name=sub_name,
-                        character_name=old_sub.get('character'),
-                        old_value=old_sub.get('build')
-                    )
-                    changes_logged += 1
+                    if key in self._pending_removals:
+                        # Missing for 2+ updates - now log the removal
+                        fc_name = fc_info.get(fc_id, f'FC-{fc_id}')
+                        pending_sub = self._pending_removals[key]
+                        ActivityLog.log_activity(
+                            fc_id=fc_id,
+                            fc_name=fc_name,
+                            activity_type=ActivityLog.TYPE_SUBMARINE_REMOVED,
+                            submarine_name=sub_name,
+                            character_name=pending_sub.get('character'),
+                            old_value=pending_sub.get('build')
+                        )
+                        changes_logged += 1
+                        del self._pending_removals[key]
+                    else:
+                        # First time missing - add to pending, don't log yet
+                        self._pending_removals[key] = old_sub
 
         # Check for sector unlocks per FC
         for fc_id, new_fc_sectors in new_sectors.items():
