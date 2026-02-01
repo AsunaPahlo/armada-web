@@ -464,9 +464,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
 
-            // Re-initialize timestamp formatting if available
-            if (typeof formatTimestamps === 'function') {
-                formatTimestamps();
+            // Re-initialize timestamp formatting for new elements
+            if (typeof convertTimestampsToLocal === 'function') {
+                convertTimestampsToLocal();
             }
 
             // Update URL without reloading (for bookmarking/sharing)
