@@ -452,3 +452,8 @@ WORLD_TO_REGION = {
 def get_world_region(world: str) -> str:
     """Get the region for a world. Returns 'Unknown' if not found."""
     return WORLD_TO_REGION.get(world, 'Unknown')
+
+
+def get_worlds_for_region(region: str) -> set:
+    """Get all world names belonging to a region (NA, EU, JP, OCE)."""
+    return {world for world, r in WORLD_TO_REGION.items() if r == region.upper()}

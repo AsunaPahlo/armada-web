@@ -513,12 +513,14 @@ class StatsTracker:
             'repair_kits_used': s.repair_kits_used
         } for s in stats]
 
-    def calculate_summary_stats(self, days: int = 30) -> dict:
+    def calculate_summary_stats(self, days: int = 30, excluded_fc_ids=None, allowed_worlds=None) -> dict:
         """
         Calculate summary statistics.
 
         Args:
             days: Number of days to include (0 = all)
+            excluded_fc_ids: Set of FC IDs to exclude (from tag filters)
+            allowed_worlds: Set of world names to include (from region filters), or None for all
 
         Returns:
             Summary statistics dictionary
@@ -532,10 +534,15 @@ class StatsTracker:
         except Exception:
             hidden_fc_ids = set()
 
+        # Merge filter-excluded FCs with hidden FCs
+        all_excluded = hidden_fc_ids | (excluded_fc_ids or set())
+
         # Build base query with hidden FC filter
         base_query = Voyage.query
-        if hidden_fc_ids:
-            base_query = base_query.filter(~Voyage.fc_id.in_(hidden_fc_ids))
+        if all_excluded:
+            base_query = base_query.filter(~Voyage.fc_id.in_(all_excluded))
+        if allowed_worlds is not None:
+            base_query = base_query.filter(Voyage.world.in_(allowed_worlds))
 
         # Build base queries (days=0 means no time filter)
         if days > 0:

@@ -14,8 +14,46 @@ from app.services import get_fleet_manager
 
 stats_bp = Blueprint('stats', __name__)
 
+ALL_REGIONS = ['NA', 'EU', 'JP', 'OCE']
 
-def get_voyage_chart_data(days: int) -> dict:
+
+def resolve_filters(req):
+    """Parse filter query params and resolve to FC ID sets and world sets."""
+    from app.models.tag import FCTagAssignment, FCTag
+    from app.services.submarine_data import get_worlds_for_region
+
+    excluded_fc_ids = set()
+    allowed_worlds = None
+
+    # Parse exclude_tags param (comma-separated tag IDs)
+    exclude_tags_str = req.args.get('exclude_tags', '')
+    if exclude_tags_str:
+        tag_ids = [int(t) for t in exclude_tags_str.split(',') if t.strip().isdigit()]
+        if tag_ids:
+            assignments = FCTagAssignment.query.filter(
+                FCTagAssignment.tag_id.in_(tag_ids)
+            ).all()
+            excluded_fc_ids = {a.fc_id for a in assignments}
+
+    # Parse regions param (comma-separated region codes)
+    regions_str = req.args.get('regions', '')
+    if regions_str:
+        selected_regions = [r.strip().upper() for r in regions_str.split(',') if r.strip()]
+        if selected_regions and set(selected_regions) != set(ALL_REGIONS):
+            allowed_worlds = set()
+            for region in selected_regions:
+                if region in ALL_REGIONS:
+                    allowed_worlds.update(get_worlds_for_region(region))
+
+    # Get all tags for template rendering
+    all_tags = FCTag.query.order_by(FCTag.name).all()
+    exclude_tag_ids = [int(t) for t in exclude_tags_str.split(',') if t.strip().isdigit()] if exclude_tags_str else []
+    active_regions = [r.strip().upper() for r in regions_str.split(',') if r.strip()] if regions_str else list(ALL_REGIONS)
+
+    return excluded_fc_ids, allowed_worlds, all_tags, exclude_tag_ids, active_regions
+
+
+def get_voyage_chart_data(days: int, excluded_fc_ids=None, allowed_worlds=None) -> dict:
     """Get voyage data aggregated by date for charts."""
     now = datetime.utcnow()
 
@@ -26,10 +64,15 @@ def get_voyage_chart_data(days: int) -> dict:
     except Exception:
         hidden_fc_ids = set()
 
+    # Merge filter-excluded FCs with hidden FCs
+    all_excluded = hidden_fc_ids | (excluded_fc_ids or set())
+
     # Query voyages (days=0 means all history)
     query = Voyage.query
-    if hidden_fc_ids:
-        query = query.filter(~Voyage.fc_id.in_(hidden_fc_ids))
+    if all_excluded:
+        query = query.filter(~Voyage.fc_id.in_(all_excluded))
+    if allowed_worlds is not None:
+        query = query.filter(Voyage.world.in_(allowed_worlds))
     if days > 0:
         cutoff = now - timedelta(days=days)
         query = query.filter(Voyage.return_time >= cutoff)
@@ -174,32 +217,56 @@ def index():
     if days != 0:
         days = min(max(days, 1), 365)
 
-    summary = tracker.calculate_summary_stats(days=days)
+    # Resolve tag/region filters
+    excluded_fc_ids, allowed_worlds, all_tags, exclude_tag_ids, active_regions = resolve_filters(request)
+
+    summary = tracker.calculate_summary_stats(days=days, excluded_fc_ids=excluded_fc_ids, allowed_worlds=allowed_worlds)
     daily = tracker.get_daily_stats(days=days)
 
     # Get chart data
-    chart_data = get_voyage_chart_data(days)
+    chart_data = get_voyage_chart_data(days, excluded_fc_ids=excluded_fc_ids, allowed_worlds=allowed_worlds)
 
     # Get fleet data for region counts and supply info
     fleet = get_fleet_manager()
     fleet_data = fleet.get_dashboard_data()
     region_counts = fleet_data['summary'].get('region_counts', {})
 
+    # Filter fc_summaries by excluded FCs and allowed worlds
+    fc_summaries = fleet_data.get('fc_summaries', [])
+    if excluded_fc_ids:
+        fc_summaries = [fc for fc in fc_summaries if fc.get('fc_id') not in excluded_fc_ids]
+    if allowed_worlds is not None:
+        fc_summaries = [fc for fc in fc_summaries if fc.get('world') in allowed_worlds]
+
+    # Recompute fleet summary from filtered fc_summaries
+    filtered_summary = dict(fleet_data['summary'])
+    filtered_summary['fc_count'] = len(fc_summaries)
+    filtered_total_subs = sum(fc.get('total_subs', 0) for fc in fc_summaries)
+    filtered_leveling = sum(fc.get('leveling_subs', 0) for fc in fc_summaries)
+    filtered_summary['total_subs'] = filtered_total_subs
+    filtered_summary['total_gil_per_day'] = sum(fc.get('gil_per_day', 0) for fc in fc_summaries)
+    filtered_summary['farming_subs'] = filtered_total_subs - filtered_leveling
+    filtered_summary['leveling_subs'] = filtered_leveling
+
     # Get supply chart data
-    supply_data = get_supply_chart_data(fleet_data.get('fc_summaries', []))
+    supply_data = get_supply_chart_data(fc_summaries)
 
     # Get fleet composition data
-    fleet_chart_data = get_fleet_chart_data(fleet_data.get('fc_summaries', []))
+    fleet_chart_data = get_fleet_chart_data(fc_summaries)
 
     return render_template('stats.html',
                            summary=summary,
                            daily_stats=daily,
                            region_counts=region_counts,
-                           fleet_summary=fleet_data['summary'],
+                           fleet_summary=filtered_summary,
                            chart_data=chart_data,
                            supply_data=supply_data,
                            fleet_chart_data=fleet_chart_data,
-                           days=days)
+                           days=days,
+                           all_tags=all_tags,
+                           exclude_tag_ids=exclude_tag_ids,
+                           active_regions=active_regions,
+                           all_regions=ALL_REGIONS)
 
 
 @stats_bp.route('/voyages')
@@ -383,11 +450,16 @@ def profits():
     # Clamp timezone offset to valid range (-720 to +840 minutes)
     tz_offset = max(-720, min(840, tz_offset))
 
-    profit_data = profit_tracker.get_profit_summary(days=days, projection_days=projection_days, tz_offset_minutes=tz_offset)
+    # Resolve tag/region filters
+    excluded_fc_ids, allowed_worlds, all_tags, exclude_tag_ids, active_regions = resolve_filters(request)
 
     return render_template('profits.html',
                            days=days,
-                           projection_days=projection_days)
+                           projection_days=projection_days,
+                           all_tags=all_tags,
+                           exclude_tag_ids=exclude_tag_ids,
+                           active_regions=active_regions,
+                           all_regions=ALL_REGIONS)
 
 
 @stats_bp.route('/profits/data')
@@ -407,10 +479,15 @@ def profits_data():
     # Clamp timezone offset to valid range (-720 to +840 minutes)
     tz_offset = max(-720, min(840, tz_offset))
 
+    # Resolve tag/region filters
+    excluded_fc_ids, allowed_worlds, _, _, _ = resolve_filters(request)
+
     profit_data = profit_tracker.get_profit_summary(
         days=days,
         projection_days=projection_days,
-        tz_offset_minutes=tz_offset
+        tz_offset_minutes=tz_offset,
+        excluded_fc_ids=excluded_fc_ids,
+        allowed_worlds=allowed_worlds
     )
 
     return jsonify(profit_data)

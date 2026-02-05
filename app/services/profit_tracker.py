@@ -102,13 +102,16 @@ class ProfitTracker:
 
         return ceruleum_cost + kit_cost
 
-    def get_daily_profits(self, days: int = 30, tz_offset_minutes: int = 0) -> list[dict]:
+    def get_daily_profits(self, days: int = 30, tz_offset_minutes: int = 0,
+                          excluded_fc_ids=None, allowed_worlds=None) -> list[dict]:
         """
         Get daily profit data (income - costs).
 
         Args:
             days: Number of days to look back (0 = all)
             tz_offset_minutes: Client timezone offset in minutes (e.g., -480 for UTC+8, 480 for UTC-8)
+            excluded_fc_ids: Set of FC IDs to exclude (from tag filters)
+            allowed_worlds: Set of world names to include (from region filters), or None for all
 
         Returns:
             List of daily profit records with date, income, cost, profit
@@ -119,6 +122,9 @@ class ProfitTracker:
             hidden_fc_ids = get_hidden_fc_ids()
         except Exception:
             hidden_fc_ids = set()
+
+        # Merge filter-excluded FCs with hidden FCs
+        all_excluded = hidden_fc_ids | (excluded_fc_ids or set())
 
         # Convert timezone offset to hours for SQLite datetime modifier
         # JavaScript's getTimezoneOffset() returns positive for west of UTC, negative for east
@@ -141,9 +147,26 @@ class ProfitTracker:
             cutoff = datetime.utcnow() - timedelta(days=days)
             daily_query = daily_query.filter(VoyageLoot.captured_at >= cutoff)
 
-        # Exclude hidden FCs
-        if hidden_fc_ids:
-            daily_query = daily_query.filter(~VoyageLoot.fc_id.in_(hidden_fc_ids))
+        # Region filtering: resolve allowed_worlds to FC IDs since VoyageLoot has no world column
+        if allowed_worlds is not None:
+            try:
+                from app.services import get_fleet_manager
+                from app.services.submarine_data import get_world_region
+                fleet = get_fleet_manager()
+                accounts = fleet.get_data(force_refresh=False)
+                # Find FC IDs whose world is NOT in allowed_worlds
+                region_excluded_fc_ids = set()
+                for account in accounts:
+                    for char in account.characters:
+                        if char.world not in allowed_worlds and char.fc_id:
+                            region_excluded_fc_ids.add(str(char.fc_id))
+                all_excluded = all_excluded | region_excluded_fc_ids
+            except Exception:
+                pass
+
+        # Exclude hidden + filter-excluded FCs
+        if all_excluded:
+            daily_query = daily_query.filter(~VoyageLoot.fc_id.in_(all_excluded))
 
         daily_data = daily_query.group_by(
             local_date
@@ -261,7 +284,8 @@ class ProfitTracker:
 
         return projections
 
-    def get_profit_summary(self, days: int = 30, projection_days: int = 30, tz_offset_minutes: int = 0) -> dict:
+    def get_profit_summary(self, days: int = 30, projection_days: int = 30, tz_offset_minutes: int = 0,
+                           excluded_fc_ids=None, allowed_worlds=None) -> dict:
         """
         Get complete profit analysis with history, trend, and projections.
 
@@ -269,11 +293,14 @@ class ProfitTracker:
             days: Days of historical data (0 = all)
             projection_days: Days to project forward
             tz_offset_minutes: Client timezone offset in minutes
+            excluded_fc_ids: Set of FC IDs to exclude (from tag filters)
+            allowed_worlds: Set of world names to include (from region filters), or None for all
 
         Returns:
             Complete profit analysis dict
         """
-        daily_profits = self.get_daily_profits(days=days, tz_offset_minutes=tz_offset_minutes)
+        daily_profits = self.get_daily_profits(days=days, tz_offset_minutes=tz_offset_minutes,
+                                               excluded_fc_ids=excluded_fc_ids, allowed_worlds=allowed_worlds)
         trend = self.calculate_trend_line(daily_profits)
         projections = self.project_future_profits(daily_profits, trend, projection_days)
 

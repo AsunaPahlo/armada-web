@@ -45,7 +45,9 @@ class DailyStats(db.Model):
         """Get existing record or create new one for the given date/fc."""
         record = cls.query.filter_by(stats_date=stats_date, fc_id=fc_id).first()
         if not record:
-            record = cls(stats_date=stats_date, fc_id=fc_id)
+            record = cls(stats_date=stats_date, fc_id=fc_id,
+                         total_voyages=0, returned_voyages=0,
+                         total_gil=0, total_items=0)
             db.session.add(record)
         return record
 
