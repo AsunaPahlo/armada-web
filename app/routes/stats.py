@@ -53,9 +53,11 @@ def resolve_filters(req):
     return excluded_fc_ids, allowed_worlds, all_tags, exclude_tag_ids, active_regions
 
 
-def get_voyage_chart_data(days: int, excluded_fc_ids=None, allowed_worlds=None) -> dict:
+def get_voyage_chart_data(days: int, excluded_fc_ids=None, allowed_worlds=None, tz_offset_minutes: int = 0) -> dict:
     """Get voyage data aggregated by date for charts."""
     now = datetime.utcnow()
+    # Convert JS getTimezoneOffset() (positive = west of UTC) to a timedelta
+    tz_delta = timedelta(minutes=-tz_offset_minutes)
 
     # Get hidden FC IDs to exclude
     try:
@@ -88,7 +90,8 @@ def get_voyage_chart_data(days: int, excluded_fc_ids=None, allowed_worlds=None) 
     for v in voyages:
         is_returned = v.return_time <= now
 
-        date_str = v.return_time.strftime('%Y-%m-%d')
+        local_return = v.return_time + tz_delta
+        date_str = local_return.strftime('%Y-%m-%d')
         by_date[date_str]['total'] += 1
         if is_returned:
             by_date[date_str]['returned'] += 1
@@ -109,7 +112,7 @@ def get_voyage_chart_data(days: int, excluded_fc_ids=None, allowed_worlds=None) 
 
         # Hour tracking (when voyages return) - only returned voyages
         if is_returned:
-            hour = v.return_time.hour
+            hour = local_return.hour
             by_hour[hour] += 1
 
         # Submarine tracking
@@ -223,9 +226,6 @@ def index():
     summary = tracker.calculate_summary_stats(days=days, excluded_fc_ids=excluded_fc_ids, allowed_worlds=allowed_worlds)
     daily = tracker.get_daily_stats(days=days)
 
-    # Get chart data
-    chart_data = get_voyage_chart_data(days, excluded_fc_ids=excluded_fc_ids, allowed_worlds=allowed_worlds)
-
     # Get fleet data for region counts and supply info
     fleet = get_fleet_manager()
     fleet_data = fleet.get_dashboard_data()
@@ -259,7 +259,6 @@ def index():
                            daily_stats=daily,
                            region_counts=region_counts,
                            fleet_summary=filtered_summary,
-                           chart_data=chart_data,
                            supply_data=supply_data,
                            fleet_chart_data=fleet_chart_data,
                            days=days,
@@ -400,6 +399,42 @@ def api_loot_history():
     )
 
     return jsonify(history_data)
+
+
+@stats_bp.route('/api/voyage-chart')
+@login_required
+def api_voyage_chart():
+    """API endpoint for voyage chart data with timezone support."""
+    days = request.args.get('days', 30, type=int)
+    if days != 0:
+        days = min(max(days, 1), 365)
+
+    tz_offset = request.args.get('tz', 0, type=int)
+    tz_offset = max(-720, min(840, tz_offset))
+
+    excluded_fc_ids, allowed_worlds, _, _, _ = resolve_filters(request)
+
+    chart_data = get_voyage_chart_data(days, excluded_fc_ids=excluded_fc_ids,
+                                       allowed_worlds=allowed_worlds,
+                                       tz_offset_minutes=tz_offset)
+    return jsonify(chart_data)
+
+
+@stats_bp.route('/api/daily-totals')
+@login_required
+def api_daily_totals():
+    """API endpoint for daily gil/voyage totals with timezone support."""
+    from app.services.loot_tracker import loot_tracker
+
+    days = request.args.get('days', 30, type=int)
+    if days != 0:
+        days = min(max(days, 1), 365)
+
+    tz_offset = request.args.get('tz', 0, type=int)
+    tz_offset = max(-720, min(840, tz_offset))
+
+    daily_totals = loot_tracker.get_daily_totals(days=days, tz_offset_minutes=tz_offset)
+    return jsonify({'daily_totals': daily_totals})
 
 
 @stats_bp.route('/api/top-routes')

@@ -586,6 +586,42 @@ class LootTracker:
             ]
         }
 
+    def get_daily_totals(self, days: int = 30, tz_offset_minutes: int = 0) -> list:
+        """Get daily gil/voyage totals with timezone adjustment for charts."""
+        from sqlalchemy import func, and_
+
+        try:
+            from app.models.fc_config import get_hidden_fc_ids
+            hidden_fc_ids = get_hidden_fc_ids()
+        except Exception:
+            hidden_fc_ids = set()
+
+        filters = []
+        if days > 0:
+            cutoff = datetime.utcnow() - timedelta(days=days)
+            filters.append(VoyageLoot.captured_at >= cutoff)
+        if hidden_fc_ids:
+            filters.append(~VoyageLoot.fc_id.in_(hidden_fc_ids))
+
+        tz_offset_hours = -tz_offset_minutes / 60
+        tz_modifier = f'{tz_offset_hours:+.1f} hours'
+        local_datetime = func.datetime(VoyageLoot.captured_at, tz_modifier)
+        local_date = func.date(local_datetime)
+
+        daily_query = db.session.query(
+            local_date.label('date'),
+            func.count(VoyageLoot.id).label('voyages'),
+            func.sum(VoyageLoot.total_gil_value).label('total_gil')
+        )
+        if filters:
+            daily_query = daily_query.filter(and_(*filters))
+        daily_totals = daily_query.group_by(local_date).order_by(local_date).all()
+
+        return [
+            {'date': str(d.date), 'voyages': d.voyages, 'total_gil': d.total_gil}
+            for d in daily_totals
+        ]
+
     def get_top_routes(self, days: int = 30, known_only: bool = True) -> list:
         """
         Get top routes by average gil per 24 hours.

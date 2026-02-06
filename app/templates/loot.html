@@ -369,75 +369,86 @@ const darkThemeOptions = {
     }
 };
 
-// 1. Gil Over Time Chart
-const gilCtx = document.getElementById('gil-chart').getContext('2d');
-const dailyTotals = summary.daily_totals || [];
-const last14Days = dailyTotals.slice(-14);
+// 1. Gil Over Time Chart (fetched with client timezone)
+(function() {
+    const gilCtx = document.getElementById('gil-chart').getContext('2d');
+    const currentDaysForChart = {{ days }};
+    const apiUrl = new URL('{{ url_for("stats.api_daily_totals") }}', window.location.origin);
+    apiUrl.searchParams.set('days', currentDaysForChart);
+    apiUrl.searchParams.set('tz', new Date().getTimezoneOffset());
 
-new Chart(gilCtx, {
-    type: 'line',
-    data: {
-        labels: last14Days.map(d => d.date.slice(5)), // MM-DD format
-        datasets: [{
-            label: 'Gil',
-            data: last14Days.map(d => d.total_gil),
-            borderColor: 'rgba(237, 177, 54, 1)',
-            backgroundColor: 'rgba(237, 177, 54, 0.2)',
-            fill: true,
-            tension: 0.3,
-            yAxisID: 'y'
-        }, {
-            label: 'Voyages',
-            data: last14Days.map(d => d.voyages),
-            borderColor: 'rgba(99, 179, 237, 1)',
-            backgroundColor: 'rgba(99, 179, 237, 0.2)',
-            fill: false,
-            tension: 0.3,
-            yAxisID: 'y1'
-        }]
-    },
-    options: {
-        ...darkThemeOptions,
-        scales: {
-            y: {
-                type: 'linear',
-                display: true,
-                position: 'left',
-                beginAtZero: true,
-                grid: { color: 'rgba(255,255,255,0.1)' },
-                ticks: {
-                    color: 'rgba(237, 177, 54, 0.8)',
-                    callback: function(value) {
-                        return value >= 1000000 ? (value / 1000000).toFixed(1) + 'M' :
-                               value >= 1000 ? (value / 1000).toFixed(0) + 'K' : value;
-                    }
+    fetch(apiUrl)
+        .then(response => response.json())
+        .then(data => {
+            const dailyTotals = data.daily_totals || [];
+            const last14Days = dailyTotals.slice(-14);
+
+            new Chart(gilCtx, {
+                type: 'line',
+                data: {
+                    labels: last14Days.map(d => d.date.slice(5)),
+                    datasets: [{
+                        label: 'Gil',
+                        data: last14Days.map(d => d.total_gil),
+                        borderColor: 'rgba(237, 177, 54, 1)',
+                        backgroundColor: 'rgba(237, 177, 54, 0.2)',
+                        fill: true,
+                        tension: 0.3,
+                        yAxisID: 'y'
+                    }, {
+                        label: 'Voyages',
+                        data: last14Days.map(d => d.voyages),
+                        borderColor: 'rgba(99, 179, 237, 1)',
+                        backgroundColor: 'rgba(99, 179, 237, 0.2)',
+                        fill: false,
+                        tension: 0.3,
+                        yAxisID: 'y1'
+                    }]
                 },
-                title: {
-                    display: true,
-                    text: 'Gil',
-                    color: 'rgba(237, 177, 54, 0.8)'
+                options: {
+                    ...darkThemeOptions,
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            beginAtZero: true,
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: {
+                                color: 'rgba(237, 177, 54, 0.8)',
+                                callback: function(value) {
+                                    return value >= 1000000 ? (value / 1000000).toFixed(1) + 'M' :
+                                           value >= 1000 ? (value / 1000).toFixed(0) + 'K' : value;
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Gil',
+                                color: 'rgba(237, 177, 54, 0.8)'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            beginAtZero: true,
+                            grid: { drawOnChartArea: false },
+                            ticks: { color: 'rgba(99, 179, 237, 0.8)' },
+                            title: {
+                                display: true,
+                                text: 'Voyages',
+                                color: 'rgba(99, 179, 237, 0.8)'
+                            }
+                        },
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: { color: 'rgba(255,255,255,0.7)' }
+                        }
+                    }
                 }
-            },
-            y1: {
-                type: 'linear',
-                display: true,
-                position: 'right',
-                beginAtZero: true,
-                grid: { drawOnChartArea: false },
-                ticks: { color: 'rgba(99, 179, 237, 0.8)' },
-                title: {
-                    display: true,
-                    text: 'Voyages',
-                    color: 'rgba(99, 179, 237, 0.8)'
-                }
-            },
-            x: {
-                grid: { color: 'rgba(255,255,255,0.1)' },
-                ticks: { color: 'rgba(255,255,255,0.7)' }
-            }
-        }
-    }
-});
+            });
+        });
+})();
 
 // 2. Top Routes Chart (normalized to 24 hours)
 const routesCtx = document.getElementById('routes-chart').getContext('2d');
