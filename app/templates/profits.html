@@ -16,10 +16,10 @@
     <h2><i class="bi bi-graph-up-arrow"></i> Profit Analysis</h2>
     <div class="d-flex gap-2">
         <div class="btn-group" id="day-filter-buttons">
-            <a href="{{ url_for('stats.profits', days=7) }}" class="btn btn-outline-secondary {% if days == 7 %}active{% endif %}" data-days="7">7 Days</a>
-            <a href="{{ url_for('stats.profits', days=30) }}" class="btn btn-outline-secondary {% if days == 30 %}active{% endif %}" data-days="30">30 Days</a>
-            <a href="{{ url_for('stats.profits', days=90) }}" class="btn btn-outline-secondary {% if days == 90 %}active{% endif %}" data-days="90">90 Days</a>
-            <a href="{{ url_for('stats.profits', days=0) }}" class="btn btn-outline-secondary {% if days == 0 %}active{% endif %}" data-days="0">All</a>
+            <a href="#" class="btn btn-outline-secondary {% if days == 7 %}active{% endif %}" data-days="7">7 Days</a>
+            <a href="#" class="btn btn-outline-secondary {% if days == 30 %}active{% endif %}" data-days="30">30 Days</a>
+            <a href="#" class="btn btn-outline-secondary {% if days == 90 %}active{% endif %}" data-days="90">90 Days</a>
+            <a href="#" class="btn btn-outline-secondary {% if days == 0 %}active{% endif %}" data-days="0">All</a>
         </div>
         <a href="{{ url_for('stats.profit_settings') }}" class="btn btn-outline-primary" title="Configure material costs">
             <i class="bi bi-gear"></i>
@@ -236,14 +236,14 @@
 <script>
 (function() {
     const clientTz = new Date().getTimezoneOffset();
-    const currentDays = {{ days }};
-    const projectionDays = {{ projection_days }};
     const allRegions = {{ all_regions|tojson }};
     const STORAGE_KEY = 'armada_stats_filters';
 
-    // === Filter state ===
+    // Mutable filter state
+    let currentDays = {{ days }};
     let excludeTagIds = {{ exclude_tag_ids|tojson }};
     let activeRegions = {{ active_regions|tojson }};
+    let profitChart = null;
 
     function getFiltersFromStorage() {
         try {
@@ -252,198 +252,172 @@
         } catch(e) { return {}; }
     }
 
-    function saveFiltersToStorage(filters) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(filters));
+    function saveFiltersToStorage() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            excludeTags: excludeTagIds,
+            regions: activeRegions,
+            days: currentDays
+        }));
     }
 
-    function buildPageUrl(days, excludeTags, regions) {
-        const url = new URL(window.location.pathname, window.location.origin);
-        url.searchParams.set('days', days);
-        url.searchParams.set('tz', clientTz);
-        if (excludeTags.length > 0) {
-            url.searchParams.set('exclude_tags', excludeTags.join(','));
-        }
-        if (regions.length > 0 && regions.length < allRegions.length) {
-            url.searchParams.set('regions', regions.join(','));
-        }
-        return url.toString();
-    }
-
-    // On first load with no URL filter params, try to restore from localStorage
+    // On first load with no URL filter params, restore from localStorage
     const urlParams = new URLSearchParams(window.location.search);
-    if (!urlParams.has('exclude_tags') && !urlParams.has('regions')) {
+    if (!urlParams.has('exclude_tags') && !urlParams.has('regions') && !urlParams.has('days')) {
         const stored = getFiltersFromStorage();
-        if (stored.excludeTags?.length > 0 || (stored.regions?.length > 0 && stored.regions.length < allRegions.length)) {
-            window.location.href = buildPageUrl(currentDays, stored.excludeTags || [], stored.regions || allRegions);
-            return;
+        if (stored.excludeTags) excludeTagIds = stored.excludeTags;
+        if (stored.regions && stored.regions.length > 0) activeRegions = stored.regions;
+        if (stored.days !== undefined) currentDays = stored.days;
+    }
+
+    saveFiltersToStorage();
+
+    // === UI sync ===
+    function updateFilterUI() {
+        // Day buttons
+        document.querySelectorAll('#day-filter-buttons a').forEach(link => {
+            const linkDays = parseInt(link.getAttribute('data-days'));
+            link.classList.toggle('active', linkDays === currentDays);
+        });
+        // Tag buttons
+        document.querySelectorAll('.filter-tag-btn').forEach(btn => {
+            const tagId = parseInt(btn.getAttribute('data-tag-id'));
+            const excluded = excludeTagIds.includes(tagId);
+            btn.classList.toggle('active', excluded);
+            btn.style.opacity = excluded ? '0.5' : '';
+            btn.style.textDecoration = excluded ? 'line-through' : '';
+        });
+        // Region buttons
+        document.querySelectorAll('.filter-region-btn').forEach(btn => {
+            const region = btn.getAttribute('data-region');
+            const isActive = activeRegions.includes(region);
+            btn.classList.toggle('btn-outline-light', isActive);
+            btn.classList.toggle('btn-outline-secondary', !isActive);
+            btn.style.opacity = isActive ? '' : '0.4';
+        });
+        // Clear button visibility
+        const clearBtn = document.getElementById('clear-filters-btn');
+        if (clearBtn) {
+            const hasFilters = excludeTagIds.length > 0 || activeRegions.length < allRegions.length;
+            clearBtn.style.display = hasFilters ? '' : 'none';
         }
     }
 
-    // Save current state to localStorage
-    saveFiltersToStorage({ excludeTags: excludeTagIds, regions: activeRegions });
+    // === Data fetch ===
+    function fetchAndRender() {
+        const apiUrl = new URL('{{ url_for("stats.profits_data") }}', window.location.origin);
+        apiUrl.searchParams.set('days', currentDays);
+        apiUrl.searchParams.set('projection', {{ projection_days }});
+        apiUrl.searchParams.set('tz', clientTz);
+        if (excludeTagIds.length > 0) {
+            apiUrl.searchParams.set('exclude_tags', excludeTagIds.join(','));
+        }
+        if (activeRegions.length > 0 && activeRegions.length < allRegions.length) {
+            apiUrl.searchParams.set('regions', activeRegions.join(','));
+        }
 
-    // Update day filter links to include timezone and filter parameters
-    document.querySelectorAll('#day-filter-buttons a').forEach(link => {
-        const linkDays = link.getAttribute('data-days');
-        link.href = buildPageUrl(linkDays, excludeTagIds, activeRegions);
-    });
-
-    // Tag exclusion buttons
-    document.querySelectorAll('.filter-tag-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const tagId = parseInt(this.getAttribute('data-tag-id'));
-            const idx = excludeTagIds.indexOf(tagId);
-            if (idx >= 0) {
-                excludeTagIds.splice(idx, 1);
-            } else {
-                excludeTagIds.push(tagId);
-            }
-            saveFiltersToStorage({ excludeTags: excludeTagIds, regions: activeRegions });
-            window.location.href = buildPageUrl(currentDays, excludeTagIds, activeRegions);
-        });
-    });
-
-    // Region filter buttons
-    document.querySelectorAll('.filter-region-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const region = this.getAttribute('data-region');
-            const idx = activeRegions.indexOf(region);
-            if (idx >= 0 && activeRegions.length > 1) {
-                activeRegions.splice(idx, 1);
-            } else if (idx < 0) {
-                activeRegions.push(region);
-            }
-            saveFiltersToStorage({ excludeTags: excludeTagIds, regions: activeRegions });
-            window.location.href = buildPageUrl(currentDays, excludeTagIds, activeRegions);
-        });
-    });
-
-    // Clear filters button
-    const clearBtn = document.getElementById('clear-filters-btn');
-    if (clearBtn) {
-        clearBtn.addEventListener('click', function() {
-            excludeTagIds = [];
-            activeRegions = allRegions.slice();
-            saveFiltersToStorage({ excludeTags: [], regions: allRegions });
-            window.location.href = buildPageUrl(currentDays, [], allRegions);
-        });
-    }
-
-    // === Fetch profit data with timezone and filters ===
-    const apiUrl = new URL('{{ url_for("stats.profits_data") }}', window.location.origin);
-    apiUrl.searchParams.set('days', currentDays);
-    apiUrl.searchParams.set('projection', projectionDays);
-    apiUrl.searchParams.set('tz', clientTz);
-    if (excludeTagIds.length > 0) {
-        apiUrl.searchParams.set('exclude_tags', excludeTagIds.join(','));
-    }
-    if (activeRegions.length > 0 && activeRegions.length < allRegions.length) {
-        apiUrl.searchParams.set('regions', activeRegions.join(','));
-    }
-
-    let profitChart = null;
-
-    fetch(apiUrl)
-        .then(response => response.json())
-        .then(profitData => {
-            // Populate summary cards
-            document.getElementById('total-net-profit').textContent =
-                profitData.summary.total_net_profit.toLocaleString();
-            document.getElementById('avg-daily-profit').textContent =
-                profitData.summary.avg_daily_profit.toLocaleString();
-            document.getElementById('profit-margin').textContent =
-                profitData.summary.profit_margin_pct + '%';
-
-            // Trend icon and value
-            const trendIcon = document.getElementById('trend-icon');
-            const dailyTrend = document.getElementById('daily-trend');
-            const trendChange = profitData.summary.trend_daily_change;
-
-            if (profitData.summary.trend_direction === 'up') {
-                trendIcon.className = 'bi bi-arrow-up-right fs-2 text-success me-2';
-                dailyTrend.className = 'mb-0 text-success';
-            } else if (profitData.summary.trend_direction === 'down') {
-                trendIcon.className = 'bi bi-arrow-down-right fs-2 text-danger me-2';
-                dailyTrend.className = 'mb-0 text-danger';
-            } else {
-                trendIcon.className = 'bi bi-arrow-right fs-2 text-muted me-2';
-                dailyTrend.className = 'mb-0';
-            }
-            dailyTrend.textContent = (trendChange >= 0 ? '+' : '') + trendChange.toLocaleString();
-
-            document.getElementById('projected-profit').textContent =
-                profitData.summary.projected_30d_profit.toLocaleString();
-
-            // Income vs Costs breakdown
-            document.getElementById('gross-income').textContent =
-                profitData.summary.total_gross_income.toLocaleString();
-            document.getElementById('material-costs').textContent =
-                profitData.summary.total_material_cost.toLocaleString();
-            document.getElementById('net-profit').textContent =
-                profitData.summary.total_net_profit.toLocaleString();
-
-            // Progress bar
-            const profitPct = profitData.summary.profit_margin_pct;
-            const costPct = (100 - profitPct).toFixed(1);
-            document.getElementById('profit-progress').innerHTML = `
-                <div class="progress-bar bg-success" role="progressbar" style="width: ${profitPct}%">
-                    Profit ${profitPct}%
-                </div>
-                <div class="progress-bar bg-danger" role="progressbar" style="width: ${costPct}%">
-                    Costs ${costPct}%
-                </div>
-            `;
-
-            // Cost configuration
-            document.getElementById('ceruleum-price').textContent =
-                profitData.costs.ceruleum_price_per_stack.toLocaleString() + ' gil';
-            document.getElementById('ceruleum-per-voyage').textContent =
-                profitData.costs.ceruleum_per_voyage + ' tanks';
-            document.getElementById('repair-kit-price').textContent =
-                profitData.costs.repair_kit_price_per_stack.toLocaleString() + ' gil';
-            document.getElementById('kits-per-voyage').textContent =
-                profitData.costs.kits_per_voyage + ' kits';
-            document.getElementById('avg-daily-income').textContent =
-                profitData.summary.avg_daily_income.toLocaleString();
-            document.getElementById('avg-daily-cost').textContent =
-                profitData.summary.avg_daily_cost.toLocaleString();
-
-            // Trend analysis
-            document.getElementById('data-points').textContent = profitData.actual_days + ' days';
-
-            const trendSlope = document.getElementById('trend-slope');
-            const slope = profitData.trend.slope;
-            trendSlope.textContent = (slope >= 0 ? '+' : '') + Math.round(slope).toLocaleString() + ' gil/day';
-            if (slope > 0) {
-                trendSlope.className = 'text-success';
-            } else if (slope < 0) {
-                trendSlope.className = 'text-danger';
-            }
-
-            const rSquared = profitData.summary.r_squared;
-            document.getElementById('r-squared').textContent = rSquared;
-            let rSquaredLabel = 'Weak fit';
-            if (rSquared >= 0.7) {
-                rSquaredLabel = 'Strong fit';
-            } else if (rSquared >= 0.4) {
-                rSquaredLabel = 'Moderate fit';
-            }
-            document.getElementById('r-squared-label').textContent = rSquaredLabel;
-
-            document.getElementById('total-voyages').textContent =
-                profitData.summary.total_voyages.toLocaleString();
-
-            // Render chart
-            renderChart(profitData);
-        })
-        .catch(error => {
-            console.error('Error fetching profit data:', error);
-            document.querySelectorAll('.placeholder').forEach(el => {
-                el.textContent = 'Error';
-                el.classList.remove('placeholder');
+        fetch(apiUrl)
+            .then(r => r.json())
+            .then(profitData => {
+                updateSummary(profitData);
+                renderChart(profitData);
+            })
+            .catch(error => {
+                console.error('Error fetching profit data:', error);
+                document.querySelectorAll('.placeholder').forEach(el => {
+                    el.textContent = 'Error';
+                    el.classList.remove('placeholder');
+                });
             });
-        });
+    }
 
+    function updateSummary(profitData) {
+        // Summary cards
+        document.getElementById('total-net-profit').textContent =
+            profitData.summary.total_net_profit.toLocaleString();
+        document.getElementById('avg-daily-profit').textContent =
+            profitData.summary.avg_daily_profit.toLocaleString();
+        document.getElementById('profit-margin').textContent =
+            profitData.summary.profit_margin_pct + '%';
+
+        const trendIcon = document.getElementById('trend-icon');
+        const dailyTrend = document.getElementById('daily-trend');
+        const trendChange = profitData.summary.trend_daily_change;
+
+        if (profitData.summary.trend_direction === 'up') {
+            trendIcon.className = 'bi bi-arrow-up-right fs-2 text-success me-2';
+            dailyTrend.className = 'mb-0 text-success';
+        } else if (profitData.summary.trend_direction === 'down') {
+            trendIcon.className = 'bi bi-arrow-down-right fs-2 text-danger me-2';
+            dailyTrend.className = 'mb-0 text-danger';
+        } else {
+            trendIcon.className = 'bi bi-arrow-right fs-2 text-muted me-2';
+            dailyTrend.className = 'mb-0';
+        }
+        dailyTrend.textContent = (trendChange >= 0 ? '+' : '') + trendChange.toLocaleString();
+
+        document.getElementById('projected-profit').textContent =
+            profitData.summary.projected_30d_profit.toLocaleString();
+
+        // Income vs Costs
+        document.getElementById('gross-income').textContent =
+            profitData.summary.total_gross_income.toLocaleString();
+        document.getElementById('material-costs').textContent =
+            profitData.summary.total_material_cost.toLocaleString();
+        document.getElementById('net-profit').textContent =
+            profitData.summary.total_net_profit.toLocaleString();
+
+        const profitPct = profitData.summary.profit_margin_pct;
+        const costPct = (100 - profitPct).toFixed(1);
+        document.getElementById('profit-progress').innerHTML = `
+            <div class="progress-bar bg-success" role="progressbar" style="width: ${profitPct}%">
+                Profit ${profitPct}%
+            </div>
+            <div class="progress-bar bg-danger" role="progressbar" style="width: ${costPct}%">
+                Costs ${costPct}%
+            </div>
+        `;
+
+        // Cost configuration
+        document.getElementById('ceruleum-price').textContent =
+            profitData.costs.ceruleum_price_per_stack.toLocaleString() + ' gil';
+        document.getElementById('ceruleum-per-voyage').textContent =
+            profitData.costs.ceruleum_per_voyage + ' tanks';
+        document.getElementById('repair-kit-price').textContent =
+            profitData.costs.repair_kit_price_per_stack.toLocaleString() + ' gil';
+        document.getElementById('kits-per-voyage').textContent =
+            profitData.costs.kits_per_voyage + ' kits';
+        document.getElementById('avg-daily-income').textContent =
+            profitData.summary.avg_daily_income.toLocaleString();
+        document.getElementById('avg-daily-cost').textContent =
+            profitData.summary.avg_daily_cost.toLocaleString();
+
+        // Trend analysis
+        document.getElementById('data-points').textContent = profitData.actual_days + ' days';
+
+        const trendSlope = document.getElementById('trend-slope');
+        const slope = profitData.trend.slope;
+        trendSlope.textContent = (slope >= 0 ? '+' : '') + Math.round(slope).toLocaleString() + ' gil/day';
+        if (slope > 0) {
+            trendSlope.className = 'text-success';
+        } else if (slope < 0) {
+            trendSlope.className = 'text-danger';
+        }
+
+        const rSquared = profitData.summary.r_squared;
+        document.getElementById('r-squared').textContent = rSquared;
+        let rSquaredLabel = 'Weak fit';
+        if (rSquared >= 0.7) {
+            rSquaredLabel = 'Strong fit';
+        } else if (rSquared >= 0.4) {
+            rSquaredLabel = 'Moderate fit';
+        }
+        document.getElementById('r-squared-label').textContent = rSquaredLabel;
+
+        document.getElementById('total-voyages').textContent =
+            profitData.summary.total_voyages.toLocaleString();
+    }
+
+    // === Chart ===
     function renderChart(profitData) {
         const dailyProfits = profitData.daily_profits || [];
         const trendPoints = profitData.trend.trend_points || [];
@@ -453,17 +427,17 @@
         const cumulativeProfitData = [];
         const cumulativeTrendData = [];
         const cumulativeProjectionData = [];
+        const dailyProfitValues = [];
 
         let runningTotal = 0;
         let runningTrendTotal = 0;
-
         const showTrendLine = dailyProfits.length >= 7;
 
-        // Add historical data (cumulative)
         dailyProfits.forEach((d, i) => {
-            allLabels.push(d.date.slice(5)); // MM-DD format
+            allLabels.push(d.date.slice(5));
             runningTotal += d.net_profit;
             cumulativeProfitData.push(runningTotal);
+            dailyProfitValues.push(d.net_profit);
 
             if (showTrendLine && trendPoints[i]) {
                 runningTrendTotal += trendPoints[i].value;
@@ -474,26 +448,26 @@
             cumulativeProjectionData.push(null);
         });
 
-        // Connect projection to last actual data point
         if (dailyProfits.length > 0 && projections.length > 0) {
             cumulativeProjectionData[dailyProfits.length - 1] = runningTotal;
         }
 
         const avgDailyProfit = profitData.summary.avg_daily_profit || 0;
-
-        // Add projection data
         let projectionRunningTotal = runningTotal;
-        projections.forEach((p, i) => {
+        projections.forEach(p => {
             allLabels.push(p.date.slice(5));
             cumulativeProfitData.push(null);
             cumulativeTrendData.push(null);
-
             projectionRunningTotal += avgDailyProfit;
             cumulativeProjectionData.push(projectionRunningTotal);
+            dailyProfitValues.push(null);
         });
 
-        const ctx = document.getElementById('profit-chart').getContext('2d');
+        if (profitChart) {
+            profitChart.destroy();
+        }
 
+        const ctx = document.getElementById('profit-chart').getContext('2d');
         profitChart = new Chart(ctx, {
             type: 'line',
             data: {
@@ -548,7 +522,12 @@
                             label: function(context) {
                                 const value = context.raw;
                                 if (value === null) return null;
-                                return context.dataset.label + ': ' + value.toLocaleString() + ' gil';
+                                const lines = [context.dataset.label + ': ' + value.toLocaleString() + ' gil'];
+                                if (context.datasetIndex === 0 && dailyProfitValues[context.dataIndex] != null) {
+                                    const daily = dailyProfitValues[context.dataIndex];
+                                    lines.push('  Daily: ' + (daily >= 0 ? '+' : '') + daily.toLocaleString() + ' gil');
+                                }
+                                return lines;
                             }
                         }
                     },
@@ -598,6 +577,62 @@
             }
         });
     }
+
+    // === Event handlers ===
+    document.querySelectorAll('#day-filter-buttons a').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            currentDays = parseInt(this.getAttribute('data-days'));
+            saveFiltersToStorage();
+            updateFilterUI();
+            fetchAndRender();
+        });
+    });
+
+    document.querySelectorAll('.filter-tag-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const tagId = parseInt(this.getAttribute('data-tag-id'));
+            const idx = excludeTagIds.indexOf(tagId);
+            if (idx >= 0) {
+                excludeTagIds.splice(idx, 1);
+            } else {
+                excludeTagIds.push(tagId);
+            }
+            saveFiltersToStorage();
+            updateFilterUI();
+            fetchAndRender();
+        });
+    });
+
+    document.querySelectorAll('.filter-region-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const region = this.getAttribute('data-region');
+            const idx = activeRegions.indexOf(region);
+            if (idx >= 0 && activeRegions.length > 1) {
+                activeRegions.splice(idx, 1);
+            } else if (idx < 0) {
+                activeRegions.push(region);
+            }
+            saveFiltersToStorage();
+            updateFilterUI();
+            fetchAndRender();
+        });
+    });
+
+    const clearBtn = document.getElementById('clear-filters-btn');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function() {
+            excludeTagIds = [];
+            activeRegions = allRegions.slice();
+            saveFiltersToStorage();
+            updateFilterUI();
+            fetchAndRender();
+        });
+    }
+
+    // === Initial load ===
+    updateFilterUI();
+    fetchAndRender();
 })();
 </script>
 {% endblock %}

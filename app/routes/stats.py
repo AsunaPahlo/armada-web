@@ -472,28 +472,16 @@ def loot_details(loot_id: int):
 @login_required
 def profits():
     """Profit analysis and projections page."""
-    from app.services.profit_tracker import profit_tracker
+    from app.models.tag import FCTag
 
-    days = request.args.get('days', 30, type=int)
-    projection_days = request.args.get('projection', 30, type=int)
-    tz_offset = request.args.get('tz', 0, type=int)  # Timezone offset in minutes
-
-    # Clamp values
-    if days != 0:
-        days = min(max(days, 1), 365)
-    projection_days = min(max(projection_days, 7), 90)
-    # Clamp timezone offset to valid range (-720 to +840 minutes)
-    tz_offset = max(-720, min(840, tz_offset))
-
-    # Resolve tag/region filters
-    excluded_fc_ids, allowed_worlds, all_tags, exclude_tag_ids, active_regions = resolve_filters(request)
+    all_tags = FCTag.query.order_by(FCTag.name).all()
 
     return render_template('profits.html',
-                           days=days,
-                           projection_days=projection_days,
+                           days=30,
+                           projection_days=30,
                            all_tags=all_tags,
-                           exclude_tag_ids=exclude_tag_ids,
-                           active_regions=active_regions,
+                           exclude_tag_ids=[],
+                           active_regions=list(ALL_REGIONS),
                            all_regions=ALL_REGIONS)
 
 

@@ -11,7 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.utils.logging import setup_logging, get_logger
 
-__version__ = '1.0.0.12'
+__version__ = '1.0.0.13'
 
 # Set up logging before anything else
 setup_logging()
