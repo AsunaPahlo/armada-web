@@ -43,6 +43,10 @@ class ActivityTracker:
                 fc_id = str(char.get('fc_id', ''))
                 char_name = char.get('name', '')
 
+                # Skip characters with no valid FC ID
+                if not fc_id or fc_id == '0':
+                    continue
+
                 for sub in char.get('submarines', []):
                     sub_name = sub.get('name', '')
                     if not sub_name:
@@ -116,6 +120,10 @@ class ActivityTracker:
         for account in accounts_data:
             for char in account.get('characters', []):
                 fc_id = str(char.get('fc_id', ''))
+
+                if not fc_id or fc_id == '0':
+                    continue
+
                 unlocked = set(char.get('unlocked_sectors', []))
 
                 if fc_id not in fc_sectors:
@@ -136,6 +144,9 @@ class ActivityTracker:
         for account in accounts_data:
             for char in account.get('characters', []):
                 fc_id = str(char.get('fc_id', ''))
+
+                if not fc_id or fc_id == '0':
+                    continue
 
                 if fc_id not in fc_subs:
                     fc_subs[fc_id] = set()
@@ -170,7 +181,8 @@ class ActivityTracker:
             for account in new_data:
                 for char in account.get('characters', []):
                     fc_id = str(char.get('fc_id', ''))
-                    self._initialized_fcs.add(fc_id)
+                    if fc_id and fc_id != '0':
+                        self._initialized_fcs.add(fc_id)
             return 0
 
         changes_logged = 0
@@ -185,6 +197,13 @@ class ActivityTracker:
         old_sectors = self._get_unlocked_sectors(old_data)
         new_sectors = self._get_unlocked_sectors(new_data)
 
+        # Clear pending removals for submarines that reappeared (must happen before add detection)
+        reappeared = set()
+        for key in list(self._pending_removals.keys()):
+            if key in new_state:
+                reappeared.add(key)
+                del self._pending_removals[key]
+
         # Track changes per submarine
         for key, new_sub in new_state.items():
             fc_id, sub_name = key
@@ -192,6 +211,11 @@ class ActivityTracker:
             old_sub = old_state.get(key)
 
             if not old_sub:
+                # Submarine not in previous update's state
+                # If it was pending removal, this is a reappearance - not a genuinely new sub
+                if key in reappeared:
+                    continue
+
                 # New submarine appeared
                 # Only log if we've seen this FC before (not first update)
                 if fc_id in self._initialized_fcs:
@@ -247,10 +271,7 @@ class ActivityTracker:
                 changes_logged += 1
 
         # Check for removed submarines (with grace period - must be missing 2+ consecutive updates)
-        # First, clear pending removals for submarines that reappeared
-        reappeared = [key for key in self._pending_removals if key in new_state]
-        for key in reappeared:
-            del self._pending_removals[key]
+        # Note: reappeared subs were already cleared from _pending_removals above (before add detection)
 
         # Check for submarines missing in this update
         for key, old_sub in old_state.items():

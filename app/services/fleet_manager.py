@@ -41,6 +41,7 @@ class FleetManager:
         self._plugin_data: dict[str, list[AccountData]] = {}  # plugin_id -> list of AccountData
         self._plugin_data_raw: dict[str, list[dict]] = {}  # Raw data for persistence
         self._plugin_metadata: dict[str, dict] = {}  # plugin_id -> {timestamp, received_at}
+        self._carried_forward_subs: dict[str, set] = {}  # plugin_id -> set of (cid, sub_name) carried forward once
         self._last_update: datetime = None
         self._update_callbacks: list[Callable] = []
         self._update_thread: threading.Thread = None
@@ -127,6 +128,133 @@ class FleetManager:
         """Add an account to monitor."""
         self.parser.add_account(nickname, config_path)
 
+    def _resolve_missing_fc_ids(self, plugin_id: str, new_accounts_data: list[dict]) -> list[dict]:
+        """
+        Resolve fc_id=0 using last known fc_id from previous plugin data.
+
+        The plugin can only read FC data for the currently logged-in character.
+        Other characters may have fc_id=0. We look up their last known fc_id
+        from previous data using their character ID (cid).
+
+        Args:
+            plugin_id: Plugin identifier
+            new_accounts_data: New account data from plugin (already deepcopied)
+
+        Returns:
+            Account data with fc_id=0 resolved where possible
+        """
+        existing_data = self._plugin_data_raw.get(plugin_id, [])
+        if not existing_data:
+            return new_accounts_data
+
+        # Build lookup of cid -> last known fc_id from previous data
+        # Normalize cid to string to avoid int/str type mismatches
+        known_fc_ids = {}
+        for account in existing_data:
+            for char in account.get('characters', []):
+                cid = str(char.get('cid', ''))
+                fc_id = char.get('fc_id')
+                if cid and fc_id and fc_id != 0 and str(fc_id) != '0':
+                    known_fc_ids[cid] = fc_id
+
+        if not known_fc_ids:
+            return new_accounts_data
+
+        # Patch fc_id=0 with last known fc_id
+        for account in new_accounts_data:
+            for char in account.get('characters', []):
+                cid = str(char.get('cid', ''))
+                fc_id = char.get('fc_id')
+                if (not fc_id or fc_id == 0 or str(fc_id) == '0') and cid in known_fc_ids:
+                    old_fc_id = known_fc_ids[cid]
+                    logger.debug(f"Resolved fc_id=0 for {char.get('name', '?')} (cid={cid}) -> {old_fc_id}")
+                    char['fc_id'] = old_fc_id
+
+        return new_accounts_data
+
+    def _preserve_missing_submarines(self, plugin_id: str, new_accounts_data: list[dict]) -> list[dict]:
+        """
+        Carry forward submarines that disappeared from the latest update for one grace period.
+
+        If a submarine was present in the previous data but missing in the new data,
+        inject it back for one update cycle so it stays visible on the dashboard.
+        If it's still missing on the next update, let it actually disappear.
+
+        Args:
+            plugin_id: Plugin identifier
+            new_accounts_data: New account data (already deepcopied by _merge_unlock_data)
+
+        Returns:
+            Account data with temporarily missing submarines preserved
+        """
+        existing_data = self._plugin_data_raw.get(plugin_id, [])
+        if not existing_data:
+            return new_accounts_data
+
+        # Build lookup of (cid, sub_name) -> sub_data from old data
+        old_subs = {}  # (cid, sub_name) -> sub dict
+        for account in existing_data:
+            for char in account.get('characters', []):
+                cid = str(char.get('cid', ''))
+                if not cid:
+                    continue
+                for sub in char.get('submarines', []):
+                    sub_name = sub.get('name', '')
+                    if sub_name:
+                        old_subs[(cid, sub_name)] = sub
+
+        # Build lookup of (cid, sub_name) from new data
+        new_subs = set()
+        for account in new_accounts_data:
+            for char in account.get('characters', []):
+                cid = str(char.get('cid', ''))
+                if not cid:
+                    continue
+                for sub in char.get('submarines', []):
+                    sub_name = sub.get('name', '')
+                    if sub_name:
+                        new_subs.add((cid, sub_name))
+
+        # Find subs that disappeared
+        missing = set(old_subs.keys()) - new_subs
+        if not missing:
+            # All subs accounted for - clear any carried forward tracking
+            self._carried_forward_subs.pop(plugin_id, None)
+            return new_accounts_data
+
+        previously_carried = self._carried_forward_subs.get(plugin_id, set())
+        carry_now = set()
+
+        # Build a map of cid -> char dict in new data for injection
+        new_chars_by_cid = {}
+        for account in new_accounts_data:
+            for char in account.get('characters', []):
+                cid = str(char.get('cid', ''))
+                if cid:
+                    new_chars_by_cid[cid] = char
+
+        for key in missing:
+            cid, sub_name = key
+            if key in previously_carried:
+                # Already carried forward once - let it go
+                logger.info(f"Submarine {sub_name} (cid={cid}) missing for 2+ updates, removing from dashboard")
+                continue
+
+            # First time missing - carry forward
+            carry_now.add(key)
+            char_dict = new_chars_by_cid.get(cid)
+            if char_dict is not None:
+                char_dict.setdefault('submarines', []).append(copy.deepcopy(old_subs[key]))
+                logger.debug(f"Preserving temporarily missing submarine {sub_name} (cid={cid})")
+
+        # Update tracking
+        if carry_now:
+            self._carried_forward_subs[plugin_id] = carry_now
+        else:
+            self._carried_forward_subs.pop(plugin_id, None)
+
+        return new_accounts_data
+
     def _merge_unlock_data(self, plugin_id: str, new_accounts_data: list[dict]) -> list[dict]:
         """
         Merge unlock_sectors data, preserving existing data when new data is empty.
@@ -190,7 +318,13 @@ class FleetManager:
             # so we need to preserve unlock data for other characters/FCs
             accounts_data = self._merge_unlock_data(plugin_id, accounts_data)
 
+            # Resolve fc_id=0 from last known data if it occurs
+            # Characters should normally always have a valid fc_id, but in rare cases
+            # the plugin may return 0 - fall back to the last known fc_id for that character
+            accounts_data = self._resolve_missing_fc_ids(plugin_id, accounts_data)
+
             # Track activity changes (compare old vs new state)
+            # This must run BEFORE _preserve_missing_submarines so it sees the real diff
             try:
                 from app.services.activity_tracker import activity_tracker
                 activity_tracker.detect_and_log_changes(
@@ -200,6 +334,10 @@ class FleetManager:
                 )
             except Exception as e:
                 logger.info(f"Activity tracking error: {e}")
+
+            # Carry forward submarines that temporarily disappeared for one update cycle
+            # so they remain visible on the dashboard during brief data blips
+            accounts_data = self._preserve_missing_submarines(plugin_id, accounts_data)
 
             # Parse each account from the plugin
             parsed_accounts = []
