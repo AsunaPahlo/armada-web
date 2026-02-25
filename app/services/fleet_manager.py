@@ -366,14 +366,22 @@ class FleetManager:
                     'received_at': received_at or (datetime.utcnow().isoformat() + 'Z')
                 }
                 self._last_update = datetime.now()
-
-                # Persist to file
-                self._save_plugin_data()
+            elif plugin_id not in self._plugin_data_raw:
+                # Ensure plugin has an entry in raw data even if no fleet data parsed
+                # (e.g. supplier-only accounts with no submarines). This is needed so
+                # _save_plugin_data includes this plugin's supplier data in the file.
+                self._plugin_data_raw[plugin_id] = accounts_data
+                self._plugin_metadata[plugin_id] = {
+                    'timestamp': timestamp,
+                    'received_at': received_at or (datetime.utcnow().isoformat() + 'Z')
+                }
 
             # Store supplier data if provided
             if suppliers is not None:
                 self._supplier_data[plugin_id] = suppliers
-                self._save_plugin_data()
+
+            # Persist to file (covers both fleet data and supplier updates)
+            self._save_plugin_data()
 
     def clear_plugin_data(self, plugin_id: str = None):
         """
