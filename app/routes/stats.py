@@ -251,6 +251,9 @@ def index():
     # Get supply chart data
     supply_data = get_supply_chart_data(fc_summaries)
 
+    # Get supplier reserve data
+    supplier_data = fleet.get_supplier_summary()
+
     # Get fleet composition data
     fleet_chart_data = get_fleet_chart_data(fc_summaries)
 
@@ -260,6 +263,7 @@ def index():
                            region_counts=region_counts,
                            fleet_summary=filtered_summary,
                            supply_data=supply_data,
+                           supplier_data=supplier_data,
                            fleet_chart_data=fleet_chart_data,
                            days=days,
                            all_tags=all_tags,

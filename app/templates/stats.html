@@ -227,6 +227,83 @@
     </div>
 </div>
 
+<!-- Supplier Reserves -->
+{% if supplier_data and supplier_data.suppliers %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-box-seam"></i> Supplier Reserves</h5>
+            </div>
+            <div class="card-body">
+                <!-- Summary row -->
+                <div class="row text-center mb-3">
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-1">Total Ceruleum</h6>
+                        <h3 class="mb-0">{{ "{:,.0f}".format(supplier_data.total_ceruleum) }}</h3>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-1">Total Repair Materials</h6>
+                        <h3 class="mb-0">{{ "{:,.0f}".format(supplier_data.total_repair_kits) }}</h3>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-1">Ceruleum Days</h6>
+                        {% if supplier_data.ceruleum_days is not none %}
+                        <h3 class="mb-0 {% if supplier_data.ceruleum_days >= 30 %}text-success{% elif supplier_data.ceruleum_days >= 14 %}text-warning{% else %}text-danger{% endif %}">
+                            {{ supplier_data.ceruleum_days }}
+                        </h3>
+                        {% else %}
+                        <h3 class="mb-0 text-muted">N/A</h3>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-1">Repair Days</h6>
+                        {% if supplier_data.repair_days is not none %}
+                        <h3 class="mb-0 {% if supplier_data.repair_days >= 30 %}text-success{% elif supplier_data.repair_days >= 14 %}text-warning{% else %}text-danger{% endif %}">
+                            {{ supplier_data.repair_days }}
+                        </h3>
+                        {% else %}
+                        <h3 class="mb-0 text-muted">N/A</h3>
+                        {% endif %}
+                    </div>
+                </div>
+                <!-- Per-supplier table -->
+                <div class="table-responsive">
+                    <table class="table table-dark table-sm table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Character</th>
+                                <th>World</th>
+                                <th class="text-end">Ceruleum</th>
+                                <th class="text-end">Repair Materials</th>
+                                <th class="text-end">Last Updated</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for s in supplier_data.suppliers %}
+                            <tr>
+                                <td>{{ s.name }}</td>
+                                <td>{{ s.world }}</td>
+                                <td class="text-end">{{ "{:,.0f}".format(s.ceruleum) }}</td>
+                                <td class="text-end">{{ "{:,.0f}".format(s.repair_kits) }}</td>
+                                <td class="text-end text-muted">
+                                    {% if s.last_updated %}
+                                    {{ s.last_updated[:16].replace('T', ' ') }}
+                                    {% else %}
+                                    Never
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- Charts Row 4 -->
 <div class="row mb-4">
     <div class="col-lg-6">

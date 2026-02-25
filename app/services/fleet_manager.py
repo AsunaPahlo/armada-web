@@ -42,6 +42,7 @@ class FleetManager:
         self._plugin_data_raw: dict[str, list[dict]] = {}  # Raw data for persistence
         self._plugin_metadata: dict[str, dict] = {}  # plugin_id -> {timestamp, received_at}
         self._carried_forward_subs: dict[str, set] = {}  # plugin_id -> set of (cid, sub_name) carried forward once
+        self._supplier_data: dict[str, list[dict]] = {}  # plugin_id -> list of supplier dicts
         self._last_update: datetime = None
         self._update_callbacks: list[Callable] = []
         self._update_thread: threading.Thread = None
@@ -76,6 +77,12 @@ class FleetManager:
 
                     self._plugin_data_raw[plugin_id] = accounts_data
                     self._plugin_metadata[plugin_id] = metadata
+
+                    # Load supplier data
+                    if isinstance(plugin_entry, dict):
+                        suppliers = plugin_entry.get('suppliers', [])
+                        if suppliers:
+                            self._supplier_data[plugin_id] = suppliers
 
                     # Parse the raw data into AccountData objects
                     parsed_accounts = []
@@ -116,7 +123,8 @@ class FleetManager:
                 save_data[plugin_id] = {
                     'accounts': accounts_data,
                     'timestamp': metadata.get('timestamp'),
-                    'received_at': metadata.get('received_at')
+                    'received_at': metadata.get('received_at'),
+                    'suppliers': self._supplier_data.get(plugin_id, [])
                 }
 
             with open(PLUGIN_DATA_FILE, 'w', encoding='utf-8') as f:
@@ -298,7 +306,7 @@ class FleetManager:
 
         return merged_data
 
-    def set_plugin_data(self, plugin_id: str, accounts_data: list[dict], timestamp: str = None, received_at: str = None):
+    def set_plugin_data(self, plugin_id: str, accounts_data: list[dict], timestamp: str = None, received_at: str = None, suppliers: list[dict] = None):
         """
         Store fleet data received from a plugin.
 
@@ -307,6 +315,7 @@ class FleetManager:
             accounts_data: List of account data dicts from the plugin
             timestamp: Timestamp from the plugin data
             received_at: When the server received the data
+            suppliers: List of supplier character dicts from the plugin
         """
         with self._lock:
             # Get old state before merging for activity tracking
@@ -359,6 +368,11 @@ class FleetManager:
                 self._last_update = datetime.now()
 
                 # Persist to file
+                self._save_plugin_data()
+
+            # Store supplier data if provided
+            if suppliers is not None:
+                self._supplier_data[plugin_id] = suppliers
                 self._save_plugin_data()
 
     def clear_plugin_data(self, plugin_id: str = None):
@@ -804,6 +818,52 @@ class FleetManager:
             },
             'fc_summaries': list(fc_summaries.values()),
             'submarines': all_submarines
+        }
+
+    def get_supplier_summary(self) -> dict:
+        """
+        Get aggregated supplier character data.
+
+        Returns dict with:
+            - suppliers: list of individual supplier entries
+            - total_ceruleum: total across all suppliers
+            - total_repair_kits: total across all suppliers
+            - ceruleum_days: days of supply based on global consumption
+            - repair_days: days of supply based on global consumption
+        """
+        all_suppliers = []
+        total_ceruleum = 0
+        total_repair_kits = 0
+
+        for plugin_id, suppliers in self._supplier_data.items():
+            for s in suppliers:
+                ceruleum = s.get('ceruleum', 0)
+                repair_kits = s.get('repair_kits', 0)
+                total_ceruleum += ceruleum
+                total_repair_kits += repair_kits
+                all_suppliers.append({
+                    'name': s.get('name', 'Unknown'),
+                    'world': s.get('world', ''),
+                    'ceruleum': ceruleum,
+                    'repair_kits': repair_kits,
+                    'last_updated': s.get('last_updated', '')
+                })
+
+        # Get consumption rates from dashboard data
+        dashboard = self.get_dashboard_data()
+        forecast = dashboard.get('supply_forecast', {})
+        ceruleum_per_day = forecast.get('ceruleum_per_day', 0)
+        kits_per_day = forecast.get('kits_per_day', 0)
+
+        ceruleum_days = total_ceruleum / ceruleum_per_day if ceruleum_per_day > 0 else None
+        repair_days = total_repair_kits / kits_per_day if kits_per_day > 0 else None
+
+        return {
+            'suppliers': all_suppliers,
+            'total_ceruleum': total_ceruleum,
+            'total_repair_kits': total_repair_kits,
+            'ceruleum_days': round(ceruleum_days, 1) if ceruleum_days is not None else None,
+            'repair_days': round(repair_days, 1) if repair_days is not None else None
         }
 
     def start_background_updates(self, interval: int = 30, callback: Callable = None):

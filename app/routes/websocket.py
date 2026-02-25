@@ -212,6 +212,17 @@ class PluginNamespace(Namespace):
         else:
             accounts = data.get('accounts', [])
 
+        # Extract supplier data if present in the payload
+        # The decompressed data is a list of plugin data dicts, each may contain a 'suppliers' key
+        suppliers = None
+        if isinstance(accounts, list):
+            for item in accounts:
+                if isinstance(item, dict) and 'suppliers' in item:
+                    suppliers = item.get('suppliers', [])
+                    break
+        elif isinstance(accounts, dict):
+            suppliers = accounts.get('suppliers', [])
+
         # Store plugin data in raw format
         received_at = datetime.utcnow().isoformat() + 'Z'
         _plugin_data[plugin_id] = {
@@ -226,7 +237,7 @@ class PluginNamespace(Namespace):
         try:
             app = current_app._get_current_object()
             fleet = get_ws_fleet_manager(app)
-            fleet.set_plugin_data(plugin_id, accounts, timestamp=timestamp, received_at=received_at)
+            fleet.set_plugin_data(plugin_id, accounts, timestamp=timestamp, received_at=received_at, suppliers=suppliers)
             plugin_logger.info(f"Updated FleetManager with data from {plugin_id}")
         except Exception as e:
             plugin_logger.warning(f"Error updating FleetManager: {e}")
