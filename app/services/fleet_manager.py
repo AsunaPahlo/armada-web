@@ -831,7 +831,7 @@ class FleetManager:
 
         Returns dict with:
             - suppliers: list of individual supplier entries
-            - total_ceruleum: total across all suppliers
+            - total_ceruleum: total across all suppliers (personal + retainer + deduplicated FC chest)
             - total_repair_kits: total across all suppliers
             - ceruleum_days: days of supply based on consumption
             - repair_days: days of supply based on consumption
@@ -839,18 +839,35 @@ class FleetManager:
         all_suppliers = []
         total_ceruleum = 0
         total_repair_kits = 0
+        total_fc_credits = 0
+
+        # Track FC-level data already counted to avoid double-counting when
+        # multiple suppliers share the same FC
+        seen_fc_ids = set()
 
         for plugin_id, suppliers in self._supplier_data.items():
             for s in suppliers:
                 ceruleum = s.get('ceruleum', 0)
                 repair_kits = s.get('repair_kits', 0)
+                fc_credits = 0
+
+                # Include FC-level data for the first supplier in each FC only
+                fc_id = s.get('fc_id', '0')
+                if fc_id and fc_id != '0' and fc_id not in seen_fc_ids:
+                    seen_fc_ids.add(fc_id)
+                    ceruleum += s.get('fc_ceruleum', 0)
+                    repair_kits += s.get('fc_repair_kits', 0)
+                    fc_credits = s.get('fc_credits', 0)
+
                 total_ceruleum += ceruleum
                 total_repair_kits += repair_kits
+                total_fc_credits += fc_credits
                 all_suppliers.append({
                     'name': s.get('name', 'Unknown'),
                     'world': s.get('world', ''),
                     'ceruleum': ceruleum,
                     'repair_kits': repair_kits,
+                    'fc_credits': fc_credits,
                     'last_updated': s.get('last_updated', '')
                 })
 
@@ -870,6 +887,7 @@ class FleetManager:
             'suppliers': all_suppliers,
             'total_ceruleum': total_ceruleum,
             'total_repair_kits': total_repair_kits,
+            'total_fc_credits': total_fc_credits,
             'ceruleum_days': round(ceruleum_days, 1) if ceruleum_days is not None else None,
             'repair_days': round(repair_days, 1) if repair_days is not None else None
         }

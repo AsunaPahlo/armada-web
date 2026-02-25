@@ -166,15 +166,19 @@
             <div class="card-body">
                 <!-- Summary row -->
                 <div class="row text-center mb-3">
-                    <div class="col-md-3">
+                    <div class="col">
                         <h6 class="text-muted mb-1">Total Ceruleum</h6>
                         <h3 class="mb-0">{{ "{:,.0f}".format(supplier_data.total_ceruleum) }}</h3>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col">
                         <h6 class="text-muted mb-1">Total Repair Materials</h6>
                         <h3 class="mb-0">{{ "{:,.0f}".format(supplier_data.total_repair_kits) }}</h3>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col">
+                        <h6 class="text-muted mb-1">Total FC Credits</h6>
+                        <h3 class="mb-0">{{ "{:,.0f}".format(supplier_data.total_fc_credits) }}</h3>
+                    </div>
+                    <div class="col">
                         <h6 class="text-muted mb-1">Ceruleum Days</h6>
                         {% if supplier_data.ceruleum_days is not none %}
                         <h3 class="mb-0 {% if supplier_data.ceruleum_days >= 30 %}text-success{% elif supplier_data.ceruleum_days >= 14 %}text-warning{% else %}text-danger{% endif %}">
@@ -184,7 +188,7 @@
                         <h3 class="mb-0 text-muted">N/A</h3>
                         {% endif %}
                     </div>
-                    <div class="col-md-3">
+                    <div class="col">
                         <h6 class="text-muted mb-1">Repair Days</h6>
                         {% if supplier_data.repair_days is not none %}
                         <h3 class="mb-0 {% if supplier_data.repair_days >= 30 %}text-success{% elif supplier_data.repair_days >= 14 %}text-warning{% else %}text-danger{% endif %}">
@@ -204,6 +208,7 @@
                                 <th>World</th>
                                 <th class="text-end">Ceruleum</th>
                                 <th class="text-end">Repair Materials</th>
+                                <th class="text-end">FC Credits</th>
                                 <th class="text-end">Last Updated</th>
                             </tr>
                         </thead>
@@ -214,6 +219,7 @@
                                 <td>{{ s.world }}</td>
                                 <td class="text-end">{{ "{:,.0f}".format(s.ceruleum) }}</td>
                                 <td class="text-end">{{ "{:,.0f}".format(s.repair_kits) }}</td>
+                                <td class="text-end">{{ "{:,.0f}".format(s.fc_credits) if s.fc_credits else '-' }}</td>
                                 <td class="text-end text-muted">
                                     {% if s.last_updated %}
                                     {{ s.last_updated[:16].replace('T', ' ') }}
