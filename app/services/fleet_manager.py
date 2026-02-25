@@ -851,12 +851,11 @@ class FleetManager:
                 repair_kits = s.get('repair_kits', 0)
                 fc_credits = 0
 
-                # Include FC-level data for the first supplier in each FC only
+                # FC credits: only count once per FC to avoid double-counting
+                # when multiple suppliers share the same FC
                 fc_id = s.get('fc_id', '0')
                 if fc_id and fc_id != '0' and fc_id not in seen_fc_ids:
                     seen_fc_ids.add(fc_id)
-                    ceruleum += s.get('fc_ceruleum', 0)
-                    repair_kits += s.get('fc_repair_kits', 0)
                     fc_credits = s.get('fc_credits', 0)
 
                 total_ceruleum += ceruleum
