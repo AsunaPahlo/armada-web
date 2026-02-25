@@ -820,16 +820,21 @@ class FleetManager:
             'submarines': all_submarines
         }
 
-    def get_supplier_summary(self) -> dict:
+    def get_supplier_summary(self, ceruleum_per_day: float = None, kits_per_day: float = None) -> dict:
         """
         Get aggregated supplier character data.
+
+        Args:
+            ceruleum_per_day: Override consumption rate (e.g. from filtered FC data).
+                              If None, uses global rate from dashboard data.
+            kits_per_day: Override consumption rate. If None, uses global rate.
 
         Returns dict with:
             - suppliers: list of individual supplier entries
             - total_ceruleum: total across all suppliers
             - total_repair_kits: total across all suppliers
-            - ceruleum_days: days of supply based on global consumption
-            - repair_days: days of supply based on global consumption
+            - ceruleum_days: days of supply based on consumption
+            - repair_days: days of supply based on consumption
         """
         all_suppliers = []
         total_ceruleum = 0
@@ -849,11 +854,14 @@ class FleetManager:
                     'last_updated': s.get('last_updated', '')
                 })
 
-        # Get consumption rates from dashboard data
-        dashboard = self.get_dashboard_data()
-        forecast = dashboard.get('supply_forecast', {})
-        ceruleum_per_day = forecast.get('ceruleum_per_day', 0)
-        kits_per_day = forecast.get('kits_per_day', 0)
+        # Use provided rates or fall back to global dashboard rates
+        if ceruleum_per_day is None or kits_per_day is None:
+            dashboard = self.get_dashboard_data()
+            forecast = dashboard.get('supply_forecast', {})
+            if ceruleum_per_day is None:
+                ceruleum_per_day = forecast.get('ceruleum_per_day', 0)
+            if kits_per_day is None:
+                kits_per_day = forecast.get('kits_per_day', 0)
 
         ceruleum_days = total_ceruleum / ceruleum_per_day if ceruleum_per_day > 0 else None
         repair_days = total_repair_kits / kits_per_day if kits_per_day > 0 else None

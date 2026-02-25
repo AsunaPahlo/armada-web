@@ -251,8 +251,13 @@ def index():
     # Get supply chart data
     supply_data = get_supply_chart_data(fc_summaries)
 
-    # Get supplier reserve data
-    supplier_data = fleet.get_supplier_summary()
+    # Get supplier reserve data using filtered FC consumption rates
+    filtered_ceruleum_per_day = sum(fc.get('ceruleum_per_day', 0) for fc in fc_summaries)
+    filtered_kits_per_day = sum(fc.get('kits_per_day', 0) for fc in fc_summaries)
+    supplier_data = fleet.get_supplier_summary(
+        ceruleum_per_day=filtered_ceruleum_per_day,
+        kits_per_day=filtered_kits_per_day
+    )
 
     # Get fleet composition data
     fleet_chart_data = get_fleet_chart_data(fc_summaries)
