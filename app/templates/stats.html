@@ -155,78 +155,6 @@
     </div>
 </div>
 
-<!-- Charts Row 1 -->
-<div class="row mb-4">
-    <div class="col-lg-8">
-        <div class="card h-100">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-graph-up"></i> Voyages Over Time</h5>
-            </div>
-            <div class="card-body">
-                <canvas id="voyages-chart" height="120"></canvas>
-            </div>
-        </div>
-    </div>
-    <div class="col-lg-4">
-        <div class="card h-100">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-bar-chart-steps"></i> Submarine Levels</h5>
-            </div>
-            <div class="card-body">
-                <canvas id="level-chart" height="120"></canvas>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Charts Row 2 -->
-<div class="row mb-4">
-    <div class="col-lg-6">
-        <div class="card h-100">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-signpost-split"></i> Most Popular Routes</h5>
-            </div>
-            <div class="card-body">
-                <canvas id="routes-chart" height="200"></canvas>
-            </div>
-        </div>
-    </div>
-    <div class="col-lg-6">
-        <div class="card h-100">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-clock"></i> Activity by Hour</h5>
-            </div>
-            <div class="card-body">
-                <canvas id="hour-chart" height="200"></canvas>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Charts Row 3 -->
-<div class="row mb-4">
-    <div class="col-lg-6">
-        <div class="card h-100">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-building"></i> Voyages by FC</h5>
-            </div>
-            <div class="card-body">
-                <canvas id="fc-voyages-chart" height="200"></canvas>
-            </div>
-        </div>
-    </div>
-    <div class="col-lg-6">
-        <div class="card h-100">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-fuel-pump"></i> Days Until Restock</h5>
-            </div>
-            <div class="card-body">
-                <canvas id="supply-chart" height="200"></canvas>
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- Supplier Reserves -->
 {% if supplier_data and supplier_data.suppliers %}
 <div class="row mb-4">
@@ -303,6 +231,78 @@
     </div>
 </div>
 {% endif %}
+
+<!-- Charts Row 1 -->
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-graph-up"></i> Voyages Over Time</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="voyages-chart" height="120"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-bar-chart-steps"></i> Submarine Levels</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="level-chart" height="120"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row 2 -->
+<div class="row mb-4">
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-signpost-split"></i> Most Popular Routes</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="routes-chart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-clock"></i> Activity by Hour</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="hour-chart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row 3 -->
+<div class="row mb-4">
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-building"></i> Voyages by FC</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="fc-voyages-chart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-fuel-pump"></i> Days Until Restock</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="supply-chart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Charts Row 4 -->
 <div class="row mb-4">
