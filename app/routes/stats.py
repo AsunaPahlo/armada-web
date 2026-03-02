@@ -667,6 +667,25 @@ def fc_detail(fc_id):
                            inventory_parts=inventory_parts_list)
 
 
+@stats_bp.route('/fc/<fc_id>/loot-performance')
+@login_required
+def fc_loot_performance(fc_id):
+    """API endpoint for FC-specific daily loot data."""
+    from app.services.loot_tracker import loot_tracker
+
+    days = request.args.get('days', 30, type=int)
+    if days != 0:
+        days = min(max(days, 1), 365)
+
+    tz_offset = request.args.get('tz', 0, type=int)
+    tz_offset = max(-720, min(840, tz_offset))
+
+    result = loot_tracker.get_fc_daily_totals(
+        fc_id=str(fc_id), days=days, tz_offset_minutes=tz_offset
+    )
+    return jsonify(result)
+
+
 @stats_bp.route('/fc/<fc_id>/leveling')
 @login_required
 def fc_leveling_data(fc_id):

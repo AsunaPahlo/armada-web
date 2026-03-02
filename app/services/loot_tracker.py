@@ -622,6 +622,45 @@ class LootTracker:
             for d in daily_totals
         ]
 
+    def get_fc_daily_totals(self, fc_id: str, days: int = 30, tz_offset_minutes: int = 0) -> dict:
+        """Get daily loot totals for a specific FC with timezone adjustment."""
+        from sqlalchemy import func, and_
+
+        filters = [VoyageLoot.fc_id == str(fc_id)]
+        if days > 0:
+            cutoff = datetime.utcnow() - timedelta(days=days)
+            filters.append(VoyageLoot.captured_at >= cutoff)
+
+        # Daily totals with timezone adjustment (single query)
+        tz_offset_hours = -tz_offset_minutes / 60
+        tz_modifier = f'{tz_offset_hours:+.1f} hours'
+        local_datetime = func.datetime(VoyageLoot.captured_at, tz_modifier)
+        local_date = func.date(local_datetime)
+
+        daily_query = db.session.query(
+            local_date.label('date'),
+            func.count(VoyageLoot.id).label('voyages'),
+            func.sum(VoyageLoot.total_gil_value).label('total_gil')
+        ).filter(and_(*filters))
+
+        daily_totals = daily_query.group_by(local_date).order_by(local_date).all()
+
+        # Derive totals from daily aggregation to avoid extra DB queries
+        total_voyages = sum(d.voyages for d in daily_totals)
+        total_gil = sum(d.total_gil or 0 for d in daily_totals)
+        num_days = len(daily_totals)
+        avg_gil_per_day = round(total_gil / num_days, 0) if num_days > 0 else 0
+
+        return {
+            'total_voyages': total_voyages,
+            'total_gil': total_gil,
+            'avg_gil_per_day': avg_gil_per_day,
+            'daily_totals': [
+                {'date': str(d.date), 'voyages': d.voyages, 'total_gil': d.total_gil}
+                for d in daily_totals
+            ]
+        }
+
     def get_top_routes(self, days: int = 30, known_only: bool = True) -> list:
         """
         Get top routes by average gil per 24 hours.

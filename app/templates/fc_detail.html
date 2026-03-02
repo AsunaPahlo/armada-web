@@ -73,6 +73,47 @@
             </div>
         </div>
 
+        <!-- Loot Performance -->
+        <div class="card mb-4">
+            <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-graph-up me-2"></i>Loot Performance</span>
+                <div class="btn-group btn-group-sm" id="loot-days-selector">
+                    <button class="btn btn-outline-secondary py-0 px-2" data-days="7">7D</button>
+                    <button class="btn btn-outline-secondary py-0 px-2 active" data-days="30">30D</button>
+                    <button class="btn btn-outline-secondary py-0 px-2" data-days="90">90D</button>
+                    <button class="btn btn-outline-secondary py-0 px-2" data-days="0">All</button>
+                </div>
+            </div>
+            <div class="card-body py-2">
+                <div id="loot-summary-cards" class="d-none">
+                    <div class="d-flex justify-content-around py-2 mb-2" style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <div class="text-center">
+                            <div class="text-muted small">Avg Gil/Day</div>
+                            <div class="fw-bold text-warning" id="loot-avg-gil-day">-</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-muted small">Total Gil</div>
+                            <div class="fw-bold" id="loot-total-gil">-</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-muted small">Voyages</div>
+                            <div class="fw-bold" id="loot-total-voyages">-</div>
+                        </div>
+                    </div>
+                </div>
+                <div id="loot-chart-container" style="height: 220px; position: relative;">
+                    <canvas id="loot-performance-chart"></canvas>
+                </div>
+                <div id="loot-chart-loading" class="text-center text-muted py-3">
+                    <div class="spinner-border spinner-border-sm" role="status"></div>
+                    <span class="ms-2">Loading loot data...</span>
+                </div>
+                <div id="loot-chart-empty" class="text-center text-muted py-3" style="display:none;">
+                    <i class="bi bi-inbox me-2"></i>No loot data available for this period
+                </div>
+            </div>
+        </div>
+
         <!-- Activity Log -->
         <div class="card">
             <div class="card-header py-2 d-flex justify-content-between align-items-center">
@@ -287,6 +328,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
 (function() {
     const fcId = '{{ fc_id }}';
@@ -642,6 +684,143 @@
 
     // Load activity log on page load
     loadActivityLog(1);
+
+    // ==================== LOOT PERFORMANCE ====================
+    (function() {
+        const chartCanvas = document.getElementById('loot-performance-chart');
+        const loadingEl = document.getElementById('loot-chart-loading');
+        const emptyEl = document.getElementById('loot-chart-empty');
+        const summaryEl = document.getElementById('loot-summary-cards');
+        const dayButtons = document.querySelectorAll('#loot-days-selector button');
+        let lootChart = null;
+
+        function formatGil(value) {
+            if (value >= 1000000) return (value / 1000000).toFixed(1) + 'M';
+            if (value >= 1000) return (value / 1000).toFixed(0) + 'K';
+            return value;
+        }
+
+        function loadLootData(days) {
+            loadingEl.style.display = '';
+            emptyEl.style.display = 'none';
+            summaryEl.classList.add('d-none');
+            chartCanvas.style.display = 'none';
+
+            const url = new URL(`{{ url_for("stats.fc_loot_performance", fc_id=fc_id) }}`, window.location.origin);
+            url.searchParams.set('days', days);
+            url.searchParams.set('tz', new Date().getTimezoneOffset());
+
+            fetch(url)
+                .then(r => r.json())
+                .then(data => {
+                    loadingEl.style.display = 'none';
+                    const dailyTotals = data.daily_totals || [];
+
+                    if (dailyTotals.length === 0) {
+                        emptyEl.style.display = '';
+                        return;
+                    }
+
+                    chartCanvas.style.display = '';
+                    summaryEl.classList.remove('d-none');
+
+                    // Update summary cards
+                    document.getElementById('loot-avg-gil-day').textContent = formatGil(data.avg_gil_per_day);
+                    document.getElementById('loot-total-gil').textContent = formatGil(data.total_gil);
+                    document.getElementById('loot-total-voyages').textContent = data.total_voyages.toLocaleString();
+
+                    // Destroy previous chart if exists
+                    if (lootChart) lootChart.destroy();
+
+                    lootChart = new Chart(chartCanvas.getContext('2d'), {
+                        type: 'line',
+                        data: {
+                            labels: dailyTotals.map(d => d.date.slice(5)),
+                            datasets: [{
+                                label: 'Gil',
+                                data: dailyTotals.map(d => d.total_gil),
+                                borderColor: 'rgba(237, 177, 54, 1)',
+                                backgroundColor: 'rgba(237, 177, 54, 0.2)',
+                                fill: true,
+                                tension: 0.3,
+                                yAxisID: 'y'
+                            }, {
+                                label: 'Voyages',
+                                data: dailyTotals.map(d => d.voyages),
+                                borderColor: 'rgba(99, 179, 237, 1)',
+                                backgroundColor: 'rgba(99, 179, 237, 0.2)',
+                                fill: false,
+                                tension: 0.3,
+                                yAxisID: 'y1'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    labels: { color: 'rgba(255,255,255,0.7)' }
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    type: 'linear',
+                                    display: true,
+                                    position: 'left',
+                                    beginAtZero: true,
+                                    grid: { color: 'rgba(255,255,255,0.1)' },
+                                    ticks: {
+                                        color: 'rgba(237, 177, 54, 0.8)',
+                                        callback: function(value) {
+                                            return formatGil(value);
+                                        }
+                                    },
+                                    title: {
+                                        display: true,
+                                        text: 'Gil',
+                                        color: 'rgba(237, 177, 54, 0.8)'
+                                    }
+                                },
+                                y1: {
+                                    type: 'linear',
+                                    display: true,
+                                    position: 'right',
+                                    beginAtZero: true,
+                                    grid: { drawOnChartArea: false },
+                                    ticks: { color: 'rgba(99, 179, 237, 0.8)' },
+                                    title: {
+                                        display: true,
+                                        text: 'Voyages',
+                                        color: 'rgba(99, 179, 237, 0.8)'
+                                    }
+                                },
+                                x: {
+                                    grid: { color: 'rgba(255,255,255,0.1)' },
+                                    ticks: { color: 'rgba(255,255,255,0.7)' }
+                                }
+                            }
+                        }
+                    });
+                })
+                .catch(err => {
+                    loadingEl.style.display = 'none';
+                    emptyEl.style.display = '';
+                    console.error('Error loading loot performance:', err);
+                });
+        }
+
+        // Day selector buttons
+        dayButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                dayButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                loadLootData(btn.dataset.days);
+            });
+        });
+
+        // Initial load (30 days)
+        loadLootData(30);
+    })();
 
     // ==================== NOTES ====================
     const editNotesBtn = document.getElementById('edit-notes-btn');
