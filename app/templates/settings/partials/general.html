@@ -98,7 +98,7 @@
     <div class="alert alert-secondary py-2 small mb-3">
         <i class="bi bi-info-circle"></i> These actions run automatically on a schedule. Only use these buttons if you notice data inconsistencies or need an immediate update.
     </div>
-    <div class="d-flex flex-wrap gap-3">
+    <div class="d-flex flex-wrap gap-3 mb-4">
         <div>
             <button type="button" class="btn btn-outline-primary" id="update-lumina-btn">
                 <i class="bi bi-cloud-download"></i> Update Game Data
@@ -110,6 +110,21 @@
                 <i class="bi bi-arrow-repeat"></i> Rebuild DailyStats
             </button>
             <div class="form-text">Recalculate all aggregated statistics from raw voyage data.</div>
+        </div>
+    </div>
+
+    <!-- Plugin Data Management -->
+    <div class="settings-card-title mt-4">
+        <i class="bi bi-database"></i> Plugin Data
+    </div>
+    <p class="text-muted small mb-3">
+        Each plugin connection stores fleet data under its account nickname. If a plugin reconnects with a different
+        nickname, stale data from the old name persists and can cause duplicate submarines. Remove stale entries below.
+    </p>
+    <div id="plugin-data-list">
+        <div class="text-center text-muted py-3">
+            <div class="spinner-border spinner-border-sm" role="status"></div>
+            <span class="ms-2">Loading plugin data...</span>
         </div>
     </div>
 </div>
@@ -204,6 +219,110 @@
             this.innerHTML = '<i class="bi bi-arrow-repeat"></i> Rebuild DailyStats';
         }
     });
+
+    // Plugin data management
+    async function loadPluginData() {
+        const container = document.getElementById('plugin-data-list');
+        if (!container) return;
+
+        try {
+            const resp = await fetch('/settings/api/plugin-data', { credentials: 'same-origin' });
+            const data = await resp.json();
+            const entries = data.entries || [];
+
+            if (entries.length === 0) {
+                container.innerHTML = '<div class="text-muted small">No plugin data stored.</div>';
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="table table-sm table-dark mb-0" style="font-size: 0.85rem;">
+                    <thead>
+                        <tr class="text-muted">
+                            <th>Account Nickname</th>
+                            <th class="text-center">Status</th>
+                            <th class="text-center">Characters</th>
+                            <th class="text-center">Submarines</th>
+                            <th class="text-center">FCs</th>
+                            <th>Last Update</th>
+                            <th class="text-end"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${entries.map(e => `
+                            <tr data-plugin-id="${e.plugin_id}">
+                                <td><strong>${e.plugin_id}</strong></td>
+                                <td class="text-center">
+                                    ${e.connected
+                                        ? '<span class="badge bg-success">Connected</span>'
+                                        : '<span class="badge bg-secondary">Offline</span>'}
+                                </td>
+                                <td class="text-center">${e.character_count}</td>
+                                <td class="text-center">${e.submarine_count}</td>
+                                <td class="text-center">${e.fc_count}</td>
+                                <td>${e.received_at ? formatTimeAgo(e.received_at) : '<span class="text-muted">-</span>'}</td>
+                                <td class="text-end">
+                                    <button class="btn btn-sm btn-outline-danger delete-plugin-btn" data-id="${e.plugin_id}">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            // Attach delete handlers
+            container.querySelectorAll('.delete-plugin-btn').forEach(btn => {
+                btn.addEventListener('click', async function() {
+                    const pluginId = this.dataset.id;
+                    if (!confirm(`Remove all stored data for "${pluginId}"? This cannot be undone.`)) return;
+
+                    this.disabled = true;
+                    this.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+                    try {
+                        const resp = await fetch(`/settings/api/plugin-data/${encodeURIComponent(pluginId)}`, {
+                            method: 'DELETE',
+                            credentials: 'same-origin'
+                        });
+                        const result = await resp.json();
+                        if (result.success) {
+                            showToast(result.message, 'success');
+                            loadPluginData();
+                        } else {
+                            showToast(result.message || 'Failed to remove', 'error');
+                            this.disabled = false;
+                            this.innerHTML = '<i class="bi bi-trash"></i>';
+                        }
+                    } catch (err) {
+                        showToast('Error removing plugin data', 'error');
+                        this.disabled = false;
+                        this.innerHTML = '<i class="bi bi-trash"></i>';
+                    }
+                });
+            });
+        } catch (err) {
+            container.innerHTML = '<div class="text-danger small">Error loading plugin data.</div>';
+        }
+    }
+
+    function formatTimeAgo(isoString) {
+        const date = new Date(isoString);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return diffMins + 'm ago';
+        if (diffHours < 24) return diffHours + 'h ago';
+        if (diffDays < 30) return diffDays + 'd ago';
+        return date.toLocaleDateString();
+    }
+
+    loadPluginData();
 
     // Update Lumina game data button
     document.getElementById('update-lumina-btn')?.addEventListener('click', async function() {

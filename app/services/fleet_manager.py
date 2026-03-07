@@ -395,10 +395,14 @@ class FleetManager:
                 self._plugin_data.pop(plugin_id, None)
                 self._plugin_data_raw.pop(plugin_id, None)
                 self._plugin_metadata.pop(plugin_id, None)
+                self._supplier_data.pop(plugin_id, None)
+                self._carried_forward_subs.pop(plugin_id, None)
             else:
                 self._plugin_data.clear()
                 self._plugin_data_raw.clear()
                 self._plugin_metadata.clear()
+                self._supplier_data.clear()
+                self._carried_forward_subs.clear()
 
             # Persist the change
             self._save_plugin_data()

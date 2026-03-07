@@ -231,3 +231,62 @@ def update_lumina_data():
             return jsonify({'success': False, 'message': f'Error updating Lumina data: {e}'}), 500
 
     return jsonify({'success': False, 'message': 'Unknown error'}), 500
+
+
+@settings_bp.route('/api/plugin-data', methods=['GET'])
+@login_required
+@admin_required
+def list_plugin_data():
+    """List all plugin data entries with summary info."""
+    from app.services import get_fleet_manager
+    from app.routes.websocket import get_connected_plugins
+
+    fleet = get_fleet_manager()
+    connected = set(get_connected_plugins())
+    metadata = fleet.get_plugin_metadata()
+
+    entries = []
+    with fleet._lock:
+        for plugin_id, accounts_data in fleet._plugin_data_raw.items():
+            meta = metadata.get(plugin_id, {})
+
+            # Count characters and submarines
+            char_count = 0
+            sub_count = 0
+            fc_ids = set()
+            for account in accounts_data:
+                for char in account.get('characters', []):
+                    char_count += 1
+                    sub_count += len(char.get('submarines', []))
+                    fc_id = char.get('fc_id', 0)
+                    if fc_id and fc_id != 0:
+                        fc_ids.add(str(fc_id))
+
+            entries.append({
+                'plugin_id': plugin_id,
+                'connected': plugin_id in connected,
+                'received_at': meta.get('received_at'),
+                'account_count': len(accounts_data),
+                'character_count': char_count,
+                'submarine_count': sub_count,
+                'fc_count': len(fc_ids),
+            })
+
+    return jsonify({'entries': entries})
+
+
+@settings_bp.route('/api/plugin-data/<plugin_id>', methods=['DELETE'])
+@login_required
+@admin_required
+def delete_plugin_data(plugin_id):
+    """Delete a specific plugin data entry."""
+    from app.services import get_fleet_manager
+
+    fleet = get_fleet_manager()
+
+    if plugin_id not in fleet._plugin_data_raw:
+        return jsonify({'success': False, 'message': 'Plugin data not found'}), 404
+
+    fleet.clear_plugin_data(plugin_id)
+
+    return jsonify({'success': True, 'message': f'Cleared data for "{plugin_id}"'})
