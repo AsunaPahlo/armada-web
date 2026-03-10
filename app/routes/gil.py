@@ -99,6 +99,79 @@ def api_data():
         chart_totals.append(daily_total)
         chart_char_counts.append(len(included))
 
+    # Compute per-character first/last totals for stats (non-excluded only)
+    char_first = {}  # cid -> first known total in window
+    char_last = {}   # cid -> last known total in window
+    for d in dates_in_order:
+        scanned = date_char_map[d]
+        for cid, total in scanned.items():
+            if cid in excluded_cids:
+                continue
+            if cid not in char_first:
+                char_first[cid] = total
+            char_last[cid] = total
+
+    # Also seed char_first from pre-cutoff for characters that weren't scanned in window
+    for cid, total in prev_values.items():
+        if cid in excluded_cids:
+            continue
+        if cid not in char_first:
+            char_first[cid] = total
+        if cid not in char_last:
+            char_last[cid] = total
+
+    # Net change and per-character deltas
+    net_change = None
+    avg_daily = None
+    top_earner = None
+    richest_char = None
+
+    if len(chart_totals) >= 2:
+        net_change = chart_totals[-1] - chart_totals[0]
+        num_days = max(len(chart_totals) - 1, 1)
+        avg_daily = net_change / num_days
+
+    # Per-character period deltas and richest
+    char_deltas = {}  # cid -> delta over period
+    for cid in char_last:
+        if cid in char_first:
+            char_deltas[cid] = char_last[cid] - char_first[cid]
+
+    # We need character names for stats - build a cid -> name map from records
+    cid_names = {}
+    for row in records:
+        if row.cid not in excluded_cids:
+            cid_names[row.cid] = row.cid  # fallback
+
+    # Get names from the current snapshot query (done later), so build from records query
+    # Actually we need names now - query latest names for non-excluded cids
+    if char_deltas or char_last:
+        name_cids = set(char_deltas.keys()) | set(char_last.keys())
+        if name_cids:
+            name_records = (
+                db.session.query(GilRecord.cid, GilRecord.character_name)
+                .filter(GilRecord.cid.in_(name_cids))
+                .group_by(GilRecord.cid)
+                .all()
+            )
+            cid_names = {r.cid: r.character_name for r in name_records}
+
+    if char_deltas:
+        best_cid = max(char_deltas, key=char_deltas.get)
+        if char_deltas[best_cid] > 0:
+            top_earner = {'name': cid_names.get(best_cid, '?'), 'delta': char_deltas[best_cid]}
+
+    if char_last:
+        rich_cid = max(char_last, key=char_last.get)
+        richest_char = {'name': cid_names.get(rich_cid, '?'), 'total': char_last[rich_cid]}
+
+    stats = {
+        'net_change': net_change,
+        'avg_daily': round(avg_daily) if avg_daily is not None else None,
+        'top_earner': top_earner,
+        'richest_char': richest_char,
+    }
+
     chart_data = {
         'labels': chart_labels,
         'totals': chart_totals,
@@ -179,4 +252,5 @@ def api_data():
         'chart': chart_data,
         'characters': characters,
         'total_gil': total_gil,
+        'stats': stats,
     })

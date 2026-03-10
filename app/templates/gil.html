@@ -39,6 +39,42 @@
     </div>
 </div>
 
+<!-- Stats Cards -->
+<div class="row mb-4 row-cols-4 g-3" id="gil-stats-row">
+    <div class="col">
+        <div class="card summary-card h-100">
+            <div class="card-body text-center py-2 d-flex flex-column justify-content-center">
+                <h6 class="text-muted mb-0" style="font-size: 1rem;">Net Change</h6>
+                <h5 class="mb-0" style="font-size: 1rem;" id="stat-net-change">--</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card summary-card h-100">
+            <div class="card-body text-center py-2 d-flex flex-column justify-content-center">
+                <h6 class="text-muted mb-0" style="font-size: 1rem;">Avg Daily</h6>
+                <h5 class="mb-0" style="font-size: 1rem;" id="stat-avg-daily">--</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card summary-card h-100">
+            <div class="card-body text-center py-2 d-flex flex-column justify-content-center">
+                <h6 class="text-muted mb-0" style="font-size: 1rem;">Top Earner</h6>
+                <h5 class="mb-0" style="font-size: 1rem;" id="stat-top-earner">--</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card summary-card h-100">
+            <div class="card-body text-center py-2 d-flex flex-column justify-content-center">
+                <h6 class="text-muted mb-0" style="font-size: 1rem;">Richest Character</h6>
+                <h5 class="mb-0" style="font-size: 1rem;" id="stat-richest-char">--</h5>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Chart -->
 <div class="row mb-4">
     <div class="col-12">
@@ -122,6 +158,49 @@
         const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
         const intercept = (sumY - slope * sumX) / n;
         return values.map((_, i) => slope * i + intercept);
+    }
+
+    function renderStats(stats) {
+        var netEl = document.getElementById('stat-net-change');
+        var avgEl = document.getElementById('stat-avg-daily');
+        var earnerEl = document.getElementById('stat-top-earner');
+        var richEl = document.getElementById('stat-richest-char');
+
+        if (stats.net_change !== null) {
+            var sign = stats.net_change >= 0 ? '+' : '';
+            var cls = stats.net_change > 0 ? 'text-success' : (stats.net_change < 0 ? 'text-danger' : 'text-muted');
+            netEl.className = 'mb-0 ' + cls;
+            netEl.textContent = sign + formatGil(stats.net_change);
+        } else {
+            netEl.className = 'mb-0 text-muted';
+            netEl.textContent = '--';
+        }
+
+        if (stats.avg_daily !== null) {
+            var sign = stats.avg_daily >= 0 ? '+' : '';
+            var cls = stats.avg_daily > 0 ? 'text-success' : (stats.avg_daily < 0 ? 'text-danger' : 'text-muted');
+            avgEl.className = 'mb-0 ' + cls;
+            avgEl.textContent = sign + formatGil(stats.avg_daily) + '/d';
+        } else {
+            avgEl.className = 'mb-0 text-muted';
+            avgEl.textContent = '--';
+        }
+
+        if (stats.top_earner) {
+            earnerEl.className = 'mb-0 text-success';
+            earnerEl.innerHTML = '<small class="text-light d-block" style="font-size:0.85rem;">' + stats.top_earner.name + '</small>+' + formatGil(stats.top_earner.delta);
+        } else {
+            earnerEl.className = 'mb-0 text-muted';
+            earnerEl.textContent = '--';
+        }
+
+        if (stats.richest_char) {
+            richEl.className = 'mb-0 text-warning';
+            richEl.innerHTML = '<small class="text-light d-block" style="font-size:0.85rem;">' + stats.richest_char.name + '</small>' + formatGil(stats.richest_char.total);
+        } else {
+            richEl.className = 'mb-0 text-muted';
+            richEl.textContent = '--';
+        }
     }
 
     function buildChart(chartData) {
@@ -322,6 +401,7 @@
                 document.getElementById('total-gil').textContent = formatNumber(data.total_gil);
                 var includedCount = data.characters.filter(function(c) { return !c.excluded; }).length;
                 document.getElementById('char-count').textContent = includedCount;
+                renderStats(data.stats);
                 buildChart(data.chart);
                 buildTable(data.characters);
             })

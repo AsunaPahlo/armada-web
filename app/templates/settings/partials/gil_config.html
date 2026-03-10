@@ -1,0 +1,159 @@
+<div class="settings-section-header">
+    <h2><i class="bi bi-cash-coin"></i> Gil Exclusions</h2>
+</div>
+
+{% if current_user.is_readonly %}
+<div class="alert alert-info mb-4">
+    <i class="bi bi-info-circle"></i> You have read-only access. Contact an admin to modify exclusions.
+</div>
+{% endif %}
+
+<div class="row">
+    <!-- About Section -->
+    <div class="col-lg-3 mb-4">
+        <div class="settings-card">
+            <div class="settings-card-title">
+                <i class="bi bi-info-circle"></i> About Gil Exclusions
+            </div>
+            <p class="text-muted mb-0">
+                <i class="bi bi-eye-slash text-secondary"></i> <strong>Excluded</strong> -
+                Excluded characters are removed from the gil chart, total gil, and character count.
+                They still appear in the table (dimmed with an <i class="bi bi-eye-slash"></i> icon) so you can see their gil at a glance.
+            </p>
+        </div>
+    </div>
+
+    <!-- Character List Section -->
+    <div class="col-lg-9">
+        <div class="settings-card" style="padding: 0;">
+            <div class="d-flex justify-content-between align-items-center p-3" style="border-bottom: 1px solid var(--ffxiv-border);">
+                <div class="settings-card-title mb-0">
+                    <i class="bi bi-people"></i> Characters
+                </div>
+                <div class="input-group" style="max-width: 200px;">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" id="gil-config-search" placeholder="Search...">
+                </div>
+            </div>
+            <div class="table-responsive" style="max-height: 60vh; overflow-y: auto;">
+                <table class="table table-dark table-hover mb-0" id="gil-config-table">
+                    <thead class="sticky-top" style="background: var(--ffxiv-bg-card);">
+                        <tr>
+                            <th>Character</th>
+                            <th>World</th>
+                            <th>Client</th>
+                            <th class="text-end">Total Gil</th>
+                            <th class="text-center" style="width: 100px;">Included</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for char in characters %}
+                        <tr data-cid="{{ char.cid }}" data-name="{{ char.character_name|lower }}" data-world="{{ char.world|lower }}" data-client="{{ char.client_nickname|lower }}">
+                            <td><strong>{{ char.character_name }}</strong></td>
+                            <td>{{ char.world }}</td>
+                            <td>{{ char.client_nickname }}</td>
+                            <td class="text-end">{{ "{:,}".format(char.total_gil) }}</td>
+                            <td class="text-center">
+                                <button type="button"
+                                        class="btn btn-link p-0 gil-toggle-btn{% if current_user.is_readonly %} disabled{% endif %}"
+                                        data-cid="{{ char.cid }}"
+                                        data-setting="excluded_from_gil"
+                                        data-value="{{ 'true' if char.excluded_from_gil else 'false' }}"
+                                        title="Toggle gil exclusion"
+                                        {% if current_user.is_readonly %}disabled{% endif %}>
+                                    <i class="bi bi-eye{% if char.excluded_from_gil %}-slash{% endif %} fs-5 {% if not char.excluded_from_gil %}text-info{% else %}text-secondary opacity-50{% endif %}"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.gil-toggle-btn {
+    transition: transform 0.1s ease;
+}
+.gil-toggle-btn:hover:not(.disabled) {
+    transform: scale(1.2);
+}
+.gil-toggle-btn.disabled {
+    cursor: not-allowed;
+}
+#gil-config-table tbody tr.hidden {
+    display: none;
+}
+</style>
+
+<script>
+(function() {
+    document.querySelectorAll('.gil-toggle-btn').forEach(btn => {
+        if (btn.classList.contains('disabled')) return;
+
+        btn.addEventListener('click', async function() {
+            const cid = this.dataset.cid;
+            const setting = this.dataset.setting;
+            const currentValue = this.dataset.value === 'true';
+            const newValue = !currentValue;
+
+            const icon = this.querySelector('i');
+            const originalClasses = icon.className;
+
+            // Optimistic UI update (inverted: eye = included, eye-slash = excluded)
+            if (newValue) {
+                icon.classList.remove('bi-eye', 'text-info');
+                icon.classList.add('bi-eye-slash', 'text-secondary', 'opacity-50');
+            } else {
+                icon.classList.remove('bi-eye-slash', 'text-secondary', 'opacity-50');
+                icon.classList.add('bi-eye', 'text-info');
+            }
+            this.dataset.value = newValue.toString();
+
+            try {
+                const resp = await fetch('/settings/gil-config/toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        cid: cid,
+                        setting: setting,
+                        value: newValue
+                    })
+                });
+
+                const data = await resp.json();
+
+                if (!data.success) {
+                    icon.className = originalClasses;
+                    this.dataset.value = currentValue.toString();
+                    alert(data.message || 'Failed to update setting');
+                }
+            } catch (err) {
+                icon.className = originalClasses;
+                this.dataset.value = currentValue.toString();
+                console.error('Error updating setting:', err);
+                alert('Error updating setting');
+            }
+        });
+    });
+
+    document.getElementById('gil-config-search')?.addEventListener('input', function() {
+        const query = this.value.toLowerCase().trim();
+        const rows = document.querySelectorAll('#gil-config-table tbody tr');
+
+        rows.forEach(row => {
+            const name = row.dataset.name || '';
+            const world = row.dataset.world || '';
+            const client = row.dataset.client || '';
+            if (query === '' || name.includes(query) || world.includes(query) || client.includes(query)) {
+                row.classList.remove('hidden');
+            } else {
+                row.classList.add('hidden');
+            }
+        });
+    });
+})();
+</script>
