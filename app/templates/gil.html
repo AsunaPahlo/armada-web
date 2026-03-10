@@ -182,10 +182,16 @@
                                 if (context.datasetIndex === 0) {
                                     const idx = context.dataIndex;
                                     const count = chartData.character_counts[idx];
-                                    return [
+                                    const lines = [
                                         'Total Gil: ' + formatNumber(context.parsed.y),
                                         'Characters: ' + count
                                     ];
+                                    if (idx > 0) {
+                                        const delta = chartData.totals[idx] - chartData.totals[idx - 1];
+                                        const sign = delta >= 0 ? '+' : '';
+                                        lines.push('Change: ' + sign + formatNumber(delta));
+                                    }
+                                    return lines;
                                 }
                                 return 'Trend: ' + formatNumber(Math.round(context.parsed.y));
                             }
