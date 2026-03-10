@@ -6,6 +6,7 @@ from sqlalchemy import func, desc
 
 from app import db
 from app.models.gil_record import GilRecord
+from app.models.gil_config import get_gil_excluded_cids
 
 gil_bp = Blueprint('gil', __name__)
 
@@ -27,6 +28,7 @@ def api_data():
     tz_offset = request.args.get('tz', 0, type=int)
     tz_offset = max(-720, min(840, tz_offset))
     tz_delta = timedelta(minutes=-tz_offset)
+    excluded_cids = get_gil_excluded_cids()
 
     if days > 0:
         cutoff = datetime.utcnow() - timedelta(days=days)
@@ -91,10 +93,11 @@ def api_data():
     for d in dates_in_order:
         scanned = date_char_map[d]
         prev_values.update(scanned)
-        daily_total = sum(prev_values.values())
+        included = {cid: total for cid, total in prev_values.items() if cid not in excluded_cids}
+        daily_total = sum(included.values())
         chart_labels.append(str(d))
         chart_totals.append(daily_total)
-        chart_char_counts.append(len(prev_values))
+        chart_char_counts.append(len(included))
 
     chart_data = {
         'labels': chart_labels,
@@ -151,18 +154,22 @@ def api_data():
     total_gil = 0
     for record in current_snapshot:
         current_total = record.gil_player + record.gil_retainer
-        total_gil += current_total
+        is_excluded = record.cid in excluded_cids
+        if not is_excluded:
+            total_gil += current_total
 
         prev = previous_by_cid.get(record.cid)
         delta = current_total - (prev.gil_player + prev.gil_retainer) if prev else 0
 
         characters.append({
+            'cid': record.cid,
             'character_name': record.character_name,
             'world': record.world,
             'gil_player': record.gil_player,
             'gil_retainer': record.gil_retainer,
             'total': current_total,
             'delta': delta,
+            'excluded': is_excluded,
             'record_date': str((record.timestamp + tz_delta).date()) if record.timestamp else str(record.record_date),
             'last_updated': record.timestamp.isoformat() if record.timestamp else record.record_date.isoformat(),
             'client_nickname': record.client_nickname,

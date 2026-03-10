@@ -257,9 +257,11 @@
             var deltaClass = c.delta > 0 ? 'text-success' : (c.delta < 0 ? 'text-danger' : 'text-muted');
             var deltaPrefix = c.delta > 0 ? '+' : '';
             var deltaText = c.delta !== 0 ? (deltaPrefix + formatNumber(c.delta)) : '--';
-            return '<tr>' +
+            var rowStyle = c.excluded ? ' style="opacity: 0.5;"' : '';
+            var excludeIcon = c.excluded ? '<i class="bi bi-eye-slash text-secondary me-1" title="Excluded from gil totals in Settings"></i>' : '';
+            return '<tr' + rowStyle + '>' +
                 '<td>' + (i + 1) + '</td>' +
-                '<td><strong>' + c.character_name + '</strong></td>' +
+                '<td>' + excludeIcon + '<strong>' + c.character_name + '</strong></td>' +
                 '<td>' + c.world + '</td>' +
                 '<td class="text-end">' + formatNumber(c.gil_player) + '</td>' +
                 '<td class="text-end">' + formatNumber(c.gil_retainer) + '</td>' +
@@ -318,7 +320,8 @@
             .then(function(res) { return res.json(); })
             .then(function(data) {
                 document.getElementById('total-gil').textContent = formatNumber(data.total_gil);
-                document.getElementById('char-count').textContent = data.characters.length;
+                var includedCount = data.characters.filter(function(c) { return !c.excluded; }).length;
+                document.getElementById('char-count').textContent = includedCount;
                 buildChart(data.chart);
                 buildTable(data.characters);
             })

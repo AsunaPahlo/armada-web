@@ -129,6 +129,51 @@ def partial_fc_config():
     return render_template('settings/partials/fc_config.html', fcs=fcs)
 
 
+@settings_bp.route('/partial/gil-config')
+@login_required
+def partial_gil_config():
+    """Gil character exclusion partial."""
+    from sqlalchemy import func
+    from app.models.gil_record import GilRecord
+    from app.models.gil_config import get_all_gil_configs
+
+    gil_configs = get_all_gil_configs()
+
+    # Get latest record per character
+    latest = (
+        db.session.query(
+            GilRecord.cid,
+            func.max(GilRecord.record_date).label('max_date')
+        )
+        .group_by(GilRecord.cid)
+        .subquery()
+    )
+
+    records = (
+        db.session.query(GilRecord)
+        .join(latest, db.and_(
+            GilRecord.cid == latest.c.cid,
+            GilRecord.record_date == latest.c.max_date
+        ))
+        .order_by(GilRecord.character_name)
+        .all()
+    )
+
+    characters = []
+    for r in records:
+        config = gil_configs.get(r.cid)
+        characters.append({
+            'cid': r.cid,
+            'character_name': r.character_name,
+            'world': r.world,
+            'client_nickname': r.client_nickname,
+            'total_gil': r.gil_player + r.gil_retainer,
+            'excluded_from_gil': config.excluded_from_gil if config else False,
+        })
+
+    return render_template('settings/partials/gil_config.html', characters=characters)
+
+
 @settings_bp.route('/partial/alerts')
 @login_required
 def partial_alerts():
