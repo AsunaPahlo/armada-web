@@ -56,11 +56,37 @@ def api_data():
             dates_in_order.append(d)
         date_char_map[d][row.cid] = int(row.total)
 
+    # Seed forward-fill with last known values from before the cutoff
+    # so the chart doesn't start low when characters weren't scanned in this window
+    prev_values = {}  # cid -> last known total
+    if cutoff:
+        pre_cutoff_latest = (
+            db.session.query(
+                GilRecord.cid,
+                func.max(GilRecord.record_date).label('max_date')
+            )
+            .filter(GilRecord.record_date < cutoff.date())
+            .group_by(GilRecord.cid)
+            .subquery()
+        )
+        pre_cutoff = (
+            db.session.query(
+                GilRecord.cid,
+                (GilRecord.gil_player + GilRecord.gil_retainer).label('total'),
+            )
+            .join(pre_cutoff_latest, db.and_(
+                GilRecord.cid == pre_cutoff_latest.c.cid,
+                GilRecord.record_date == pre_cutoff_latest.c.max_date,
+            ))
+            .all()
+        )
+        for row in pre_cutoff:
+            prev_values[row.cid] = int(row.total)
+
     # Forward-fill: for each date, carry forward unscanned characters
     chart_labels = []
     chart_totals = []
     chart_char_counts = []
-    prev_values = {}  # cid -> last known total
 
     for d in dates_in_order:
         scanned = date_char_map[d]
