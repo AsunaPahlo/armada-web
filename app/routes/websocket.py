@@ -25,6 +25,81 @@ def decompress_data(compressed_base64: str) -> list:
     decompressed_bytes = gzip.decompress(compressed_bytes)
     return json.loads(decompressed_bytes.decode('utf-8'))
 
+
+def _process_gil_records(api_key_str: str, plugin_id: str, accounts: list):
+    """Extract and store gil records from fleet data payload."""
+    from app.models.api_key import APIKey
+    from app.models.gil_record import GilRecord
+    from app import db
+
+    # Find all gil_records arrays in the accounts payload
+    gil_records = []
+    if isinstance(accounts, list):
+        for item in accounts:
+            if isinstance(item, dict) and 'gil_records' in item:
+                gil_records = item.get('gil_records', [])
+                break
+
+    if not gil_records:
+        return 0
+
+    # Look up API key ID
+    api_key_obj = APIKey.query.filter_by(key=api_key_str).first()
+    if not api_key_obj:
+        return 0
+
+    upserted = 0
+    for record in gil_records:
+        try:
+            cid = str(record.get('cid', ''))
+            timestamp_ms = record.get('timestamp', 0)
+            if not cid or not timestamp_ms:
+                continue
+
+            timestamp = datetime.utcfromtimestamp(timestamp_ms / 1000.0)
+            record_date = timestamp.date()
+
+            # Upsert: update if exists for this cid+date, insert if not
+            existing = GilRecord.query.filter_by(cid=cid, record_date=record_date).first()
+            if existing:
+                # Update with latest values for the day
+                existing.gil_player = record.get('gil_player', 0)
+                existing.gil_retainer = record.get('gil_retainer', 0)
+                existing.timestamp = timestamp
+                existing.character_name = record.get('character_name', existing.character_name)
+                existing.world = record.get('world', existing.world)
+                existing.client_nickname = plugin_id
+                existing.received_at = datetime.utcnow()
+            else:
+                gil = GilRecord(
+                    api_key_id=api_key_obj.id,
+                    client_nickname=plugin_id,
+                    character_name=record.get('character_name', ''),
+                    world=record.get('world', ''),
+                    cid=cid,
+                    gil_player=record.get('gil_player', 0),
+                    gil_retainer=record.get('gil_retainer', 0),
+                    record_date=record_date,
+                    timestamp=timestamp,
+                )
+                db.session.add(gil)
+            upserted += 1
+        except Exception as e:
+            plugin_logger.warning(f"Error processing gil record: {e}")
+            continue
+
+    if upserted > 0:
+        try:
+            db.session.commit()
+            plugin_logger.info(f"Upserted {upserted} gil records from {plugin_id}")
+        except Exception as e:
+            db.session.rollback()
+            plugin_logger.warning(f"Error committing gil records: {e}")
+            upserted = 0
+
+    return upserted
+
+
 _update_thread: threading.Thread = None
 _lumina_thread: threading.Thread = None
 _running = False
@@ -241,6 +316,14 @@ class PluginNamespace(Namespace):
             plugin_logger.info(f"Updated FleetManager with data from {plugin_id}")
         except Exception as e:
             plugin_logger.warning(f"Error updating FleetManager: {e}")
+
+        # Process gil records if present
+        try:
+            gil_count = _process_gil_records(api_key, plugin_id, accounts)
+            if gil_count > 0:
+                plugin_logger.info(f"Processed {gil_count} gil records from {plugin_id}")
+        except Exception as e:
+            plugin_logger.warning(f"Error processing gil records: {e}")
 
         # Acknowledge receipt
         emit('data_response', {

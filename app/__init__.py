@@ -65,6 +65,7 @@ def create_app(config_name=None):
     from app.routes.mobile import mobile_bp
     from app.routes.settings import settings_bp
     from app.routes.api_v1 import api_v1_bp
+    from app.routes.gil import gil_bp
 
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(api_bp, url_prefix='/api')
@@ -80,6 +81,7 @@ def create_app(config_name=None):
     app.register_blueprint(mobile_bp, url_prefix='/m')
     app.register_blueprint(settings_bp, url_prefix='/settings')
     app.register_blueprint(api_v1_bp, url_prefix='/api/v1')
+    app.register_blueprint(gil_bp, url_prefix='/gil')
 
     # Create database tables
     with app.app_context():
@@ -90,6 +92,7 @@ def create_app(config_name=None):
         from app.models import fc_config  # noqa: F401
         from app.models import fc_housing  # noqa: F401
         from app.models import daily_stats  # noqa: F401
+        from app.models import gil_record  # noqa: F401
         db.create_all()
 
         # Run migrations for any new columns added to existing tables

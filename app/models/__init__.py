@@ -12,11 +12,13 @@ from app.models.alert import AlertSettings, AlertHistory
 from app.models.app_settings import AppSettings
 from app.models.daily_stats import DailyStats
 from app.models.activity_log import ActivityLog
+from app.models.gil_record import GilRecord
 
 __all__ = [
     'User', 'Voyage', 'VoyageStats', 'VoyageLoot', 'VoyageLootItem',
     'DataVersion', 'SubmarinePart', 'SubmarineExploration',
     'SubmarineMap', 'SubmarineRank', 'RouteStats', 'HousingPlotSize',
     'AlertSettings', 'AlertHistory',
-    'AppSettings', 'DailyStats', 'ActivityLog'
+    'AppSettings', 'DailyStats', 'ActivityLog',
+    'GilRecord'
 ]
