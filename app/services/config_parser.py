@@ -652,14 +652,18 @@ class ConfigParser:
             submarines_raw = char_data.get('submarines', [])
             for sub_data in submarines_raw:
                 sub_name = sub_data.get('name', '')
-                return_timestamp = sub_data.get('return_time', 0)
-
-                if return_timestamp <= 0:
+                if not sub_name:
                     continue
 
-                # Calculate time remaining
-                hours_remaining = (return_timestamp - current_time) / 3600
-                return_dt = datetime.utcfromtimestamp(return_timestamp)
+                return_timestamp = sub_data.get('return_time', 0)
+
+                # Handle idle submarines (return_time == 0 means not on a voyage)
+                if return_timestamp <= 0:
+                    hours_remaining = 0.0
+                    return_dt = datetime.utcfromtimestamp(0)
+                else:
+                    hours_remaining = (return_timestamp - current_time) / 3600
+                    return_dt = datetime.utcfromtimestamp(return_timestamp)
 
                 # Normalize keys to uppercase for helper methods (plugin sends lowercase)
                 normalized_sub_data = {

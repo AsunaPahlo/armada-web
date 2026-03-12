@@ -467,10 +467,15 @@ class FleetManager:
         Returns:
             Tuple of (status, hours_remaining)
         """
-        current_time = time.time()  # UTC timestamp
         # sub.return_time is a naive datetime representing UTC (from utcfromtimestamp)
         # Use calendar.timegm to correctly interpret it as UTC, not local time
         return_timestamp = calendar.timegm(sub.return_time.timetuple())
+
+        # Idle submarines (never dispatched or returned and not re-sent) have epoch-0 return time
+        if return_timestamp <= 0:
+            return 'ready', 0.0
+
+        current_time = time.time()  # UTC timestamp
         hours_remaining = (return_timestamp - current_time) / 3600
 
         if hours_remaining <= 0:
@@ -659,8 +664,9 @@ class FleetManager:
                         fc_summaries[fc_id_str]['routes'].add(sub.route_name)
 
                     # Track soonest return (both hours and absolute timestamp)
+                    # Skip idle subs (not on a voyage) — they're already ready
                     current_soonest = fc_summaries[fc_id_str]['soonest_return']
-                    if current_soonest is None or current_hours < current_soonest:
+                    if current_status != 'ready' and (current_soonest is None or current_hours < current_soonest):
                         fc_summaries[fc_id_str]['soonest_return'] = current_hours
                         fc_summaries[fc_id_str]['soonest_return_time'] = sub.return_time.isoformat() + 'Z'
 
