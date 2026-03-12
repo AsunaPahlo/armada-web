@@ -7,6 +7,7 @@ import json
 from flask import current_app, request
 from flask_socketio import SocketIO, emit, join_room, leave_room, Namespace
 from flask_login import current_user
+import gevent
 import threading
 import time
 from datetime import datetime
@@ -308,50 +309,57 @@ class PluginNamespace(Namespace):
 
         plugin_logger.info(f"Received fleet data from {plugin_id}: {len(accounts)} accounts")
 
-        # Update FleetManager with plugin data (including metadata for persistence)
-        try:
-            app = current_app._get_current_object()
-            fleet = get_ws_fleet_manager(app)
-            fleet.set_plugin_data(plugin_id, accounts, timestamp=timestamp, received_at=received_at, suppliers=suppliers)
-            plugin_logger.info(f"Updated FleetManager with data from {plugin_id}")
-        except Exception as e:
-            plugin_logger.warning(f"Error updating FleetManager: {e}")
-
-        # Process gil records if present
-        try:
-            gil_count = _process_gil_records(api_key, plugin_id, accounts)
-            if gil_count > 0:
-                plugin_logger.info(f"Processed {gil_count} gil records from {plugin_id}")
-        except Exception as e:
-            plugin_logger.warning(f"Error processing gil records: {e}")
-
-        # Acknowledge receipt
+        # Acknowledge receipt immediately so the plugin isn't waiting
         emit('data_response', {
             'success': True,
             'message': f'Received {len(accounts)} accounts',
             'timestamp': timestamp
         })
 
-        # Broadcast update to dashboard clients with full refresh
-        from app import socketio as main_socketio
+        # Process the heavy work in a background greenlet so web requests aren't blocked
+        app = current_app._get_current_object()
+        gevent.spawn(
+            self._process_fleet_data_background,
+            app, plugin_id, api_key, accounts, timestamp, received_at, suppliers
+        )
 
-        # Send notification
-        main_socketio.emit('plugin_data_update', {
-            'plugin_id': plugin_id,
-            'timestamp': timestamp,
-            'account_count': len(accounts)
-        }, room='dashboard', namespace='/')
+    def _process_fleet_data_background(self, app, plugin_id, api_key, accounts, timestamp, received_at, suppliers):
+        """Process fleet data ingestion and dashboard refresh in the background."""
+        with app.app_context():
+            # Update FleetManager with plugin data
+            try:
+                fleet = get_ws_fleet_manager(app)
+                fleet.set_plugin_data(plugin_id, accounts, timestamp=timestamp, received_at=received_at, suppliers=suppliers)
+                plugin_logger.info(f"Updated FleetManager with data from {plugin_id}")
+            except Exception as e:
+                plugin_logger.warning(f"Error updating FleetManager: {e}")
 
-        # Also trigger a full dashboard refresh
-        try:
-            app = current_app._get_current_object()
-            fleet = get_ws_fleet_manager(app)
-            with app.app_context():
+            # Process gil records if present
+            try:
+                gil_count = _process_gil_records(api_key, plugin_id, accounts)
+                if gil_count > 0:
+                    plugin_logger.info(f"Processed {gil_count} gil records from {plugin_id}")
+            except Exception as e:
+                plugin_logger.warning(f"Error processing gil records: {e}")
+
+            # Broadcast update to dashboard clients with full refresh
+            from app import socketio as main_socketio
+
+            # Send notification
+            main_socketio.emit('plugin_data_update', {
+                'plugin_id': plugin_id,
+                'timestamp': timestamp,
+                'account_count': len(accounts)
+            }, room='dashboard', namespace='/')
+
+            # Trigger a full dashboard refresh
+            try:
+                fleet = get_ws_fleet_manager(app)
                 data = fleet.get_dashboard_data()
                 main_socketio.emit('dashboard_update', data, room='dashboard', namespace='/')
                 plugin_logger.info(f"Broadcast dashboard update to clients")
-        except Exception as e:
-            plugin_logger.warning(f"Error broadcasting dashboard update: {e}")
+            except Exception as e:
+                plugin_logger.warning(f"Error broadcasting dashboard update: {e}")
 
     def on_ping(self):
         """Respond to keepalive ping."""

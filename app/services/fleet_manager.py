@@ -698,6 +698,11 @@ class FleetManager:
             fc = fc_summaries[fc_id]
             fc['accounts'] = list(fc['accounts'])
 
+            # Default soonest_return for FCs with all subs ready (or idle)
+            # so Jinja2 sort doesn't fail comparing None with float
+            if fc['soonest_return'] is None:
+                fc['soonest_return'] = -1
+
             # Flag FCs with potential duplicate submarines
             # - More than 4 subs is impossible (definite duplicates)
             # - Multiple characters in same FC could report the same subs
