@@ -115,18 +115,24 @@ class RouteStats(db.Model):
     Route gil/earnings data from community spreadsheet.
     Source: Fightclub submarine spreadsheet
     Note: Fuel/repair data should come from Lumina, this is just for gil estimates.
+    Same route can have multiple duration variants (e.g., JORZ at 24h, 36h, 48h).
     """
 
     __tablename__ = 'route_stats'
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    route_name = db.Column(db.String(20), nullable=False, unique=True, index=True)  # OJ, MOJ, JORZ, etc.
+    route_name = db.Column(db.String(20), nullable=False, index=True)  # OJ, MOJ, JORZ, etc.
+    duration_hours = db.Column(db.Integer, nullable=False, default=24)  # Voyage duration bucket (24, 36, 48, etc.)
     gil_per_sub_day = db.Column(db.Integer, default=0)  # Gil per submarine per day
     avg_exp = db.Column(db.Integer, default=0)  # Average experience per voyage
     fc_points = db.Column(db.Integer, default=0)  # FC points per voyage
 
+    __table_args__ = (
+        db.UniqueConstraint('route_name', 'duration_hours', name='unique_route_duration'),
+    )
+
     def __repr__(self):
-        return f'<RouteStats {self.route_name} {self.gil_per_sub_day}g/sub/day>'
+        return f'<RouteStats {self.route_name} {self.duration_hours}h {self.gil_per_sub_day}g/sub/day>'
 
 
 class HousingPlotSize(db.Model):

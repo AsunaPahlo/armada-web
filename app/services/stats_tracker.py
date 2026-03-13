@@ -437,13 +437,18 @@ class StatsTracker:
             fc_stats[key]['submarines'].add(v.submarine_name)
             fc_stats[key]['fc_name'] = v.fc_name
 
-            # Estimate gil from route
+            # Estimate gil from route (using voyage duration for accuracy)
             if v.route_name:
                 from app.services.route_stats_service import get_route_gil_per_day
-                gil = get_route_gil_per_day(v.route_name)
+                duration = v.duration_hours if v.duration_hours else None
+                gil = get_route_gil_per_day(v.route_name, duration_hours=duration)
                 if gil > 0:
-                    # Convert gil/day to gil/voyage (assume ~2 voyages/day)
-                    fc_stats[key]['estimated_gil'] += gil // 2
+                    # Convert gil/day to gil/voyage based on actual duration
+                    if v.duration_hours and v.duration_hours > 0:
+                        fc_stats[key]['estimated_gil'] += int(gil * v.duration_hours / 24)
+                    else:
+                        # Fallback: assume ~2 voyages/day
+                        fc_stats[key]['estimated_gil'] += gil // 2
 
         # Upsert stats for each FC
         for (account_name, fc_id), stats in fc_stats.items():

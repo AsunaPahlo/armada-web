@@ -195,25 +195,41 @@ class ConfigParser:
         else:
             return 'voyaging'
 
-    def _get_route_gil_per_day(self, route_name: str, build: str) -> float:
+    def _get_route_gil_per_day(self, route_name: str, build: str,
+                              route_points: list = None, sub_level: int = 0) -> float:
         """
-        Get gil per day for a route, using database first then fallback.
+        Get gil per day for a route, matching by voyage duration when possible.
 
         Args:
             route_name: Route name like 'OJ', 'JORZ', etc.
-            build: Build string for fallback lookup
+            build: Build string like 'S+S+U+C+'
+            route_points: List of sector IDs for duration calculation
+            sub_level: Submarine level for duration calculation
 
         Returns:
             Gil per submarine per day
         """
-        # Try database first
         try:
             from flask import current_app
             if current_app:
-                from app.models.lumina import RouteStats
-                route = RouteStats.query.filter_by(route_name=route_name).first()
-                if route and route.gil_per_sub_day > 0:
-                    return float(route.gil_per_sub_day)
+                from app.services.route_stats_service import get_route_gil_per_day
+
+                # Calculate voyage duration to pick the right variant
+                duration_hours = None
+                if route_points and build and sub_level > 0:
+                    try:
+                        from app.services.voyage_duration_calculator import calculate_voyage_duration_from_build
+                        duration_hours = calculate_voyage_duration_from_build(
+                            route_points=route_points,
+                            build=build,
+                            level=sub_level
+                        )
+                    except Exception:
+                        pass
+
+                gil = get_route_gil_per_day(route_name, duration_hours=duration_hours)
+                if gil > 0:
+                    return float(gil)
         except Exception:
             pass
 
@@ -473,8 +489,10 @@ class ConfigParser:
                     part_ids, route_points, sub_level
                 )
 
-                # Get gil earnings from route stats database (falls back to hardcoded)
-                gil_per_day = self._get_route_gil_per_day(route_name, build)
+                # Get gil earnings from route stats database, using duration for accuracy
+                gil_per_day = self._get_route_gil_per_day(
+                    route_name, build, route_points=route_points, sub_level=sub_level
+                )
 
                 submarine = SubmarineInfo(
                     name=sub_name,
@@ -726,8 +744,10 @@ class ConfigParser:
                     part_ids, route_points, sub_level
                 )
 
-                # Get gil earnings
-                gil_per_day = self._get_route_gil_per_day(route_name, build)
+                # Get gil earnings, using duration for accuracy
+                gil_per_day = self._get_route_gil_per_day(
+                    route_name, build, route_points=route_points, sub_level=sub_level
+                )
 
                 submarine = SubmarineInfo(
                     name=sub_name,

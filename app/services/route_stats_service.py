@@ -6,6 +6,9 @@ https://docs.google.com/spreadsheets/d/1aOhMH-XrWBIV93Veo3Wo0zz38z-tqk6QWO_4xzu5
 
 Note: Only gil-related data is used from this sheet.
 Fuel/repair calculations use Lumina data for accuracy.
+
+Routes can have multiple duration variants (e.g., JORZ at 36h and 48h).
+The correct variant is selected by matching the submarine's calculated voyage duration.
 """
 import csv
 import io
@@ -17,6 +20,7 @@ import requests
 
 from app import db
 from app.models.lumina import DataVersion, RouteStats
+from app.services.voyage_duration_calculator import snap_duration_to_bucket
 
 logger = logging.getLogger(__name__)
 
@@ -59,9 +63,10 @@ def parse_gil_value(value: str) -> int:
 
 
 def parse_hours(value: str) -> int:
-    """Parse hours from string."""
+    """Parse hours from string, snapping to nearest standard voyage bucket."""
     try:
-        return int(value.strip().strip('"'))
+        raw = float(value.strip().strip('"'))
+        return int(snap_duration_to_bucket(raw))
     except (ValueError, AttributeError):
         return 24  # Default
 
@@ -99,12 +104,38 @@ class RouteStatsService:
             logger.error(f"[RouteStats] Failed to fetch spreadsheet: {e}")
             return None
 
+    def _migrate_route_stats_table(self):
+        """Migrate route_stats table to support duration_hours column."""
+        from sqlalchemy import inspect, text
+
+        inspector = inspect(db.engine)
+
+        if 'route_stats' not in inspector.get_table_names():
+            return  # Table doesn't exist yet, will be created with new schema
+
+        existing_columns = {col['name'] for col in inspector.get_columns('route_stats')}
+
+        if 'duration_hours' not in existing_columns:
+            # Drop and recreate - this is cached data that gets re-fetched
+            logger.info("[RouteStats] Migrating table to add duration_hours column...")
+            db.session.execute(text('DROP TABLE IF EXISTS route_stats'))
+            db.session.commit()
+            # Recreate with new schema
+            RouteStats.__table__.create(db.engine, checkfirst=True)
+            # Clear version so data gets re-fetched
+            version = DataVersion.query.filter_by(table_name='route_stats').first()
+            if version:
+                db.session.delete(version)
+                db.session.commit()
+            logger.info("[RouteStats] Migration complete, table will be repopulated")
+
     def update_route_stats(self, force: bool = False) -> int:
         """
         Update route stats from Google Sheet.
+        Stores all duration variants for each route.
 
         Returns:
-            Number of routes updated
+            Number of route entries updated
         """
         table_name = 'route_stats'
 
@@ -134,29 +165,32 @@ class RouteStatsService:
                 if route_name.lower() == 'route':
                     continue
 
-                # Parse values - use Gil/Sub/Day (per submarine, not per FC)
+                # Parse values
                 gil_per_sub_day = parse_gil_value(row.get('Gil/Sub/Day', '0'))
                 avg_exp = parse_exp(row.get('Avg EXP', '0'))
                 fc_points = parse_gil_value(row.get('FC Points', '0'))
+                duration_hours = parse_hours(row.get('Hours', '24'))
 
                 # Skip rows with no meaningful data
                 if gil_per_sub_day == 0:
                     continue
 
-                # Upsert route stats - keep the LOWEST gil/sub/day for each route
-                # (conservative estimate, same route can have higher gil at higher levels)
-                route = RouteStats.query.filter_by(route_name=route_name).first()
+                # Upsert by (route_name, duration_hours) - each variant is its own row
+                route = RouteStats.query.filter_by(
+                    route_name=route_name,
+                    duration_hours=duration_hours
+                ).first()
+
                 if not route:
-                    route = RouteStats(route_name=route_name)
+                    route = RouteStats(
+                        route_name=route_name,
+                        duration_hours=duration_hours
+                    )
                     db.session.add(route)
-                    route.gil_per_sub_day = gil_per_sub_day
-                    route.avg_exp = avg_exp
-                    route.fc_points = fc_points
-                elif gil_per_sub_day < route.gil_per_sub_day:
-                    # Only update if this entry has lower gil (conservative)
-                    route.gil_per_sub_day = gil_per_sub_day
-                    route.avg_exp = avg_exp
-                    route.fc_points = fc_points
+
+                route.gil_per_sub_day = gil_per_sub_day
+                route.avg_exp = avg_exp
+                route.fc_points = fc_points
 
                 count += 1
 
@@ -174,11 +208,12 @@ class RouteStatsService:
         version.row_count = count
 
         db.session.commit()
-        logger.info(f"[RouteStats] Updated {count} routes from spreadsheet")
+        logger.info(f"[RouteStats] Updated {count} route entries from spreadsheet")
         return count
 
     def ensure_data_loaded(self) -> bool:
         """Ensure route stats are loaded on startup."""
+        self._migrate_route_stats_table()
         route_count = RouteStats.query.count()
         if route_count == 0:
             logger.info("[RouteStats] No data found, performing initial load...")
@@ -186,55 +221,96 @@ class RouteStatsService:
             return True
         return False
 
-    def get_gil_per_day(self, route_name: str) -> Optional[int]:
+    def get_gil_per_day(self, route_name: str, duration_hours: Optional[int] = None) -> Optional[int]:
         """
-        Get gil per day for a route name.
+        Get gil per day for a route name, optionally matching by duration.
 
         Args:
             route_name: Route name like 'OJ', 'JORZ', etc.
+            duration_hours: Voyage duration in hours (24, 36, 48, etc.)
+                           If provided, finds the closest matching duration variant.
 
         Returns:
             Gil per submarine per day, or None if not found
         """
-        route = RouteStats.query.filter_by(route_name=route_name).first()
-        return route.gil_per_sub_day if route else None
+        return _lookup_route_gil(route_name, duration_hours)
 
 
 # Singleton instance
 route_stats_service = RouteStatsService()
 
 
-def get_route_gil_per_day(route_name: str) -> int:
+def _lookup_route_gil(route_name: str, duration_hours: Optional[int] = None) -> Optional[int]:
     """
-    Get gil per day for a route, with fallback to hardcoded values.
+    Look up gil/day for a route, matching by duration when available.
+
+    Priority:
+    1. Exact duration match
+    2. Closest duration match
+    3. Any match for this route (highest gil/day if no duration info)
+    """
+    routes = RouteStats.query.filter_by(route_name=route_name).all()
+    if not routes:
+        return None
+
+    # Single variant - return it directly
+    if len(routes) == 1:
+        return routes[0].gil_per_sub_day
+
+    # Multiple variants - try to match by duration
+    if duration_hours is not None:
+        # Snap to bucket for consistency
+        snapped = int(snap_duration_to_bucket(float(duration_hours)))
+
+        # Try exact match first
+        for r in routes:
+            if r.duration_hours == snapped:
+                return r.gil_per_sub_day
+
+        # Find closest duration
+        closest = min(routes, key=lambda r: abs(r.duration_hours - snapped))
+        return closest.gil_per_sub_day
+
+    # No duration info - return highest gil/day (most common/optimistic)
+    best = max(routes, key=lambda r: r.gil_per_sub_day)
+    return best.gil_per_sub_day
+
+
+def get_route_gil_per_day(route_name: str, duration_hours: Optional[int] = None) -> int:
+    """
+    Get gil per day for a route, with duration matching.
 
     Args:
         route_name: Route name like 'OJ', 'JORZ', etc.
+        duration_hours: Optional voyage duration for selecting the right variant.
 
     Returns:
-        Gil per submarine per day
+        Gil per submarine per day, or 0 if not found
     """
-    # Try database first
-    route = RouteStats.query.filter_by(route_name=route_name).first()
-    if route and route.gil_per_sub_day > 0:
-        return route.gil_per_sub_day
-
-    # No route data available
-    return 0
+    result = _lookup_route_gil(route_name, duration_hours)
+    return result if result and result > 0 else 0
 
 
-def get_route_stats(route_name: str) -> Optional[dict]:
+def get_route_stats(route_name: str, duration_hours: Optional[int] = None) -> Optional[dict]:
     """
-    Get full route stats.
+    Get full route stats, optionally matching by duration.
 
-    Returns dict with gil_per_sub_day, avg_exp, fc_points.
+    Returns dict with route_name, duration_hours, gil_per_sub_day, avg_exp, fc_points.
     """
-    route = RouteStats.query.filter_by(route_name=route_name).first()
-    if not route:
+    routes = RouteStats.query.filter_by(route_name=route_name).all()
+    if not routes:
         return None
+
+    # Pick best match
+    route = routes[0]
+    if len(routes) > 1 and duration_hours is not None:
+        snapped = int(snap_duration_to_bucket(float(duration_hours)))
+        # Exact match or closest
+        route = min(routes, key=lambda r: abs(r.duration_hours - snapped))
 
     return {
         'route_name': route.route_name,
+        'duration_hours': route.duration_hours,
         'gil_per_sub_day': route.gil_per_sub_day,
         'avg_exp': route.avg_exp,
         'fc_points': route.fc_points
