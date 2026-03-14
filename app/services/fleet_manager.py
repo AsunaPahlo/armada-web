@@ -503,9 +503,11 @@ class FleetManager:
         except Exception as e:
             logger.info(f"Stats recording error: {e}")
 
-        # Get known production routes from database
+        # Get known production routes from database + user overrides
         from app.models.lumina import RouteStats
+        from app.models.route_override import get_override_route_names
         known_routes = set(r.route_name for r in RouteStats.query.all())
+        known_routes |= get_override_route_names()
 
         # Get FC visibility configuration (hidden FCs are excluded from views and stats)
         try:

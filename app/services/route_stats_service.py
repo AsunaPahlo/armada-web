@@ -251,7 +251,9 @@ def _lookup_route_gil(route_name: str, duration_hours: Optional[int] = None) -> 
     """
     routes = RouteStats.query.filter_by(route_name=route_name).all()
     if not routes:
-        return None
+        # Check user-defined route overrides
+        from app.models.route_override import get_override_gil
+        return get_override_gil(route_name)
 
     # Single variant - return it directly
     if len(routes) == 1:

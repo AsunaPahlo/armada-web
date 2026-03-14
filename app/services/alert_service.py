@@ -206,10 +206,12 @@ class AlertService:
         level_threshold = settings.not_farming_level_threshold
         cooldown_minutes = settings.not_farming_cooldown_minutes
 
-        # Get known production routes from database
+        # Get known production routes from database + user overrides
         try:
             from app.models.lumina import RouteStats
+            from app.models.route_override import get_override_route_names
             known_routes = set(r.route_name for r in RouteStats.query.all())
+            known_routes |= get_override_route_names()
         except Exception:
             # If we can't get routes, skip this check
             return alerts

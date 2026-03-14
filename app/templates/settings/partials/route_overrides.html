@@ -1,0 +1,217 @@
+<div class="settings-section-header">
+    <h2><i class="bi bi-signpost-split"></i> Route Overrides</h2>
+</div>
+
+{% if current_user.is_readonly %}
+<div class="alert alert-info mb-4">
+    <i class="bi bi-info-circle"></i> You have read-only access. Contact an admin to modify route overrides.
+</div>
+{% endif %}
+
+<div class="row">
+    <!-- About Section -->
+    <div class="col-lg-3 mb-4">
+        <div class="settings-card">
+            <div class="settings-card-title">
+                <i class="bi bi-info-circle"></i> About Route Overrides
+            </div>
+            <p class="text-muted mb-3">
+                Routes in the database are automatically classified as <strong>farming</strong>.
+                Use overrides to mark additional routes as farming so submarines on those routes
+                are not counted as leveling.
+            </p>
+            <p class="text-muted mb-0">
+                Optionally set an estimated <strong>Gil/Sub/Day</strong> value for each override.
+                This will be used in dashboard gil calculations. Leave blank if unknown.
+            </p>
+        </div>
+
+        {% if unrecognized %}
+        <div class="settings-card mt-3">
+            <div class="settings-card-title">
+                <i class="bi bi-lightbulb"></i> Unrecognized Routes
+            </div>
+            <p class="text-muted small mb-3">
+                These routes are currently used by your fleet but not recognized as farming routes.
+                Click to add as an override.
+            </p>
+            <div class="d-flex flex-wrap gap-2">
+                {% for route in unrecognized %}
+                <button type="button"
+                        class="btn btn-outline-warning btn-sm suggestion-btn"
+                        data-route="{{ route }}"
+                        {% if current_user.is_readonly %}disabled{% endif %}>
+                    <i class="bi bi-plus-circle"></i> {{ route }}
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Overrides Management -->
+    <div class="col-lg-9">
+        <!-- Add Override Form -->
+        {% if not current_user.is_readonly %}
+        <div class="settings-card">
+            <div class="settings-card-title">
+                <i class="bi bi-plus-lg"></i> Add Override
+            </div>
+            <form id="add-override-form" class="d-flex gap-3 align-items-end">
+                <div class="settings-form-group mb-0" style="flex: 1; max-width: 200px;">
+                    <label for="override-route">Route Name</label>
+                    <input type="text" class="form-control" id="override-route"
+                           placeholder="e.g. ABCD" maxlength="10"
+                           style="text-transform: uppercase;">
+                </div>
+                <div class="settings-form-group mb-0" style="flex: 1; max-width: 200px;">
+                    <label for="override-gil">Gil/Sub/Day <span class="text-muted">(optional)</span></label>
+                    <input type="number" class="form-control" id="override-gil"
+                           placeholder="e.g. 15000" min="0">
+                </div>
+                <div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-plus-lg"></i> Add
+                    </button>
+                </div>
+            </form>
+            <div id="override-error" class="text-danger small mt-2" style="display: none;"></div>
+        </div>
+        {% endif %}
+
+        <!-- Current Overrides Table -->
+        <div class="settings-card" style="padding: 0;">
+            <div class="d-flex justify-content-between align-items-center p-3" style="border-bottom: 1px solid var(--ffxiv-border);">
+                <div class="settings-card-title mb-0">
+                    <i class="bi bi-list-check"></i> Current Overrides
+                    <span class="badge bg-secondary ms-2">{{ overrides|length }}</span>
+                </div>
+            </div>
+            {% if overrides %}
+            <div class="table-responsive">
+                <table class="table table-dark table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Route</th>
+                            <th>Gil/Sub/Day</th>
+                            {% if not current_user.is_readonly %}
+                            <th class="text-center" style="width: 80px;">Remove</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for o in overrides %}
+                        <tr>
+                            <td><strong>{{ o.route_name }}</strong></td>
+                            <td>
+                                {% if o.gil_per_day is not none %}
+                                    {{ "{:,}".format(o.gil_per_day) }}
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            {% if not current_user.is_readonly %}
+                            <td class="text-center">
+                                <button type="button" class="btn btn-link text-danger p-0 remove-override-btn"
+                                        data-route="{{ o.route_name }}" title="Remove override">
+                                    <i class="bi bi-x-circle fs-5"></i>
+                                </button>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="p-4 text-center text-muted">
+                <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                No route overrides configured.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    const form = document.getElementById('add-override-form');
+    const errorEl = document.getElementById('override-error');
+
+    async function addOverride(route, gilPerDay) {
+        if (errorEl) {
+            errorEl.style.display = 'none';
+            errorEl.textContent = '';
+        }
+
+        try {
+            const resp = await fetch('/settings/api/route-overrides', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    route: route,
+                    gil_per_day: gilPerDay || null
+                })
+            });
+            const data = await resp.json();
+
+            if (data.success) {
+                window.reloadSettingsSection('route-overrides');
+            } else {
+                if (errorEl) {
+                    errorEl.textContent = data.message || 'Failed to add override.';
+                    errorEl.style.display = 'block';
+                }
+            }
+        } catch (err) {
+            console.error('Error adding override:', err);
+            if (errorEl) {
+                errorEl.textContent = 'Network error adding override.';
+                errorEl.style.display = 'block';
+            }
+        }
+    }
+
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const route = document.getElementById('override-route').value.trim().toUpperCase();
+            const gil = document.getElementById('override-gil').value.trim();
+            if (!route) return;
+            addOverride(route, gil);
+        });
+    }
+
+    document.querySelectorAll('.remove-override-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const route = this.dataset.route;
+
+            try {
+                const resp = await fetch(`/settings/api/route-overrides/${encodeURIComponent(route)}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                });
+                const data = await resp.json();
+
+                if (data.success) {
+                    window.reloadSettingsSection('route-overrides');
+                } else {
+                    alert(data.message || 'Failed to remove override.');
+                }
+            } catch (err) {
+                console.error('Error removing override:', err);
+                alert('Error removing override.');
+            }
+        });
+    });
+
+    document.querySelectorAll('.suggestion-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const route = this.dataset.route;
+            addOverride(route, null);
+        });
+    });
+})();
+</script>

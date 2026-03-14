@@ -96,6 +96,7 @@ def create_app(config_name=None):
         from app.models import daily_stats  # noqa: F401
         from app.models import gil_record  # noqa: F401
         from app.models import gil_config  # noqa: F401
+        from app.models import route_override  # noqa: F401
         db.create_all()
 
         # Run migrations for any new columns added to existing tables

@@ -190,6 +190,40 @@ def partial_alerts():
     return render_template('settings/partials/alerts.html', settings=settings, recent_alerts=recent_alerts)
 
 
+@settings_bp.route('/partial/route-overrides')
+@login_required
+def partial_route_overrides():
+    """Route overrides partial."""
+    from app.models.route_override import get_all_route_overrides
+    from app.models.lumina import RouteStats
+    from app.services import get_fleet_manager
+
+    overrides = get_all_route_overrides()
+
+    # Get known routes from RouteStats + existing overrides
+    known_routes = set(r.route_name for r in RouteStats.query.all())
+    override_names = set(o.route_name for o in overrides)
+
+    # Get unrecognized routes from live fleet data
+    unrecognized = set()
+    try:
+        fleet = get_fleet_manager()
+        accounts = fleet.get_data()
+        for account in accounts:
+            for char in account.characters:
+                for sub in char.submarines:
+                    if sub.route_name and sub.route_name not in known_routes and sub.route_name not in override_names:
+                        unrecognized.add(sub.route_name)
+    except Exception:
+        pass
+
+    return render_template(
+        'settings/partials/route_overrides.html',
+        overrides=overrides,
+        unrecognized=sorted(unrecognized),
+    )
+
+
 @settings_bp.route('/partial/export')
 @login_required
 def partial_export():
@@ -245,6 +279,66 @@ def update_general_settings():
         AppSettings.set('ceruleum_price_per_stack', int(data['ceruleum_price_per_stack']))
     if 'repair_kit_price_per_stack' in data:
         AppSettings.set('repair_kit_price_per_stack', int(data['repair_kit_price_per_stack']))
+
+    return jsonify({'success': True})
+
+
+@settings_bp.route('/api/route-overrides', methods=['POST'])
+@login_required
+@writable_required
+def add_route_override():
+    """Add a route override."""
+    import re
+    from app.models.route_override import RouteOverride
+    from app.models.lumina import RouteStats
+
+    data = request.get_json() or {}
+    route = str(data.get('route', '')).strip().upper()
+
+    if not route or not re.match(r'^[A-Z]{1,10}$', route):
+        return jsonify({'success': False, 'message': 'Invalid route name. Use 1-10 uppercase letters.'}), 400
+
+    gil_per_day = data.get('gil_per_day')
+    if gil_per_day is not None and gil_per_day != '':
+        try:
+            gil_per_day = int(gil_per_day)
+            if gil_per_day < 0:
+                return jsonify({'success': False, 'message': 'Gil/day must be positive.'}), 400
+        except (ValueError, TypeError):
+            return jsonify({'success': False, 'message': 'Gil/day must be a number.'}), 400
+    else:
+        gil_per_day = None
+
+    # Check if already in RouteStats
+    if RouteStats.query.filter_by(route_name=route).first():
+        return jsonify({'success': False, 'message': f'Route {route} already exists in the database.'}), 400
+
+    # Check for duplicate override
+    if RouteOverride.query.filter_by(route_name=route).first():
+        return jsonify({'success': False, 'message': f'Route {route} is already overridden.'}), 400
+
+    override = RouteOverride(route_name=route, gil_per_day=gil_per_day)
+    db.session.add(override)
+    db.session.commit()
+
+    return jsonify({'success': True})
+
+
+@settings_bp.route('/api/route-overrides/<route_name>', methods=['DELETE'])
+@login_required
+@writable_required
+def remove_route_override(route_name):
+    """Remove a route override."""
+    from app.models.route_override import RouteOverride
+
+    route_upper = route_name.strip().upper()
+    override = RouteOverride.query.filter_by(route_name=route_upper).first()
+
+    if not override:
+        return jsonify({'success': False, 'message': 'Override not found.'}), 404
+
+    db.session.delete(override)
+    db.session.commit()
 
     return jsonify({'success': True})
 

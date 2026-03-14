@@ -188,9 +188,11 @@ def sheets_export_api():
                     'datacenter': get_datacenter(char.world),
                 })
 
-    # Get list of known farming routes from RouteStats
+    # Get list of known farming routes from RouteStats + user overrides
     from app.models.lumina import RouteStats
+    from app.models.route_override import get_override_route_names
     farming_routes = set(r.route_name for r in RouteStats.query.all() if r.gil_per_sub_day and r.gil_per_sub_day > 0)
+    farming_routes |= get_override_route_names()
 
     # Format output rows
     untagged_rows = []  # FCs with no tags go here
