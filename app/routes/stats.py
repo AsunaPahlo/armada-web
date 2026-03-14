@@ -584,11 +584,12 @@ def fc_detail(fc_id):
     from app.models.fc_config import FCConfig
     from app.services.submarine_data import get_inventory_parts_with_details
 
-    target_level = AppSettings.get_int('target_submarine_level', 85)
+    global_target_level = AppSettings.get_int('target_submarine_level', 85)
 
-    # Get FC notes
+    # Get FC notes and per-FC target level
     fc_config = FCConfig.query.filter_by(fc_id=str(fc_id)).first()
     fc_notes = fc_config.notes if fc_config else ''
+    target_level = fc_config.target_sub_level if fc_config and fc_config.target_sub_level is not None else global_target_level
 
     # Get fleet data
     fleet = get_fleet_manager()
@@ -751,13 +752,13 @@ def fc_leveling_data(fc_id):
 @stats_bp.route('/fc/<fc_id>/settings', methods=['POST'])
 @login_required
 def fc_leveling_settings(fc_id):
-    """Update target level setting from FC detail page."""
-    from app.models.app_settings import AppSettings
+    """Update target level setting for this FC."""
+    from app.models.fc_config import update_fc_config
 
     target_level = request.form.get('target_level', type=int)
     if target_level is not None:
         target_level = max(1, min(125, target_level))
-        AppSettings.set('target_submarine_level', target_level)
+        update_fc_config(str(fc_id), target_sub_level=target_level)
         flash(f'Target level updated to {target_level}', 'success')
 
     return redirect(url_for('stats.fc_detail', fc_id=fc_id))

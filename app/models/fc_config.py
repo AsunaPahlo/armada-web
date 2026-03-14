@@ -14,6 +14,7 @@ class FCConfig(db.Model):
     visible = db.Column(db.Boolean, default=True)
     exclude_from_supply = db.Column(db.Boolean, default=False)  # Exclude from restock calculations
     notes = db.Column(db.Text, nullable=True)  # User notes for this FC
+    target_sub_level = db.Column(db.Integer, nullable=True)  # Per-FC target submarine level for not-farming alert
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def __repr__(self):
@@ -25,6 +26,7 @@ class FCConfig(db.Model):
             'visible': self.visible,
             'exclude_from_supply': self.exclude_from_supply,
             'notes': self.notes,
+            'target_sub_level': self.target_sub_level,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
 
@@ -42,6 +44,7 @@ def _migrate_fc_config_columns():
 
     migrations = [
         ('exclude_from_supply', 'BOOLEAN DEFAULT 0'),
+        ('target_sub_level', 'INTEGER DEFAULT NULL'),
     ]
 
     for col_name, col_def in migrations:
@@ -76,6 +79,17 @@ def get_all_fc_notes() -> dict:
     """
     configs = FCConfig.query.filter(FCConfig.notes.isnot(None)).all()
     return {c.fc_id: c.notes for c in configs}
+
+
+def get_fc_target_levels() -> dict:
+    """
+    Get per-FC target submarine levels.
+
+    Returns:
+        Dict mapping fc_id -> target_sub_level (only FCs with a level set)
+    """
+    configs = FCConfig.query.filter(FCConfig.target_sub_level.isnot(None)).all()
+    return {c.fc_id: c.target_sub_level for c in configs}
 
 
 def get_hidden_fc_ids() -> set:

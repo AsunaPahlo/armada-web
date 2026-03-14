@@ -29,6 +29,7 @@ class AlertSettings(db.Model):
     # Not farming alert settings (submarines above level threshold not on money routes)
     not_farming_enabled = db.Column(db.Boolean, default=False)
     not_farming_level_threshold = db.Column(db.Integer, default=90)
+    not_farming_use_fc_target_level = db.Column(db.Boolean, default=False)  # Use per-FC target level instead of global
     not_farming_cooldown_minutes = db.Column(db.Integer, default=60)
 
     # Unbuilt submarines alert settings (FC has unlocked slots without submarines)
@@ -124,6 +125,7 @@ class AlertSettings(db.Model):
         migrations = [
             ('not_farming_enabled', 'BOOLEAN DEFAULT 0'),
             ('not_farming_level_threshold', 'INTEGER DEFAULT 90'),
+            ('not_farming_use_fc_target_level', 'BOOLEAN DEFAULT 0'),
             ('not_farming_cooldown_minutes', 'INTEGER DEFAULT 60'),
             ('unbuilt_subs_enabled', 'BOOLEAN DEFAULT 0'),
             ('unbuilt_subs_cooldown_minutes', 'INTEGER DEFAULT 1440'),

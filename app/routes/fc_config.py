@@ -14,7 +14,8 @@ from app.decorators import writable_required
 fc_config_bp = Blueprint('fc_config', __name__)
 
 # Settings that can be toggled via the API
-ALLOWED_SETTINGS = {'visible', 'exclude_from_supply'}
+ALLOWED_SETTINGS = {'visible', 'exclude_from_supply', 'target_sub_level'}
+NUMERIC_SETTINGS = {'target_sub_level'}
 
 
 @fc_config_bp.route('/')
@@ -101,8 +102,10 @@ def toggle_setting():
     if value is None:
         return jsonify({'success': False, 'message': 'Value is required'}), 400
 
-    # Convert value to boolean
-    if isinstance(value, str):
+    # Convert value to appropriate type
+    if setting in NUMERIC_SETTINGS:
+        value = int(value)
+    elif isinstance(value, str):
         value = value.lower() in ('true', '1', 'yes')
     else:
         value = bool(value)

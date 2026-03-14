@@ -53,6 +53,7 @@ def save_settings():
     # Not farming settings
     settings.not_farming_enabled = request.form.get('not_farming_enabled') == 'on'
     settings.not_farming_level_threshold = int(request.form.get('not_farming_level_threshold', 90))
+    settings.not_farming_use_fc_target_level = request.form.get('not_farming_use_fc_target_level') == 'on'
     settings.not_farming_cooldown_minutes = int(request.form.get('not_farming_cooldown_minutes', 60))
 
     # Email settings
@@ -112,6 +113,7 @@ def save_settings_json():
     # Not farming settings
     settings.not_farming_enabled = data.get('not_farming_enabled', False)
     settings.not_farming_level_threshold = int(data.get('not_farming_level_threshold', 90))
+    settings.not_farming_use_fc_target_level = data.get('not_farming_use_fc_target_level', False)
     settings.not_farming_cooldown_minutes = int(data.get('not_farming_cooldown_minutes', 60))
 
     # Email settings

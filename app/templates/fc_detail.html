@@ -30,12 +30,11 @@
             <a href="{{ url_for('unlocks.index') }}?fc_id={{ fc_id }}" class="btn btn-outline-info btn-sm">
                 <i class="bi bi-diagram-3"></i> Unlocks
             </a>
-            <form class="d-flex align-items-center gap-1" method="POST" action="{{ url_for('stats.fc_leveling_settings', fc_id=fc_id) }}">
+            <div class="d-flex align-items-center gap-1">
                 <span class="text-muted small">Target:</span>
-                <input type="number" class="form-control form-control-sm" id="target_level" name="target_level"
+                <input type="number" class="form-control form-control-sm" id="target_level"
                        value="{{ target_level }}" min="1" max="125" style="width: 65px;">
-                <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-check"></i></button>
-            </form>
+            </div>
         </div>
     </div>
 </div>
@@ -332,28 +331,50 @@
 <script>
 (function() {
     const fcId = '{{ fc_id }}';
-    const targetLevel = {{ target_level }};
+    let targetLevel = {{ target_level }};
 
-    // Fetch leveling data
-    const apiUrl = new URL('{{ url_for("stats.fc_leveling_data", fc_id=fc_id) }}', window.location.origin);
-    apiUrl.searchParams.set('target', targetLevel);
+    function fetchLevelingData() {
+        const apiUrl = new URL('{{ url_for("stats.fc_leveling_data", fc_id=fc_id) }}', window.location.origin);
+        apiUrl.searchParams.set('target', targetLevel);
 
-    fetch(apiUrl)
-        .then(response => response.json())
-        .then(data => {
-            renderSummary(data.estimate);
-            renderSubmarines(data.estimate.submarines, {
-                diveCredits: data.dive_credits || 0,
-                unlockedSlots: data.unlocked_slots || 0,
-                cumulativeCosts: data.cumulative_costs || [1, 4, 9, 16]
-            });
-        })
+        fetch(apiUrl)
+            .then(response => response.json())
+            .then(data => {
+                renderSummary(data.estimate);
+                renderSubmarines(data.estimate.submarines, {
+                    diveCredits: data.dive_credits || 0,
+                    unlockedSlots: data.unlocked_slots || 0,
+                    cumulativeCosts: data.cumulative_costs || [1, 4, 9, 16]
+                });
+            })
         .catch(error => {
             console.error('Error fetching leveling data:', error);
             document.getElementById('sub-tbody').innerHTML = `
                 <tr><td colspan="5" class="text-center text-danger py-3">Error loading data</td></tr>
             `;
         });
+    }
+
+    fetchLevelingData();
+
+    // Auto-save target level on change
+    let targetSaveTimeout = null;
+    document.getElementById('target_level').addEventListener('input', function() {
+        const newLevel = parseInt(this.value);
+        if (!newLevel || newLevel < 1 || newLevel > 125) return;
+        targetLevel = newLevel;
+
+        if (targetSaveTimeout) clearTimeout(targetSaveTimeout);
+        targetSaveTimeout = setTimeout(() => {
+            fetch(`/settings/fc-config/toggle`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ fc_id: fcId, setting: 'target_sub_level', value: newLevel })
+            });
+            fetchLevelingData();
+        }, 500);
+    });
 
     function renderSummary(estimate) {
         const maxSubs = estimate.max_subs || 4;

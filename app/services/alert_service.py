@@ -203,7 +203,8 @@ class AlertService:
         Returns list of alert dicts.
         """
         alerts = []
-        level_threshold = settings.not_farming_level_threshold
+        global_threshold = settings.not_farming_level_threshold
+        use_fc_target = settings.not_farming_use_fc_target_level
         cooldown_minutes = settings.not_farming_cooldown_minutes
 
         # Get known production routes from database + user overrides
@@ -216,9 +217,21 @@ class AlertService:
             # If we can't get routes, skip this check
             return alerts
 
+        # Load per-FC target levels if enabled
+        fc_target_levels = {}
+        if use_fc_target:
+            from app.models.fc_config import get_fc_target_levels
+            fc_target_levels = get_fc_target_levels()
+
         for fc in dashboard_data.get('fc_summaries', []):
             fc_id = str(fc.get('fc_id', ''))
             fc_name = fc.get('fc_name', 'Unknown FC')
+
+            # Determine level threshold for this FC
+            if use_fc_target:
+                level_threshold = fc_target_levels.get(fc_id, global_threshold)
+            else:
+                level_threshold = global_threshold
 
             for sub in fc.get('submarines', []):
                 sub_name = sub.get('name', 'Unknown')

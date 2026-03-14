@@ -91,13 +91,24 @@
                     </label>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label small">Alert when submarine at or above level:</label>
-                    <div class="input-group input-group-sm">
-                        <input type="number" class="form-control" name="not_farming_level_threshold"
-                               value="{{ settings.not_farming_level_threshold }}" min="1" max="125">
-                        <span class="input-group-text">is not on a money route</span>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="not_farming_use_fc_target_level"
+                               name="not_farming_use_fc_target_level" {{ 'checked' if settings.not_farming_use_fc_target_level }}
+                               onchange="toggleFcTargetLevel(this.checked)">
+                        <label class="form-check-label small" for="not_farming_use_fc_target_level">
+                            Use per-FC target level
+                        </label>
                     </div>
-                    <small class="text-muted">Triggers if a sub at this level or higher is on a leveling route instead of farming.</small>
+                    <div>
+                        <label class="form-label small" id="not-farming-threshold-label">{{ 'Fallback level for FCs without a target set:' if settings.not_farming_use_fc_target_level else 'Alert when submarine at or above level:' }}</label>
+                        <div class="input-group input-group-sm">
+                            <input type="number" class="form-control" name="not_farming_level_threshold"
+                                   value="{{ settings.not_farming_level_threshold }}" min="1" max="125">
+                            <span class="input-group-text">is not on a money route</span>
+                        </div>
+                    </div>
+                    <small class="text-muted" id="not-farming-help-static" style="{{ 'display: none;' if settings.not_farming_use_fc_target_level }}">Triggers if a sub at this level or higher is on a leveling route instead of farming.</small>
+                    <small class="text-muted" id="not-farming-help-fc" style="{{ '' if settings.not_farming_use_fc_target_level else 'display: none;' }}">Uses each FC's target level from its detail page. Falls back to the level above for FCs without one set.</small>
                 </div>
                 <div class="mb-0">
                     <label class="form-label small">Cooldown between alerts:</label>
@@ -338,6 +349,14 @@ function toggleAlertEnabledStyle(enabled) {
     }
 }
 
+function toggleFcTargetLevel(enabled) {
+    document.getElementById('not-farming-threshold-label').textContent = enabled
+        ? 'Fallback level for FCs without a target set:'
+        : 'Alert when submarine at or above level:';
+    document.getElementById('not-farming-help-static').style.display = enabled ? 'none' : '';
+    document.getElementById('not-farming-help-fc').style.display = enabled ? '' : 'none';
+}
+
 function toggleSmtpAuth(enabled) {
     const authFields = document.getElementById('smtp-auth-fields');
     authFields.style.display = enabled ? '' : 'none';
@@ -462,7 +481,7 @@ async function saveSettings() {
     const data = {};
 
     // Handle checkboxes explicitly (unchecked = false)
-    ['alerts_enabled', 'low_supply_enabled', 'idle_sub_enabled', 'not_farming_enabled', 'unbuilt_subs_enabled',
+    ['alerts_enabled', 'low_supply_enabled', 'idle_sub_enabled', 'not_farming_enabled', 'not_farming_use_fc_target_level', 'unbuilt_subs_enabled',
      'discord_enabled', 'pushover_enabled', 'email_enabled', 'smtp_use_auth', 'smtp_use_tls'].forEach(field => {
         data[field] = formData.has(field);
     });
