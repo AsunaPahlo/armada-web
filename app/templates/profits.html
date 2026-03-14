@@ -404,14 +404,22 @@
         }
 
         const rSquared = profitData.summary.r_squared;
+        const nrmse = profitData.trend ? profitData.trend.nrmse : 1.0;
         document.getElementById('r-squared').textContent = rSquared;
-        let rSquaredLabel = 'Weak fit';
-        if (rSquared >= 0.7) {
-            rSquaredLabel = 'Strong fit';
-        } else if (rSquared >= 0.4) {
-            rSquaredLabel = 'Moderate fit';
-        }
-        document.getElementById('r-squared-label').textContent = rSquaredLabel;
+
+        // Hybrid fit assessment: use the better of R² or NRMSE
+        // R² works well when there's a real trend, NRMSE works well when data is stable/flat
+        let r2Label = 'Weak';
+        if (rSquared >= 0.7) r2Label = 'Strong';
+        else if (rSquared >= 0.4) r2Label = 'Moderate';
+
+        let nrmseLabel = 'Weak';
+        if (nrmse < 0.05) nrmseLabel = 'Strong';
+        else if (nrmse < 0.15) nrmseLabel = 'Moderate';
+
+        const rank = { 'Strong': 2, 'Moderate': 1, 'Weak': 0 };
+        const bestLabel = rank[nrmseLabel] > rank[r2Label] ? nrmseLabel : r2Label;
+        document.getElementById('r-squared-label').textContent = bestLabel + ' fit';
 
         document.getElementById('total-voyages').textContent =
             profitData.summary.total_voyages.toLocaleString();

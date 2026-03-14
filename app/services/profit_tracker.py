@@ -207,6 +207,7 @@ class ProfitTracker:
                 'intercept': 0,
                 'trend_points': [],
                 'r_squared': 0,
+                'nrmse': 1.0,
                 'daily_trend': 0
             }
 
@@ -235,6 +236,12 @@ class ProfitTracker:
         ss_tot = sum((y - y_mean) ** 2 for y in y_values)
         r_squared = 1 - (ss_res / ss_tot) if ss_tot != 0 else 0
 
+        # Calculate normalized RMSE (residuals relative to data magnitude)
+        # Useful when data is flat/stable — R² is misleading in that case
+        n = len(y_values)
+        rmse = (ss_res / n) ** 0.5
+        nrmse = rmse / abs(y_mean) if y_mean != 0 else 1.0
+
         # Generate trend line points
         trend_points = []
         for i, day_data in enumerate(daily_profits):
@@ -248,6 +255,7 @@ class ProfitTracker:
             'intercept': round(intercept, 0),
             'trend_points': trend_points,
             'r_squared': round(r_squared, 3),
+            'nrmse': round(nrmse, 4),
             'daily_trend': round(slope, 0)  # How much profit changes per day
         }
 

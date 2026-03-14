@@ -25,34 +25,29 @@ VOYAGE_DURATION_BUCKETS = [24, 36, 48, 60, 72, 84, 96]
 
 def snap_duration_to_bucket(duration_hours: float) -> float:
     """
-    Snap a calculated duration to the nearest standard voyage bucket.
+    Snap a calculated duration to the appropriate standard voyage bucket.
 
     Voyages in FFXIV run on fixed duration intervals: 24, 36, 48, 60, 72 hours, etc.
-    This function rounds the calculated duration to the nearest bucket.
+    If the duration exceeds a bucket by more than 2 hours, snaps up to the next bucket
+    instead of rounding to nearest. For example, 38h on a route with 36h and 48h
+    variants snaps to 48h since it's clearly not the 36h version.
 
     Args:
         duration_hours: Raw calculated duration in hours
 
     Returns:
-        Duration snapped to nearest bucket (24, 36, 48, etc.)
+        Duration snapped to appropriate bucket (24, 36, 48, etc.)
     """
     if duration_hours <= 0:
         return 24.0  # Minimum voyage duration
 
-    # Find the nearest bucket
-    closest_bucket = VOYAGE_DURATION_BUCKETS[0]
-    min_diff = abs(duration_hours - closest_bucket)
+    # Find the right bucket: snap up if more than 2 hours over a lower bucket
+    for i, bucket in enumerate(VOYAGE_DURATION_BUCKETS):
+        if duration_hours < bucket + 2:
+            return float(bucket)
 
-    for bucket in VOYAGE_DURATION_BUCKETS[1:]:
-        diff = abs(duration_hours - bucket)
-        if diff < min_diff:
-            min_diff = diff
-            closest_bucket = bucket
-        elif diff > min_diff:
-            # Since buckets are sorted, once diff increases we've passed the closest
-            break
-
-    return float(closest_bucket)
+    # Beyond all buckets, return the largest
+    return float(VOYAGE_DURATION_BUCKETS[-1])
 
 
 # Build string letter to base ID mapping (from SubmarineTracker)
