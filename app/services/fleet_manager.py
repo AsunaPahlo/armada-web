@@ -666,11 +666,15 @@ class FleetManager:
                         fc_summaries[fc_id_str]['routes'].add(sub.route_name)
 
                     # Track soonest return (both hours and absolute timestamp)
-                    # Skip idle subs (not on a voyage) — they're already ready
+                    # Ready subs count as 0 so FCs with ready subs sort to the top
                     current_soonest = fc_summaries[fc_id_str]['soonest_return']
-                    if current_status != 'ready' and (current_soonest is None or current_hours < current_soonest):
-                        fc_summaries[fc_id_str]['soonest_return'] = current_hours
-                        fc_summaries[fc_id_str]['soonest_return_time'] = sub.return_time.isoformat() + 'Z'
+                    effective_hours = 0 if current_status == 'ready' else current_hours
+                    if current_soonest is None or effective_hours < current_soonest:
+                        fc_summaries[fc_id_str]['soonest_return'] = effective_hours
+                        if current_status == 'ready':
+                            fc_summaries[fc_id_str]['soonest_return_time'] = None
+                        else:
+                            fc_summaries[fc_id_str]['soonest_return_time'] = sub.return_time.isoformat() + 'Z'
 
                     sub_data = {
                         'account': account.nickname,
@@ -700,10 +704,10 @@ class FleetManager:
             fc = fc_summaries[fc_id]
             fc['accounts'] = list(fc['accounts'])
 
-            # Default soonest_return for FCs with all subs ready (or idle)
+            # Default soonest_return for FCs with no submarines
             # so Jinja2 sort doesn't fail comparing None with float
             if fc['soonest_return'] is None:
-                fc['soonest_return'] = -1
+                fc['soonest_return'] = 0
 
             # Flag FCs with potential duplicate submarines
             # - More than 4 subs is impossible (definite duplicates)
