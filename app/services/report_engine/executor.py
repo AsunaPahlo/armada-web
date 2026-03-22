@@ -218,6 +218,9 @@ def execute_live(ast, fc_summaries, all_submarines):
             enriched = dict(fc)
             if 'house_size' not in enriched:
                 enriched['house_size'] = _resolve_house_size(enriched.get('fc_id'))
+            # Treat -1 gil as 0 (plugin lacks FC chest access)
+            if enriched.get('fc_gil', 0) < 0:
+                enriched['fc_gil'] = 0
             data.append(enriched)
     elif entity == 'subs':
         data = all_submarines
