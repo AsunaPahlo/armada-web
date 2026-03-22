@@ -466,13 +466,31 @@ class ArmadaReports {
 
             list.innerHTML = reports.map(r => `
                 <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
-                     onclick="reports.loadReport(${r.id}, '${this._escapeHtml(r.query_text)}')">
+                     data-report-id="${r.id}"
+                     data-report-query="${this._escapeAttr(r.query_text)}">
                     <span>${this._escapeHtml(r.name)}</span>
-                    <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation();reports.deleteReport(${r.id})">
+                    <button class="btn btn-sm btn-outline-danger" data-delete-id="${r.id}">
                         <i class="bi bi-trash"></i>
                     </button>
                 </div>
             `).join('');
+
+            // Add click handlers
+            list.querySelectorAll('[data-report-id]').forEach(el => {
+                el.addEventListener('click', (e) => {
+                    if (e.target.closest('[data-delete-id]')) return;
+                    reports.loadReport(
+                        parseInt(el.dataset.reportId),
+                        el.dataset.reportQuery
+                    );
+                });
+            });
+            list.querySelectorAll('[data-delete-id]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    reports.deleteReport(parseInt(btn.dataset.deleteId));
+                });
+            });
         } catch (e) {
             console.error('Failed to load saved reports:', e);
         }
@@ -587,6 +605,10 @@ class ArmadaReports {
         const div = document.createElement('div');
         div.textContent = str;
         return div.innerHTML;
+    }
+
+    _escapeAttr(str) {
+        return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 }
 

@@ -6,7 +6,7 @@ from flask_login import login_required, current_user
 from app import db
 from app.models.saved_report import SavedReport
 from app.services import get_fleet_manager
-from app.services.report_engine import run_query, export_csv, get_schema, ParseError
+from app.services.report_engine import run_query, export_csv, get_schema, ParseError, QueryTimeout
 
 reports_bp = Blueprint('reports', __name__)
 
@@ -49,6 +49,8 @@ def run():
         return jsonify(result)
     except ParseError as e:
         return jsonify({'error': str(e)}), 400
+    except QueryTimeout as e:
+        return jsonify({'error': str(e)}), 408
     except Exception as e:
         return jsonify({'error': f'Query execution error: {str(e)}'}), 500
 
@@ -78,6 +80,8 @@ def export():
         )
     except ParseError as e:
         return jsonify({'error': str(e)}), 400
+    except QueryTimeout as e:
+        return jsonify({'error': str(e)}), 408
 
 
 @reports_bp.route('/save', methods=['POST'])

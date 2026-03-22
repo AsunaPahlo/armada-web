@@ -237,6 +237,15 @@ def _get_model_class(model_name):
     raise ValueError(f'Unknown model: {model_name}')
 
 
+def _escape_like(value):
+    """Escape LIKE special characters."""
+    s = str(value)
+    s = s.replace('\\', '\\\\')
+    s = s.replace('%', '\\%')
+    s = s.replace('_', '\\_')
+    return s
+
+
 def _build_sqlalchemy_filter(model, source_key, operator, value):
     """Build a SQLAlchemy filter expression for a single condition."""
     column = getattr(model, source_key, None)
@@ -256,13 +265,13 @@ def _build_sqlalchemy_filter(model, source_key, operator, value):
     if operator == '<=':
         return column <= value
     if operator == 'CONTAINS':
-        return column.ilike(f'%{value}%')
+        return column.ilike(f'%{_escape_like(value)}%', escape='\\')
     if operator == 'NOT CONTAINS':
-        return ~column.ilike(f'%{value}%')
+        return ~column.ilike(f'%{_escape_like(value)}%', escape='\\')
     if operator == 'STARTS WITH':
-        return column.ilike(f'{value}%')
+        return column.ilike(f'{_escape_like(value)}%', escape='\\')
     if operator == 'ENDS WITH':
-        return column.ilike(f'%{value}')
+        return column.ilike(f'%{_escape_like(value)}', escape='\\')
     if operator == 'IN':
         return column.in_(value)
     if operator == 'NOT IN':
@@ -466,5 +475,28 @@ def execute_db(ast):
                 continue  # Skip special join markers
             record[parent_field] = getattr(row, mapped_key, None)
         results.append(record)
+
+    # Resolve join-marker parent fields for loot
+    if entity == 'loot' and results:
+        from app.models.voyage import Voyage
+        # Get unique fc_ids from the raw rows
+        fc_ids = set()
+        for row in rows:
+            fid = getattr(row, 'fc_id', None)
+            if fid:
+                fc_ids.add(fid)
+        if fc_ids:
+            # Query distinct fc_id -> fc_name, world from Voyage table
+            fc_lookup = {}
+            voyages = Voyage.query.filter(Voyage.fc_id.in_(fc_ids)).with_entities(
+                Voyage.fc_id, Voyage.fc_name, Voyage.world
+            ).distinct().all()
+            for v in voyages:
+                fc_lookup[v.fc_id] = {'fc.name': v.fc_name, 'fc.world': v.world}
+            # Populate results
+            for i, row in enumerate(rows):
+                fid = getattr(row, 'fc_id', None)
+                if fid and fid in fc_lookup:
+                    results[i].update(fc_lookup[fid])
 
     return results
