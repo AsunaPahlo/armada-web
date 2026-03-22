@@ -203,7 +203,9 @@ def get_field_info(entity_name, field_name):
         if field_name in parent_map:
             return parent_map[field_name], FieldType.STRING, 'parent'
         # For live entities, try resolving from parent's fields
-        parent_def = ENTITY_FIELDS.get(prefix)
+        # Note: parents set uses short names (e.g., 'fc') but ENTITY_FIELDS uses plural (e.g., 'fcs')
+        resolved_prefix = resolve_entity(prefix + 's') if ENTITY_FIELDS.get(prefix) is None else prefix
+        parent_def = ENTITY_FIELDS.get(resolved_prefix) or ENTITY_FIELDS.get(prefix)
         if parent_def and suffix in parent_def['fields']:
             source_key, ftype = parent_def['fields'][suffix]
             return source_key, ftype, 'parent'
