@@ -91,13 +91,10 @@ class TestExecuteLive:
         }
         results = execute_live(ast, MOCK_FC_SUMMARIES, MOCK_ALL_SUBS)
         # Ocean Fleet (fc_id 2) has all subs > 100 (Sub3=115).
-        # Deep Divers (fc_id 3) has no subs in mock data, so ALL is vacuously true.
+        # Deep Divers (fc_id 3) has no subs in mock data — excluded (no subs = no match for ALL).
         # Storm Armada has Sub2 at level 90, so it is excluded.
-        assert len(results) == 2
-        fc_names = {r['name'] for r in results}
-        assert 'Ocean Fleet' in fc_names
-        assert 'Deep Divers' in fc_names
-        assert 'Storm Armada' not in fc_names
+        assert len(results) == 1
+        assert results[0]['name'] == 'Ocean Fleet'
 
     def test_quantifier_any(self):
         ast = {

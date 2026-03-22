@@ -166,8 +166,9 @@ def _evaluate_condition(record, condition, entity_name, all_subs=None, fc_summar
         results = [_apply_condition(sub, child_source_key, operator, value) for sub in fc_subs]
 
         if not results:
-            # No children: ALL is vacuously true, ANY is false, NO is true
-            if quantifier == 'ALL' or quantifier == 'NO':
+            # No children: practically, FCs with no subs should not match
+            # ALL or ANY conditions. NO is true (no sub violates the condition).
+            if quantifier == 'NO':
                 return True
             return False
 
