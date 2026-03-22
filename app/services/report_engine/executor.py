@@ -328,6 +328,7 @@ def execute_live(ast, fc_summaries, all_submarines):
     """
     entity = ast['entity']
     conditions = ast['conditions']
+    select = ast.get('select')
     order_by = ast.get('order_by')
     limit = ast.get('limit')
 
@@ -413,9 +414,39 @@ def execute_live(ast, fc_summaries, all_submarines):
                         if pfield in parent_def['fields']:
                             psource = parent_def['fields'][pfield][0]
                             row[f'{parent}.{pfield}'] = record.get(psource)
+        # Evaluate SELECT expressions and add computed columns
+        if select:
+            for col in select:
+                expr = col['expression']
+                alias = col['alias']
+                if isinstance(expr, str):
+                    # Plain field reference — already in row
+                    if alias and expr in row:
+                        row[alias] = row[expr]
+                else:
+                    # Expression node — evaluate against the raw (pre-remap) record
+                    val = _evaluate_expression(expr, record, entity, all_submarines)
+                    col_name = alias or _expr_to_label(expr)
+                    row[col_name] = val
+
         remapped.append(row)
 
     return remapped
+
+
+def _expr_to_label(expr):
+    """Generate a display label from an expression AST node."""
+    if expr['type'] == 'literal':
+        return str(expr['value'])
+    if expr['type'] == 'field_ref':
+        return expr['field']
+    if expr['type'] == 'count_field':
+        return f"COUNT({expr['field']}, \"{expr['pattern']}\")"
+    if expr['type'] == 'count_where':
+        return f"COUNT({expr['child']} WHERE ...)"
+    if expr['type'] == 'binop':
+        return f"{_expr_to_label(expr['left'])} {expr['op']} {_expr_to_label(expr['right'])}"
+    return 'expr'
 
 
 # ---------------------------------------------------------------------------

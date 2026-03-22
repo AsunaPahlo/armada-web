@@ -8,8 +8,30 @@ from collections import Counter
 from app.services.report_engine.schema import ENTITY_FIELDS, FieldType
 
 
-def format_table(results, entity_name, page=1, per_page=100):
+def _expr_to_label(expr):
+    """Generate a display label from an expression AST node."""
+    if expr['type'] == 'literal':
+        return str(expr['value'])
+    if expr['type'] == 'field_ref':
+        return expr['field']
+    if expr['type'] == 'count_field':
+        return f"COUNT({expr['field']}, \"{expr['pattern']}\")"
+    if expr['type'] == 'count_where':
+        return f"COUNT({expr['child']} WHERE ...)"
+    if expr['type'] == 'binop':
+        return f"{_expr_to_label(expr['left'])} {expr['op']} {_expr_to_label(expr['right'])}"
+    return 'expr'
+
+
+def format_table(results, entity_name, page=1, per_page=100, select=None):
     """Format results as a paginated table response.
+
+    Args:
+        results: List of result row dicts
+        entity_name: Entity name for schema lookup
+        page: Current page number
+        per_page: Results per page
+        select: Optional SELECT clause from AST (list of {expression, alias})
 
     Returns: {
         'columns': [{'name': 'field_name', 'type': 'string'}],
@@ -23,15 +45,41 @@ def format_table(results, entity_name, page=1, per_page=100):
     entity_def = ENTITY_FIELDS.get(entity_name, {})
     fields = entity_def.get('fields', {})
 
-    # Build columns
-    columns = []
-    for fname, (source_key, ftype) in fields.items():
-        columns.append({'name': fname, 'type': ftype.value})
-    # Add parent ref columns that appear in results
-    if results:
-        for key in results[0]:
-            if '.' in key and key not in [c['name'] for c in columns]:
-                columns.append({'name': key, 'type': 'string'})
+    if select:
+        # Only show selected columns
+        columns = []
+        for col in select:
+            expr = col['expression']
+            alias = col['alias']
+            if isinstance(expr, str):
+                # Plain field name
+                col_name = alias or expr
+                ftype = 'string'
+                if expr in fields:
+                    ftype = fields[expr][1].value
+                columns.append({'name': col_name, 'type': ftype})
+            else:
+                # Expression — always numeric
+                col_name = alias or _expr_to_label(expr)
+                columns.append({'name': col_name, 'type': 'number'})
+
+        # Filter rows to only include selected columns
+        selected_names = [c['name'] for c in columns]
+        filtered_rows = []
+        for row in results:
+            filtered = {k: v for k, v in row.items() if k in selected_names}
+            filtered_rows.append(filtered)
+        results = filtered_rows
+    else:
+        # Build columns from all fields
+        columns = []
+        for fname, (source_key, ftype) in fields.items():
+            columns.append({'name': fname, 'type': ftype.value})
+        # Add parent ref columns that appear in results
+        if results:
+            for key in results[0]:
+                if '.' in key and key not in [c['name'] for c in columns]:
+                    columns.append({'name': key, 'type': 'string'})
 
     total = len(results)
     truncated = total >= 1000

@@ -36,8 +36,8 @@ class LexerError(Exception):
 
 # Keywords recognized by the lexer
 KEYWORDS = {
-    'FIND', 'WHERE', 'AND', 'OR', 'GROUP', 'BY', 'ORDER',
-    'ASC', 'DESC', 'LIMIT', 'BETWEEN', 'IN', 'COUNT',
+    'FIND', 'SELECT', 'WHERE', 'AND', 'OR', 'GROUP', 'BY', 'ORDER',
+    'ASC', 'DESC', 'LIMIT', 'BETWEEN', 'IN', 'COUNT', 'AS',
 }
 QUANTIFIERS = {'ALL', 'ANY', 'NO'}
 

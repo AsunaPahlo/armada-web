@@ -81,10 +81,15 @@ class _Parser:
         self.entity = entity_name
 
         # Optional clauses
+        select = None
         conditions = None
         group_by = None
         order_by = None
         limit = None
+
+        # SELECT clause: FIND fcs SELECT name, world, COUNT(...) AS alias
+        if self.match(TokenType.KEYWORD, 'SELECT'):
+            select = self._parse_select()
 
         if self.match(TokenType.KEYWORD, 'WHERE'):
             conditions = self.parse_conditions()
@@ -154,6 +159,7 @@ class _Parser:
 
         return {
             'entity': entity_name,
+            'select': select,
             'conditions': conditions,
             'group_by': group_by,
             'order_by': order_by,
@@ -375,6 +381,61 @@ class _Parser:
             return {'type': 'field_ref', 'field': token.value}
 
         raise ParseError(f'Expected expression, got {token.value!r}', token.pos)
+
+    def _parse_select(self):
+        """Parse SELECT clause: comma-separated list of fields/expressions with optional AS alias.
+
+        Returns list of {'expression': expr_node_or_field_name, 'alias': str_or_None}
+        """
+        columns = []
+        while True:
+            # Each select item is either an expression or a simple field name
+            if self._is_expression_start():
+                expr = self.parse_expression()
+            elif self.peek() and self.peek().type == TokenType.IDENTIFIER:
+                token = self.advance()
+                # Check if followed by arithmetic
+                if self.peek() and self.peek().type == TokenType.ARITHMETIC:
+                    left = {'type': 'field_ref', 'field': token.value}
+                    # Parse full expression using precedence climbing
+                    while True:
+                        t = self.peek()
+                        if t and t.type == TokenType.ARITHMETIC and t.value in ('*', '/'):
+                            self.advance()
+                            r = self._parse_atom()
+                            left = {'type': 'binop', 'op': t.value, 'left': left, 'right': r}
+                        else:
+                            break
+                    while True:
+                        t = self.peek()
+                        if t and t.type == TokenType.ARITHMETIC and t.value in ('+', '-'):
+                            self.advance()
+                            r = self._parse_mul_div()
+                            left = {'type': 'binop', 'op': t.value, 'left': left, 'right': r}
+                        else:
+                            break
+                    expr = left
+                else:
+                    expr = token.value  # plain field name (string, not expression node)
+            else:
+                break
+
+            # Optional AS alias
+            alias = None
+            if self.match(TokenType.KEYWORD, 'AS'):
+                alias_token = self.expect(TokenType.IDENTIFIER)
+                alias = alias_token.value
+
+            columns.append({'expression': expr, 'alias': alias})
+
+            # Comma means more columns
+            if not self.match(TokenType.COMMA):
+                break
+
+        if not columns:
+            raise ParseError('Expected at least one column after SELECT')
+
+        return columns
 
     def _parse_count(self):
         """Parse COUNT(field, "pattern") or COUNT(child WHERE condition)."""

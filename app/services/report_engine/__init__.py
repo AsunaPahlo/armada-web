@@ -80,7 +80,7 @@ def run_query(query_text, fleet_manager=None, view_mode='table', page=1, per_pag
     if view_mode == 'summary':
         return format_summary(results, entity, group_by=ast.get('group_by'))
     else:
-        return format_table(results, entity, page=page, per_page=per_page)
+        return format_table(results, entity, page=page, per_page=per_page, select=ast.get('select'))
 
 
 def export_csv(query_text, fleet_manager=None):
