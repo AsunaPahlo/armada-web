@@ -1627,9 +1627,8 @@ def _build_condition_filter(model, condition, entity_name):
         mapped_key = parent_map.get(field, source_key)
 
         if mapped_key.startswith('_join_voyage_'):
-            # Loot parent refs require joining to Voyage table.
-            # The join is added in execute_db; here we build the filter
-            # against the Voyage model's column.
+            # Loot parent refs use a subquery against Voyage to avoid duplicate rows.
+            # We find fc_ids that match the condition, then filter VoyageLoot.fc_id IN those.
             Voyage = _get_model_class('Voyage')
             voyage_col_map = {
                 '_join_voyage_fc_name': 'fc_name',
@@ -1637,7 +1636,11 @@ def _build_condition_filter(model, condition, entity_name):
             }
             voyage_col = voyage_col_map.get(mapped_key)
             if voyage_col:
-                return _build_sqlalchemy_filter(Voyage, voyage_col, operator, value)
+                col = getattr(Voyage, voyage_col)
+                voyage_filter = _build_sqlalchemy_filter(Voyage, voyage_col, operator, value)
+                if voyage_filter is not None:
+                    subq = db.session.query(Voyage.fc_id).filter(voyage_filter).distinct().subquery()
+                    return model.fc_id.in_(db.session.query(subq))
             return None
 
         return _build_sqlalchemy_filter(model, mapped_key, operator, value)
@@ -1710,14 +1713,6 @@ def _build_condition_filter(model, condition, entity_name):
     return _build_sqlalchemy_filter(model, source_key, operator, value)
 
 
-def _needs_voyage_join(condition):
-    """Check if a condition tree references any loot parent fields requiring a Voyage join."""
-    if 'type' in condition:
-        return any(_needs_voyage_join(child) for child in condition['children'])
-    field = condition.get('field', '')
-    return field.startswith('fc.')
-
-
 def execute_db(ast):
     """Execute a query against DB-backed entities.
 
@@ -1735,13 +1730,6 @@ def execute_db(ast):
     entity_def = ENTITY_FIELDS[entity]
     model = _get_model_class(entity_def['model'])
     query = model.query
-
-    # For loot queries that reference fc.* parent fields, we need to join to Voyage.
-    # Check if any condition references a _join_voyage_ parent field by scanning the AST.
-    if entity == 'loot' and conditions and _needs_voyage_join(conditions):
-        Voyage = _get_model_class('Voyage')
-        VoyageLoot = _get_model_class('VoyageLoot')
-        query = query.join(Voyage, VoyageLoot.fc_id == Voyage.fc_id)
 
     if conditions:
         filter_expr = _build_condition_filter(model, conditions, entity)
