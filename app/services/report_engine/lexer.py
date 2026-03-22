@@ -18,6 +18,7 @@ class TokenType(Enum):
     LPAREN = auto()       # (
     RPAREN = auto()       # )
     COMMA = auto()        # ,
+    ARITHMETIC = auto()   # +, -, *, /
 
 
 @dataclass(frozen=True)
@@ -36,7 +37,7 @@ class LexerError(Exception):
 # Keywords recognized by the lexer
 KEYWORDS = {
     'FIND', 'WHERE', 'AND', 'OR', 'GROUP', 'BY', 'ORDER',
-    'ASC', 'DESC', 'LIMIT', 'BETWEEN', 'IN',
+    'ASC', 'DESC', 'LIMIT', 'BETWEEN', 'IN', 'COUNT',
 }
 QUANTIFIERS = {'ALL', 'ANY', 'NO'}
 
@@ -111,7 +112,26 @@ def tokenize(query: str) -> List[Token]:
             i += len(matched_op)
             continue
 
-        # Numbers
+        # Arithmetic operators (+, *, /)
+        if query[i] in '+*/':
+            tokens.append(Token(TokenType.ARITHMETIC, query[i], i))
+            i += 1
+            continue
+
+        # Minus sign: arithmetic operator or part of negative number?
+        # It's a negative number only when previous token is an operator, keyword, (, comma, or nothing
+        if query[i] == '-':
+            prev_type = tokens[-1].type if tokens else None
+            is_negative = prev_type in (None, TokenType.OPERATOR, TokenType.KEYWORD, TokenType.LPAREN, TokenType.COMMA, TokenType.ARITHMETIC)
+            if is_negative and i + 1 < n and query[i + 1].isdigit():
+                # Fall through to number parsing below
+                pass
+            else:
+                tokens.append(Token(TokenType.ARITHMETIC, '-', i))
+                i += 1
+                continue
+
+        # Numbers (positive, or negative when flagged above)
         if query[i].isdigit() or (query[i] == '-' and i + 1 < n and query[i + 1].isdigit()):
             start = i
             if query[i] == '-':

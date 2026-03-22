@@ -109,3 +109,53 @@ class TestTokenizeErrors:
     def test_unexpected_character(self):
         with pytest.raises(LexerError):
             tokenize('FIND fcs WHERE name @ "test"')
+
+
+class TestTokenizeExpressions:
+    def test_count_keyword(self):
+        tokens = tokenize('COUNT(subs.parts, "Shark")')
+        assert tokens[0] == Token(TokenType.KEYWORD, 'COUNT', 0)
+        assert tokens[1].type == TokenType.LPAREN
+
+    def test_arithmetic_operators(self):
+        tokens = tokenize('FIND fcs WHERE total_subs + 2 > 5')
+        arith = [t for t in tokens if t.type == TokenType.ARITHMETIC]
+        assert len(arith) == 1
+        assert arith[0].value == '+'
+
+    def test_all_arithmetic_ops(self):
+        for op in ['+', '*', '/']:
+            tokens = tokenize(f'FIND fcs WHERE a {op} b > 1')
+            arith = [t for t in tokens if t.type == TokenType.ARITHMETIC]
+            assert len(arith) == 1
+            assert arith[0].value == op
+
+    def test_minus_as_arithmetic(self):
+        # After an identifier, - should be ARITHMETIC, not part of negative number
+        tokens = tokenize('FIND fcs WHERE total_subs - 2 > 0')
+        types = [(t.type, t.value) for t in tokens]
+        # total_subs should be IDENTIFIER, then - should be ARITHMETIC, then 2 should be VALUE
+        assert (TokenType.IDENTIFIER, 'total_subs') in types
+        assert (TokenType.ARITHMETIC, '-') in types
+        assert (TokenType.VALUE, 2) in types
+
+    def test_minus_as_negative_number(self):
+        # After an operator like =, - should be part of negative number
+        tokens = tokenize('FIND fcs WHERE level = -5')
+        values = [t for t in tokens if t.type == TokenType.VALUE]
+        assert values[0].value == -5
+
+    def test_multiply_and_divide(self):
+        tokens = tokenize('total_subs * 2 / 3')
+        arith = [t for t in tokens if t.type == TokenType.ARITHMETIC]
+        assert len(arith) == 2
+        assert arith[0].value == '*'
+        assert arith[1].value == '/'
+
+    def test_count_with_where(self):
+        tokens = tokenize('COUNT(subs WHERE level > 100)')
+        assert tokens[0].type == TokenType.KEYWORD
+        assert tokens[0].value == 'COUNT'
+        # WHERE inside COUNT is still a KEYWORD token
+        where_tokens = [t for t in tokens if t.type == TokenType.KEYWORD and t.value == 'WHERE']
+        assert len(where_tokens) == 1
