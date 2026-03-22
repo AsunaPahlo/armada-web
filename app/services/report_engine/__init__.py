@@ -20,8 +20,16 @@ class QueryTimeout(Exception):
 
 def _execute_with_timeout(fn, timeout=10):
     """Run a function with a timeout. Raises QueryTimeout if exceeded."""
+    from flask import current_app
+
+    app = current_app._get_current_object()
+
+    def run_with_context():
+        with app.app_context():
+            return fn()
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-        future = pool.submit(fn)
+        future = pool.submit(run_with_context)
         try:
             return future.result(timeout=timeout)
         except concurrent.futures.TimeoutError:
@@ -56,7 +64,7 @@ def run_query(query_text, fleet_manager=None, view_mode='table', page=1, per_pag
             }
         dashboard = fleet_manager.get_dashboard_data()
         fc_summaries = dashboard.get('fc_summaries', [])
-        all_subs = dashboard.get('all_submarines', [])
+        all_subs = dashboard.get('submarines', [])
         try:
             results = _execute_with_timeout(lambda: execute_live(ast, fc_summaries, all_subs))
         except QueryTimeout as e:
@@ -91,7 +99,7 @@ def export_csv(query_text, fleet_manager=None):
         dashboard = fleet_manager.get_dashboard_data()
         results = _execute_with_timeout(
             lambda: execute_live(ast, dashboard.get('fc_summaries', []),
-                                 dashboard.get('all_submarines', []))
+                                 dashboard.get('submarines', []))
         )
     else:
         results = _execute_with_timeout(lambda: execute_db(ast))
