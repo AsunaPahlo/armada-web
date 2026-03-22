@@ -179,8 +179,8 @@ def _count_field(expr, record, entity_name, all_subs=None, use_quantities=False)
     # Child set field (e.g., subs.parts) — flatten across all children
     if '.' in field:
         prefix, suffix = field.split('.', 1)
-        fc_id = record.get('fc_id')
-        children = [s for s in (all_subs or []) if s.get('fc_id') == fc_id]
+        fc_id = str(record.get('fc_id', ''))
+        children = [s for s in (all_subs or []) if str(s.get('fc_id', '')) == fc_id]
         count = 0
         for child in children:
             items = child.get(suffix, [])
@@ -212,9 +212,9 @@ def _count_where(expr, record, entity_name, all_subs=None):
     child_entity = expr['child']
     condition = expr['condition']
 
-    fc_id = record.get('fc_id')
+    fc_id = str(record.get('fc_id', ''))
     if child_entity == 'subs':
-        children = [s for s in (all_subs or []) if s.get('fc_id') == fc_id]
+        children = [s for s in (all_subs or []) if str(s.get('fc_id', '')) == fc_id]
     else:
         return 0
 
@@ -273,8 +273,8 @@ def _evaluate_condition(record, condition, entity_name, all_subs=None, fc_summar
 
     if ref_type == 'child' and entity_name == 'fcs':
         # Get this FC's submarines
-        fc_id = record.get('fc_id')
-        fc_subs = [s for s in (all_subs or []) if s.get('fc_id') == fc_id]
+        fc_id = str(record.get('fc_id', ''))
+        fc_subs = [s for s in (all_subs or []) if str(s.get('fc_id', '')) == fc_id]
 
         # For child fields like subs.level, source_key is 'level' from subs schema
         child_prefix, child_field = field.split('.', 1)
