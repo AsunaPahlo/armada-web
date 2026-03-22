@@ -124,3 +124,119 @@ class TestParseErrors:
     def test_quantifier_on_parent_field(self):
         with pytest.raises(ParseError, match='Quantifier'):
             parse('FIND subs WHERE ALL fc.world = "Gilgamesh"')
+
+
+class TestParseExpressions:
+    def test_count_field_form(self):
+        ast = parse('FIND fcs WHERE COUNT(inventory_parts, "Shark") >= 4')
+        cond = ast['conditions']
+        assert cond['type'] == 'expression_condition'
+        assert cond['left']['type'] == 'count_field'
+        assert cond['left']['field'] == 'inventory_parts'
+        assert cond['left']['pattern'] == 'Shark'
+        assert cond['operator'] == '>='
+        assert cond['right']['type'] == 'literal'
+        assert cond['right']['value'] == 4
+
+    def test_count_where_form(self):
+        ast = parse('FIND fcs WHERE COUNT(subs WHERE level > 100) >= 3')
+        cond = ast['conditions']
+        assert cond['type'] == 'expression_condition'
+        assert cond['left']['type'] == 'count_where'
+        assert cond['left']['child'] == 'subs'
+        assert cond['left']['condition']['field'] == 'level'
+
+    def test_count_where_compound_condition(self):
+        ast = parse('FIND fcs WHERE COUNT(subs WHERE level > 100 AND status = "ready") >= 2')
+        cond = ast['conditions']
+        assert cond['left']['type'] == 'count_where'
+        assert cond['left']['condition']['type'] == 'AND'
+
+    def test_arithmetic_expression(self):
+        ast = parse('FIND fcs WHERE COUNT(inventory_parts, "Shark") + COUNT(subs.parts, "Shark") >= total_subs * 2')
+        cond = ast['conditions']
+        assert cond['type'] == 'expression_condition'
+        assert cond['left']['type'] == 'binop'
+        assert cond['left']['op'] == '+'
+        assert cond['right']['type'] == 'binop'
+        assert cond['right']['op'] == '*'
+
+    def test_field_ref_expression(self):
+        ast = parse('FIND fcs WHERE gil_per_day / total_subs > 50000')
+        cond = ast['conditions']
+        assert cond['type'] == 'expression_condition'
+        assert cond['left']['type'] == 'binop'
+        assert cond['left']['op'] == '/'
+        assert cond['left']['left']['type'] == 'field_ref'
+        assert cond['left']['right']['type'] == 'field_ref'
+
+    def test_precedence_multiply_before_add(self):
+        ast = parse('FIND fcs WHERE total_subs * 2 + 1 > 5')
+        cond = ast['conditions']
+        left = cond['left']
+        # Should be (total_subs * 2) + 1, not total_subs * (2 + 1)
+        assert left['type'] == 'binop'
+        assert left['op'] == '+'
+        assert left['left']['type'] == 'binop'
+        assert left['left']['op'] == '*'
+
+    def test_parenthesized_expression(self):
+        ast = parse('FIND fcs WHERE (total_subs + 1) * 2 > 10')
+        cond = ast['conditions']
+        left = cond['left']
+        assert left['type'] == 'binop'
+        assert left['op'] == '*'
+        assert left['left']['type'] == 'binop'
+        assert left['left']['op'] == '+'
+
+    def test_expression_order_by(self):
+        ast = parse('FIND fcs ORDER BY COUNT(subs WHERE status = "ready") DESC')
+        assert ast['order_by']['expression']['type'] == 'count_where'
+        assert ast['order_by']['direction'] == 'DESC'
+
+    def test_expression_order_by_arithmetic(self):
+        ast = parse('FIND fcs ORDER BY gil_per_day / total_subs DESC')
+        assert ast['order_by']['expression']['type'] == 'binop'
+
+    def test_mixed_legacy_and_expression(self):
+        ast = parse('FIND fcs WHERE ALL subs.level > 111 AND COUNT(inventory_parts, "Shark") >= 4')
+        cond = ast['conditions']
+        assert cond['type'] == 'AND'
+        # First child is legacy condition
+        assert 'field' in cond['children'][0]
+        # Second child is expression condition
+        assert cond['children'][1]['type'] == 'expression_condition'
+
+    def test_count_child_set_field(self):
+        ast = parse('FIND fcs WHERE COUNT(subs.parts, "Shark") >= 8')
+        cond = ast['conditions']
+        assert cond['left']['type'] == 'count_field'
+        assert cond['left']['field'] == 'subs.parts'
+
+    def test_expression_both_sides(self):
+        ast = parse('FIND fcs WHERE COUNT(subs WHERE status = "ready") > COUNT(subs WHERE status = "voyaging")')
+        cond = ast['conditions']
+        assert cond['left']['type'] == 'count_where'
+        assert cond['right']['type'] == 'count_where'
+
+
+class TestParseExpressionErrors:
+    def test_expressions_on_db_entity(self):
+        with pytest.raises(ParseError, match='only supported for live entities'):
+            parse('FIND voyages WHERE COUNT(loot WHERE value > 1000) > 5')
+
+    def test_arithmetic_on_db_entity(self):
+        with pytest.raises(ParseError, match='only supported for live entities'):
+            parse('FIND voyages WHERE duration / 2 > 10')
+
+    def test_count_on_non_set_field(self):
+        with pytest.raises(ParseError, match='requires a set or list field'):
+            parse('FIND fcs WHERE COUNT(name, "foo") > 0')
+
+    def test_non_numeric_field_in_expression(self):
+        with pytest.raises(ParseError, match='not numeric'):
+            parse('FIND fcs WHERE name + 1 > 0')
+
+    def test_expression_order_by_with_group_by(self):
+        with pytest.raises(ParseError, match='not supported with GROUP BY'):
+            parse('FIND fcs GROUP BY region ORDER BY COUNT(subs WHERE level > 100) DESC')
