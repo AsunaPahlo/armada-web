@@ -16,6 +16,25 @@ from app.services.report_engine.schema import (
 # Live entity executor (fcs, subs)
 # ---------------------------------------------------------------------------
 
+def _resolve_house_size(fc_id):
+    """Look up house size for an FC from FCHousing model."""
+    if not fc_id:
+        return None
+    try:
+        from app.models.fc_housing import FCHousing
+        housing = FCHousing.query.filter_by(fc_id=str(fc_id)).first()
+        return housing.house_size if housing else None
+    except Exception:
+        return None
+
+
+def _normalize_tags(val):
+    """Normalize tags from tag dicts to string list for comparison."""
+    if isinstance(val, list) and val and isinstance(val[0], dict):
+        return [t.get('name', '') for t in val]
+    return val
+
+
 def _apply_condition(record, source_key, operator, value):
     """Test whether a single record satisfies a condition.
 
@@ -28,6 +47,9 @@ def _apply_condition(record, source_key, operator, value):
     Returns: True if condition is satisfied
     """
     actual = record.get(source_key)
+
+    # Normalize tag dicts to string lists for comparison
+    actual = _normalize_tags(actual)
 
     if operator == 'IS EMPTY':
         if isinstance(actual, (list, set)):
@@ -188,7 +210,14 @@ def execute_live(ast, fc_summaries, all_submarines):
     limit = ast.get('limit')
 
     if entity == 'fcs':
-        data = fc_summaries
+        # Enrich fc_summaries with computed fields (house_size)
+        # Use copies to avoid mutating the original data
+        data = []
+        for fc in fc_summaries:
+            enriched = dict(fc)
+            if 'house_size' not in enriched:
+                enriched['house_size'] = _resolve_house_size(enriched.get('fc_id'))
+            data.append(enriched)
     elif entity == 'subs':
         data = all_submarines
     else:
@@ -213,7 +242,32 @@ def execute_live(ast, fc_summaries, all_submarines):
     max_limit = min(limit or 1000, 1000)
     results = results[:max_limit]
 
-    return results
+    # Remap source keys to DSL field names for display
+    entity_def = ENTITY_FIELDS[entity]
+    remapped = []
+    for record in results:
+        row = {}
+        for dsl_name, (source_key, ftype) in entity_def['fields'].items():
+            val = record.get(source_key)
+            # Normalize tags: extract names from tag dicts
+            if dsl_name == 'tags' and isinstance(val, list):
+                val = [t['name'] if isinstance(t, dict) else t for t in val]
+            # Resolve house_size from FCHousing
+            if dsl_name == 'house_size' and val is None and entity == 'fcs':
+                val = _resolve_house_size(record.get('fc_id'))
+            row[dsl_name] = val
+        # Add parent ref fields for subs
+        if entity == 'subs':
+            for parent in entity_def.get('parents', set()):
+                parent_def = ENTITY_FIELDS.get('fcs')
+                if parent_def:
+                    for pfield in ('name', 'world'):
+                        if pfield in parent_def['fields']:
+                            psource = parent_def['fields'][pfield][0]
+                            row[f'{parent}.{pfield}'] = record.get(psource)
+        remapped.append(row)
+
+    return remapped
 
 
 # ---------------------------------------------------------------------------

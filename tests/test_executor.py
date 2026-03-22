@@ -94,7 +94,7 @@ class TestExecuteLive:
         # Deep Divers (fc_id 3) has no subs in mock data, so ALL is vacuously true.
         # Storm Armada has Sub2 at level 90, so it is excluded.
         assert len(results) == 2
-        fc_names = {r['fc_name'] for r in results}
+        fc_names = {r['name'] for r in results}
         assert 'Ocean Fleet' in fc_names
         assert 'Deep Divers' in fc_names
         assert 'Storm Armada' not in fc_names
@@ -116,7 +116,7 @@ class TestExecuteLive:
         }
         results = execute_live(ast, MOCK_FC_SUMMARIES, MOCK_ALL_SUBS)
         # Deep Divers has no subs in our mock data, so NO condition is vacuously true
-        assert any(r['fc_name'] == 'Deep Divers' for r in results)
+        assert any(r['name'] == 'Deep Divers' for r in results)
 
     def test_find_subs_direct(self):
         ast = {
@@ -145,7 +145,7 @@ class TestExecuteLive:
             'limit': None,
         }
         results = execute_live(ast, MOCK_FC_SUMMARIES, MOCK_ALL_SUBS)
-        assert results[0]['fc_name'] == 'Ocean Fleet'
+        assert results[0]['name'] == 'Ocean Fleet'
 
     def test_limit(self):
         ast = {
