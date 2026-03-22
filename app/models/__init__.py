@@ -13,6 +13,7 @@ from app.models.app_settings import AppSettings
 from app.models.daily_stats import DailyStats
 from app.models.activity_log import ActivityLog
 from app.models.gil_record import GilRecord
+from app.models.saved_report import SavedReport
 
 __all__ = [
     'User', 'Voyage', 'VoyageStats', 'VoyageLoot', 'VoyageLootItem',
@@ -20,5 +21,5 @@ __all__ = [
     'SubmarineMap', 'SubmarineRank', 'RouteStats', 'HousingPlotSize',
     'AlertSettings', 'AlertHistory',
     'AppSettings', 'DailyStats', 'ActivityLog',
-    'GilRecord'
+    'GilRecord', 'SavedReport'
 ]
