@@ -6,7 +6,7 @@ class ArmadaReports {
         this.schema = null;
         this.currentEntity = 'fcs';
         this.activeTab = 'visual';
-        this.activeView = 'table';
+
         this.conditions = [];
         this.conditionId = 0;
         this.currentResults = null;
@@ -47,19 +47,6 @@ class ArmadaReports {
         } else {
             // Try to parse text back to visual
             this.syncTextToVisual();
-        }
-    }
-
-    switchView(view) {
-        this.activeView = view;
-        document.querySelectorAll('.tab-btn[data-view]').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.view === view);
-        });
-        document.getElementById('view-table').style.display = view === 'table' ? '' : 'none';
-        document.getElementById('view-summary').style.display = view === 'summary' ? '' : 'none';
-
-        if (this.currentQueryText) {
-            this.runQuery();
         }
     }
 
@@ -312,7 +299,6 @@ class ArmadaReports {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     query: queryText,
-                    view_mode: this.activeView,
                     page: this.currentPage,
                 }),
             });
@@ -327,11 +313,7 @@ class ArmadaReports {
             this.currentResults = data;
             this.currentQueryText = queryText;
 
-            if (this.activeView === 'summary') {
-                this.renderSummary(data);
-            } else {
-                this.renderTable(data);
-            }
+            this.renderTable(data);
 
             document.getElementById('loading').style.display = 'none';
             document.getElementById('results-area').style.display = '';
@@ -402,53 +384,6 @@ class ArmadaReports {
     goToPage(page) {
         this.currentPage = page;
         this.runQuery();
-    }
-
-    renderSummary(data) {
-        const container = document.getElementById('view-summary');
-        let html = `<div class="mb-3"><strong>Total: ${data.total} records</strong></div>`;
-
-        if (data.groups) {
-            html += `<p class="text-muted small">Grouped by: ${data.group_by}</p>`;
-            data.groups.forEach(group => {
-                html += `<div class="summary-card mb-2">`;
-                html += `<h6>${group.group} <span class="text-muted">(${group.count})</span></h6>`;
-                html += this._renderFieldAggregates(group.fields);
-                html += `</div>`;
-            });
-        } else if (data.fields) {
-            html += this._renderFieldAggregates(data.fields);
-        }
-
-        container.innerHTML = html;
-        document.getElementById('results-info').textContent = `${data.total} results`;
-    }
-
-    _renderFieldAggregates(fields) {
-        let html = '<div class="row g-2">';
-        for (const [name, agg] of Object.entries(fields)) {
-            if (agg.count === 0) continue;
-            html += `<div class="col-md-4 col-lg-3"><div class="summary-card">`;
-            html += `<div class="text-muted small mb-1">${name}</div>`;
-            if (agg.type === 'number') {
-                html += `<div>Count: ${agg.count}</div>`;
-                html += `<div>Sum: ${agg.sum.toLocaleString()}</div>`;
-                html += `<div>Avg: ${agg.avg.toLocaleString()}</div>`;
-                html += `<div>Min: ${agg.min?.toLocaleString() ?? '—'} / Max: ${agg.max?.toLocaleString() ?? '—'}</div>`;
-            } else if (agg.type === 'string') {
-                html += `<div>${agg.distinct} distinct values</div>`;
-                if (agg.top && agg.top.length) {
-                    html += `<div class="small text-muted mt-1">Top: ${agg.top.slice(0, 3).map(t => t[0]).join(', ')}</div>`;
-                }
-            } else if (agg.type === 'datetime') {
-                html += `<div>Count: ${agg.count}</div>`;
-                html += `<div class="small">From: ${agg.min || '—'}</div>`;
-                html += `<div class="small">To: ${agg.max || '—'}</div>`;
-            }
-            html += `</div></div>`;
-        }
-        html += '</div>';
-        return html;
     }
 
     // ── Saved Reports ──
@@ -524,7 +459,7 @@ class ArmadaReports {
                 body: JSON.stringify({
                     name: name,
                     query: queryText,
-                    display_config: { view_mode: this.activeView },
+                    display_config: {},
                 }),
             });
 
@@ -619,7 +554,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function switchTab(tab) { reports.switchTab(tab); }
-function switchView(view) { reports.switchView(view); }
+
 function onEntityChange() { reports.onEntityChange(); }
 function addCondition() { reports.addCondition(); }
 function runQuery() { reports.runQuery(); }
