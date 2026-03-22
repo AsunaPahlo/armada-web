@@ -1,6 +1,6 @@
 """Tests for the report engine executor."""
 import pytest
-from app.services.report_engine.executor import execute_live, _apply_condition
+from app.services.report_engine.executor import execute_live, _apply_condition, _evaluate_expression
 
 
 # Mock fleet data for testing
@@ -151,3 +151,125 @@ class TestExecuteLive:
         }
         results = execute_live(ast, MOCK_FC_SUMMARIES, MOCK_ALL_SUBS)
         assert len(results) == 2
+
+
+class TestEvaluateExpression:
+    def test_literal(self):
+        result = _evaluate_expression({'type': 'literal', 'value': 42}, {}, 'fcs')
+        assert result == 42
+
+    def test_field_ref(self):
+        record = {'total_subs': 4, 'fc_name': 'Test', 'world': 'Gilgamesh'}
+        result = _evaluate_expression({'type': 'field_ref', 'field': 'total_subs'}, record, 'fcs')
+        assert result == 4
+
+    def test_field_ref_missing(self):
+        result = _evaluate_expression({'type': 'field_ref', 'field': 'total_subs'}, {}, 'fcs')
+        assert result == 0
+
+    def test_binop_add(self):
+        expr = {'type': 'binop', 'op': '+',
+                'left': {'type': 'literal', 'value': 3},
+                'right': {'type': 'literal', 'value': 4}}
+        assert _evaluate_expression(expr, {}, 'fcs') == 7
+
+    def test_binop_multiply(self):
+        expr = {'type': 'binop', 'op': '*',
+                'left': {'type': 'field_ref', 'field': 'total_subs'},
+                'right': {'type': 'literal', 'value': 2}}
+        assert _evaluate_expression(expr, {'total_subs': 4}, 'fcs') == 8
+
+    def test_binop_divide(self):
+        expr = {'type': 'binop', 'op': '/',
+                'left': {'type': 'literal', 'value': 10},
+                'right': {'type': 'literal', 'value': 3}}
+        result = _evaluate_expression(expr, {}, 'fcs')
+        assert abs(result - 3.333) < 0.01
+
+    def test_divide_by_zero(self):
+        expr = {'type': 'binop', 'op': '/',
+                'left': {'type': 'literal', 'value': 10},
+                'right': {'type': 'literal', 'value': 0}}
+        assert _evaluate_expression(expr, {}, 'fcs') == 0
+
+    def test_count_field_set(self):
+        record = {'inventory_parts': ['Shark-class Bow', 'Shark-class Stern', 'Whale-class Bow']}
+        expr = {'type': 'count_field', 'field': 'inventory_parts', 'pattern': 'Shark'}
+        result = _evaluate_expression(expr, record, 'fcs')
+        assert result == 2
+
+    def test_count_field_quantity_aware(self):
+        # inventory_parts_raw has quantities; count_field should sum quantities
+        record = {
+            'inventory_parts': ['Shark-class Bow', 'Shark-class Stern', 'Whale-class Bow'],
+            'inventory_parts_qty': {21792: 3, 21795: 2, 22526: 1},  # 3 Shark Bows, 2 Shark Sterns, 1 Whale Bow
+        }
+        expr = {'type': 'count_field', 'field': 'inventory_parts', 'pattern': 'Shark'}
+        result = _evaluate_expression(expr, record, 'fcs', use_quantities=True)
+        assert result == 5  # 3 + 2
+
+    def test_count_field_child_set(self):
+        # COUNT(subs.parts, "Shark") should flatten across all subs
+        record = {'fc_id': '1'}
+        all_subs = [
+            {'fc_id': '1', 'parts': ['Shark-class Bow', 'Shark-class Stern', 'Unkiu-class Bow', 'Coelacanth-class Bridge']},
+            {'fc_id': '1', 'parts': ['Shark-class Bow', 'Whale-class Stern', 'Whale-class Bow', 'Whale-class Bridge']},
+        ]
+        expr = {'type': 'count_field', 'field': 'subs.parts', 'pattern': 'Shark'}
+        result = _evaluate_expression(expr, record, 'fcs', all_subs=all_subs)
+        assert result == 3  # 2 from sub1 + 1 from sub2
+
+    def test_count_where(self):
+        record = {'fc_id': '1'}
+        all_subs = [
+            {'fc_id': '1', 'level': 120, 'status': 'ready'},
+            {'fc_id': '1', 'level': 90, 'status': 'voyaging'},
+            {'fc_id': '1', 'level': 115, 'status': 'ready'},
+        ]
+        expr = {'type': 'count_where', 'child': 'subs',
+                'condition': {'field': 'level', 'operator': '>', 'value': 100, 'quantifier': None}}
+        result = _evaluate_expression(expr, record, 'fcs', all_subs=all_subs)
+        assert result == 2
+
+    def test_count_where_no_matches(self):
+        record = {'fc_id': '1'}
+        all_subs = [
+            {'fc_id': '1', 'level': 50},
+        ]
+        expr = {'type': 'count_where', 'child': 'subs',
+                'condition': {'field': 'level', 'operator': '>', 'value': 100, 'quantifier': None}}
+        result = _evaluate_expression(expr, record, 'fcs', all_subs=all_subs)
+        assert result == 0
+
+
+class TestExpressionConditions:
+    def test_expression_condition_in_execute_live(self):
+        fc_summaries = [
+            {'fc_id': '1', 'fc_name': 'Big FC', 'total_subs': 4, 'gil_per_day': 400000,
+             'world': 'Gilgamesh', 'region': 'NA', 'ceruleum': 0, 'repair_kits': 0,
+             'dive_credits': 0, 'ready_subs': 0, 'leveling_subs': 0,
+             'inventory_parts': ['Shark-class Bow'], 'inventory_parts_qty': {}},
+            {'fc_id': '2', 'fc_name': 'Small FC', 'total_subs': 2, 'gil_per_day': 100000,
+             'world': 'Cactuar', 'region': 'NA', 'ceruleum': 0, 'repair_kits': 0,
+             'dive_credits': 0, 'ready_subs': 0, 'leveling_subs': 0,
+             'inventory_parts': [], 'inventory_parts_qty': {}},
+        ]
+        all_subs = [
+            {'fc_id': '1', 'name': 'S1', 'level': 120, 'build': 'S+S+U+C+', 'parts': [], 'route': '', 'status': 'ready', 'gil_per_day': 100000, 'exp_progress': 100},
+            {'fc_id': '1', 'name': 'S2', 'level': 120, 'build': 'S+S+U+C+', 'parts': [], 'route': '', 'status': 'ready', 'gil_per_day': 100000, 'exp_progress': 100},
+            {'fc_id': '2', 'name': 'S3', 'level': 50, 'build': 'W+W+W+W+', 'parts': [], 'route': '', 'status': 'ready', 'gil_per_day': 50000, 'exp_progress': 50},
+        ]
+        # Query: FCs with gil_per_day / total_subs > 60000
+        ast = {
+            'entity': 'fcs',
+            'conditions': {
+                'type': 'expression_condition',
+                'left': {'type': 'binop', 'op': '/', 'left': {'type': 'field_ref', 'field': 'gil_per_day'}, 'right': {'type': 'field_ref', 'field': 'total_subs'}},
+                'operator': '>',
+                'right': {'type': 'literal', 'value': 60000},
+            },
+            'group_by': None, 'order_by': None, 'limit': None,
+        }
+        results = execute_live(ast, fc_summaries, all_subs)
+        assert len(results) == 1
+        assert results[0]['name'] == 'Big FC'

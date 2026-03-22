@@ -123,13 +123,134 @@ def _resolve_source_key(entity_name, field_name):
     return field_name
 
 
+def _evaluate_expression(expr, record, entity_name, all_subs=None, fc_summaries=None, use_quantities=False):
+    """Recursively evaluate an expression AST node to a number.
+
+    Args:
+        expr: Expression AST node
+        record: Current record dict (fc_summary or sub dict)
+        entity_name: 'fcs' or 'subs'
+        all_subs: List of all submarine dicts (for child operations)
+        fc_summaries: List of all FC summaries
+        use_quantities: If True, count_field on inventory_parts sums quantities
+
+    Returns: numeric result
+    """
+    if expr['type'] == 'literal':
+        return expr['value']
+
+    if expr['type'] == 'field_ref':
+        field_name = expr['field']
+        info = get_field_info(entity_name, field_name)
+        if info:
+            source_key = info[0]
+            val = record.get(source_key, 0)
+            return val if isinstance(val, (int, float)) else 0
+        return 0
+
+    if expr['type'] == 'binop':
+        left = _evaluate_expression(expr['left'], record, entity_name, all_subs, fc_summaries, use_quantities)
+        right = _evaluate_expression(expr['right'], record, entity_name, all_subs, fc_summaries, use_quantities)
+        op = expr['op']
+        if op == '+':
+            return left + right
+        elif op == '-':
+            return left - right
+        elif op == '*':
+            return left * right
+        elif op == '/':
+            return left / right if right != 0 else 0
+        return 0
+
+    if expr['type'] == 'count_field':
+        return _count_field(expr, record, entity_name, all_subs, use_quantities)
+
+    if expr['type'] == 'count_where':
+        return _count_where(expr, record, entity_name, all_subs)
+
+    return 0
+
+
+def _count_field(expr, record, entity_name, all_subs=None, use_quantities=False):
+    """Count items in a set/list field that match a pattern."""
+    field = expr['field']
+    pattern = str(expr['pattern']).lower()
+
+    # Child set field (e.g., subs.parts) — flatten across all children
+    if '.' in field:
+        prefix, suffix = field.split('.', 1)
+        fc_id = record.get('fc_id')
+        children = [s for s in (all_subs or []) if s.get('fc_id') == fc_id]
+        count = 0
+        for child in children:
+            items = child.get(suffix, [])
+            if isinstance(items, list):
+                count += sum(1 for item in items if pattern in str(item).lower())
+        return count
+
+    # Direct set field
+    # Special handling for inventory_parts with quantities
+    if field == 'inventory_parts' and use_quantities:
+        from app.services.submarine_data import SUB_PARTS_LOOKUP
+        qty_dict = record.get('inventory_parts_qty', {})
+        if qty_dict:
+            count = 0
+            for item_id, qty in qty_dict.items():
+                part_name = SUB_PARTS_LOOKUP.get(item_id, '')
+                if pattern in part_name.lower():
+                    count += qty
+            return count
+
+    items = record.get(field, [])
+    if isinstance(items, list):
+        return sum(1 for item in items if pattern in str(item).lower())
+    return 0
+
+
+def _count_where(expr, record, entity_name, all_subs=None):
+    """Count child entities matching a condition."""
+    child_entity = expr['child']
+    condition = expr['condition']
+
+    fc_id = record.get('fc_id')
+    if child_entity == 'subs':
+        children = [s for s in (all_subs or []) if s.get('fc_id') == fc_id]
+    else:
+        return 0
+
+    count = 0
+    for child in children:
+        if _evaluate_condition(child, condition, child_entity, all_subs, None):
+            count += 1
+    return count
+
+
 def _evaluate_condition(record, condition, entity_name, all_subs=None, fc_summaries=None):
     """Evaluate a single condition or logical group against a record.
 
     For child entity conditions (quantifiers), uses all_subs to check children.
     """
-    # Logical group (AND/OR)
-    if 'type' in condition:
+    # Expression condition (must be checked BEFORE AND/OR)
+    if condition.get('type') == 'expression_condition':
+        left_val = _evaluate_expression(condition['left'], record, entity_name, all_subs, fc_summaries)
+        right_val = _evaluate_expression(condition['right'], record, entity_name, all_subs, fc_summaries)
+        op = condition['operator']
+        if op == '=':
+            return left_val == right_val
+        elif op == '!=':
+            return left_val != right_val
+        elif op == '>':
+            return left_val > right_val
+        elif op == '<':
+            return left_val < right_val
+        elif op == '>=':
+            return left_val >= right_val
+        elif op == '<=':
+            return left_val <= right_val
+        return False
+
+    # Logical group (AND/OR) — use explicit check to avoid matching expression_condition
+    if condition.get('type') in ('AND', 'OR'):
         children_results = [
             _evaluate_condition(record, child, entity_name, all_subs, fc_summaries)
             for child in condition['children']
@@ -225,6 +346,8 @@ def execute_live(ast, fc_summaries, all_submarines):
             raw_inv = enriched.get('inventory_parts', {})
             if isinstance(raw_inv, dict):
                 from app.services.submarine_data import SUB_PARTS_LOOKUP
+                # Preserve raw inventory quantities for COUNT expressions
+                enriched['inventory_parts_qty'] = dict(raw_inv)
                 enriched['inventory_parts'] = [
                     SUB_PARTS_LOOKUP[item_id]
                     for item_id in raw_inv
@@ -247,9 +370,21 @@ def execute_live(ast, fc_summaries, all_submarines):
 
     # Order
     if order_by:
-        source_key = _resolve_source_key(entity, order_by['field'])
-        reverse = order_by['direction'] == 'DESC'
-        results.sort(key=lambda r: (r.get(source_key) is None, r.get(source_key, 0)), reverse=reverse)
+        if 'expression' in order_by:
+            # Expression-based ordering
+            expr = order_by['expression']
+            reverse = order_by['direction'] == 'DESC'
+            sort_keys = []
+            for record in results:
+                val = _evaluate_expression(expr, record, entity, all_submarines, fc_summaries)
+                sort_keys.append(val)
+            paired = list(zip(sort_keys, results))
+            paired.sort(key=lambda x: (x[0] is None, x[0] or 0), reverse=reverse)
+            results = [r for _, r in paired]
+        else:
+            source_key = _resolve_source_key(entity, order_by['field'])
+            reverse = order_by['direction'] == 'DESC'
+            results.sort(key=lambda r: (r.get(source_key) is None, r.get(source_key, 0)), reverse=reverse)
 
     # Limit (cap at 1000)
     max_limit = min(limit or 1000, 1000)
