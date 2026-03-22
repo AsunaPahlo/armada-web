@@ -602,6 +602,7 @@ class FleetManager:
                         'soonest_return_time': None,
                         'days_until_restock': None,
                         'dive_credits': 0,
+                        'inventory_parts': {},  # item_id -> count, aggregated across characters
                         'unlocked_slots': 0,
                         'needs_dive_credits': False,
                         'dive_credits_needed': 0,
@@ -622,6 +623,10 @@ class FleetManager:
                 fc_summaries[fc_id_str]['ceruleum'] += char.ceruleum
                 fc_summaries[fc_id_str]['repair_kits'] += char.repair_kits
                 fc_summaries[fc_id_str]['dive_credits'] += getattr(char, 'dive_credits', 0)
+                # Aggregate inventory parts across characters in this FC
+                for item_id, count in getattr(char, 'inventory_parts', {}).items():
+                    fc_summaries[fc_id_str]['inventory_parts'][item_id] = \
+                        fc_summaries[fc_id_str]['inventory_parts'].get(item_id, 0) + count
                 # Track max unlocked slots (all chars in same FC share slots)
                 fc_summaries[fc_id_str]['unlocked_slots'] = max(
                     fc_summaries[fc_id_str]['unlocked_slots'],

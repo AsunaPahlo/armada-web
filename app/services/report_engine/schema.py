@@ -34,6 +34,7 @@ ENTITY_FIELDS = {
             'gil_per_day':   ('gil_per_day', FieldType.NUMBER),
             'house_size':    ('house_size', FieldType.STRING),
             'tags':          ('tags', FieldType.SET),
+            'inventory_parts': ('inventory_parts', FieldType.SET),
         },
         'children': {'subs'},
         'parents': set(),

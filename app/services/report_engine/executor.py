@@ -221,6 +221,15 @@ def execute_live(ast, fc_summaries, all_submarines):
             # Treat -1 gil as 0 (plugin lacks FC chest access)
             if enriched.get('fc_gil', 0) < 0:
                 enriched['fc_gil'] = 0
+            # Convert inventory_parts from {item_id: count} to list of part names
+            raw_inv = enriched.get('inventory_parts', {})
+            if isinstance(raw_inv, dict):
+                from app.services.submarine_data import SUB_PARTS_LOOKUP
+                enriched['inventory_parts'] = [
+                    SUB_PARTS_LOOKUP[item_id]
+                    for item_id in raw_inv
+                    if item_id in SUB_PARTS_LOOKUP
+                ]
             data.append(enriched)
     elif entity == 'subs':
         data = all_submarines
