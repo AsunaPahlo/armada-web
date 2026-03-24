@@ -203,13 +203,15 @@ def get_field_info(entity_name, field_name):
         parent_map = entity_def.get('parent_field_map', {})
         if field_name in parent_map:
             return parent_map[field_name], FieldType.STRING, 'parent'
-        # For live entities, try resolving from parent's fields
-        # Note: parents set uses short names (e.g., 'fc') but ENTITY_FIELDS uses plural (e.g., 'fcs')
-        resolved_prefix = resolve_entity(prefix + 's') if ENTITY_FIELDS.get(prefix) is None else prefix
-        parent_def = ENTITY_FIELDS.get(resolved_prefix) or ENTITY_FIELDS.get(prefix)
-        if parent_def and suffix in parent_def['fields']:
-            source_key, ftype = parent_def['fields'][suffix]
-            return source_key, ftype, 'parent'
+        # For live entities, try resolving from parent's fields directly
+        # (live entity records include parent data as denormalized keys)
+        # For DB entities, only explicitly mapped parent fields are valid
+        if entity_def['source'] == EntitySource.LIVE:
+            resolved_prefix = resolve_entity(prefix + 's') if ENTITY_FIELDS.get(prefix) is None else prefix
+            parent_def = ENTITY_FIELDS.get(resolved_prefix) or ENTITY_FIELDS.get(prefix)
+            if parent_def and suffix in parent_def['fields']:
+                source_key, ftype = parent_def['fields'][suffix]
+                return source_key, ftype, 'parent'
         return None
 
     return None
@@ -232,7 +234,9 @@ def get_schema_for_frontend():
         # or that exist as denormalized columns on the entity's model
         parent_map = entity_def.get('parent_field_map', {})
         for parent in entity_def.get('parents', set()):
-            parent_def = ENTITY_FIELDS.get(parent)
+            # Parents use short names (e.g., 'fc') but ENTITY_FIELDS uses plural keys ('fcs')
+            resolved_parent = resolve_entity(parent + 's') if ENTITY_FIELDS.get(parent) is None else parent
+            parent_def = ENTITY_FIELDS.get(resolved_parent) or ENTITY_FIELDS.get(parent)
             if parent_def:
                 # For live entities (subs), expose common parent fields available on the record
                 if entity_def['source'] == EntitySource.LIVE:

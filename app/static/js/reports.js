@@ -43,7 +43,11 @@ class ArmadaReports {
         document.getElementById('tab-query').style.display = tab === 'query' ? '' : 'none';
 
         if (tab === 'query') {
-            this.syncVisualToText();
+            // Only sync visual→text if the visual builder has conditions;
+            // otherwise preserve the current query text in the editor
+            if (this.conditions.length > 0) {
+                this.syncVisualToText();
+            }
         } else {
             // Try to parse text back to visual
             this.syncTextToVisual();
@@ -391,18 +395,19 @@ class ArmadaReports {
     async loadSavedReports() {
         try {
             const resp = await fetch('/reports/saved');
-            const reports = await resp.json();
+            const savedList = await resp.json();
             const list = document.getElementById('saved-reports-list');
 
-            if (!reports.length) {
+            if (!savedList.length) {
                 list.innerHTML = '<div class="text-muted small text-center py-2">No saved reports</div>';
                 return;
             }
 
-            list.innerHTML = reports.map(r => `
-                <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+            list.innerHTML = savedList.map(r => `
+                <div class="list-group-item list-group-item-action bg-transparent text-light border-secondary d-flex justify-content-between align-items-center"
                      data-report-id="${r.id}"
-                     data-report-query="${this._escapeAttr(r.query_text)}">
+                     data-report-query="${this._escapeAttr(r.query_text)}"
+                     role="button">
                     <span>${this._escapeHtml(r.name)}</span>
                     <button class="btn btn-sm btn-outline-danger" data-delete-id="${r.id}">
                         <i class="bi bi-trash"></i>
@@ -410,20 +415,23 @@ class ArmadaReports {
                 </div>
             `).join('');
 
-            // Add click handlers
+            // Add click handlers — use `self` to avoid race with global assignment
+            const self = this;
             list.querySelectorAll('[data-report-id]').forEach(el => {
                 el.addEventListener('click', (e) => {
                     if (e.target.closest('[data-delete-id]')) return;
-                    reports.loadReport(
-                        parseInt(el.dataset.reportId),
-                        el.dataset.reportQuery
-                    );
+                    e.stopPropagation();
+                    const id = parseInt(el.dataset.reportId);
+                    const query = el.dataset.reportQuery;
+                    const dropdown = bootstrap.Dropdown.getOrCreateInstance(document.getElementById('savedReportsBtn'));
+                    dropdown.hide();
+                    self.loadReport(id, query);
                 });
             });
             list.querySelectorAll('[data-delete-id]').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    reports.deleteReport(parseInt(btn.dataset.deleteId));
+                    self.deleteReport(parseInt(btn.dataset.deleteId));
                 });
             });
         } catch (e) {
@@ -433,9 +441,10 @@ class ArmadaReports {
 
     loadReport(id, queryText) {
         this.savedReportId = id;
+        this.switchTab('query');
+        // Set query AFTER switchTab so syncVisualToText doesn't overwrite it
         document.getElementById('query-editor').value = queryText;
         this.currentQueryText = queryText;
-        this.switchTab('query');
         this.runQuery();
     }
 

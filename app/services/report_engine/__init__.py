@@ -104,7 +104,7 @@ def export_csv(query_text, fleet_manager=None):
     else:
         results = _execute_with_timeout(lambda: execute_db(ast))
 
-    return format_csv(results, entity)
+    return format_csv(results, entity, select=ast.get('select'))
 
 
 def get_schema():

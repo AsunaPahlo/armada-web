@@ -189,8 +189,8 @@ def _count_field(expr, record, entity_name, all_subs=None, use_quantities=False)
         return count
 
     # Direct set field
-    # Special handling for inventory_parts with quantities
-    if field == 'inventory_parts' and use_quantities:
+    # inventory_parts: always use actual quantities from the raw inventory dict
+    if field == 'inventory_parts':
         from app.services.submarine_data import SUB_PARTS_LOOKUP
         qty_dict = record.get('inventory_parts_qty', {})
         if qty_dict:
@@ -682,13 +682,17 @@ def execute_db(ast):
 
     # Order
     if order_by:
-        source_key = _resolve_source_key(entity, order_by['field'])
-        column = getattr(model, source_key, None)
-        if column is not None:
-            if order_by['direction'] == 'DESC':
-                query = query.order_by(column.desc())
-            else:
-                query = query.order_by(column.asc())
+        if 'expression' in order_by:
+            # Expression ORDER BY is not supported for DB entities — ignore silently
+            pass
+        else:
+            source_key = _resolve_source_key(entity, order_by['field'])
+            column = getattr(model, source_key, None)
+            if column is not None:
+                if order_by['direction'] == 'DESC':
+                    query = query.order_by(column.desc())
+                else:
+                    query = query.order_by(column.asc())
 
     # Limit (cap at 1000)
     max_limit = min(limit or 1000, 1000)

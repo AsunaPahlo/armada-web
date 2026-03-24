@@ -180,7 +180,7 @@ def format_summary(results, entity_name, group_by=None):
     }
 
 
-def format_csv(results, entity_name):
+def format_csv(results, entity_name, select=None):
     """Generate CSV string from results.
 
     Returns: string (CSV content)
@@ -191,12 +191,23 @@ def format_csv(results, entity_name):
     entity_def = ENTITY_FIELDS.get(entity_name, {})
     fields = entity_def.get('fields', {})
 
-    # Use field names as headers, plus any parent ref keys
-    headers = list(fields.keys())
-    if results:
-        for key in results[0]:
-            if key not in headers:
-                headers.append(key)
+    if select:
+        # Use selected column names only
+        headers = []
+        for col in select:
+            expr = col['expression']
+            alias = col['alias']
+            if isinstance(expr, str):
+                headers.append(alias or expr)
+            else:
+                headers.append(alias or _expr_to_label(expr))
+    else:
+        # Use field names as headers, plus any parent ref keys
+        headers = list(fields.keys())
+        if results:
+            for key in results[0]:
+                if key not in headers:
+                    headers.append(key)
 
     output = io.StringIO()
     writer = csv.DictWriter(output, fieldnames=headers, extrasaction='ignore')
