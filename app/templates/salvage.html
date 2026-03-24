@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Fleet Salvage{% endblock %}
+
+{% block extra_css %}
+<style>
+    .sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+    .sortable:hover { color: #4a9eff; }
+    .sort-icon { font-size: 0.7rem; margin-left: 0.25rem; opacity: 0.4; }
+    .sortable.active .sort-icon { opacity: 1; color: #4a9eff; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <a href="{{ url_for('stats.loot') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <div>
+            <h4 class="mb-1"><i class="bi bi-gem text-info"></i> Fleet Salvage</h4>
+            <span class="text-muted small">Total: <span class="text-info">{{ "{:,.0f}".format(total_salvage_value) }} gil</span> across {{ salvage_characters|length }} character{{ 's' if salvage_characters|length != 1 }}</span>
+        </div>
+    </div>
+</div>
+
+{% if salvage_characters %}
+<div class="card">
+    <div class="card-header">
+        <input type="text" id="salvage-search" class="form-control form-control-sm" placeholder="Search characters, worlds, or FCs..." style="max-width: 300px;">
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-dark table-striped table-hover mb-0" id="salvage-table">
+            <thead>
+                <tr>
+                    <th class="sortable active" data-col="0" data-type="string" onclick="sortTable(this)">Character <i class="bi bi-caret-down-fill sort-icon"></i></th>
+                    <th class="sortable" data-col="1" data-type="string" onclick="sortTable(this)">World <i class="bi bi-caret-down-fill sort-icon"></i></th>
+                    <th class="sortable" data-col="2" data-type="string" onclick="sortTable(this)">FC <i class="bi bi-caret-down-fill sort-icon"></i></th>
+                    <th class="sortable text-end" data-col="3" data-type="number" onclick="sortTable(this)">Salvage Value <i class="bi bi-caret-down-fill sort-icon"></i></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for char in salvage_characters %}
+                <tr>
+                    <td>{{ char.name }}</td>
+                    <td>{{ char.world }}</td>
+                    <td>{{ char.fc_name }}</td>
+                    <td class="text-end text-info" data-value="{{ char.salvage_value }}">{{ "{:,.0f}".format(char.salvage_value) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+(function() {
+    const table = document.getElementById('salvage-table');
+    const tbody = table.querySelector('tbody');
+    let currentCol = null;
+    let ascending = true;
+
+    window.sortTable = function(th) {
+        const col = parseInt(th.dataset.col);
+        const type = th.dataset.type;
+
+        if (currentCol === col) {
+            ascending = !ascending;
+        } else {
+            ascending = true;
+            currentCol = col;
+        }
+
+        // Update header icons
+        table.querySelectorAll('.sortable').forEach(h => {
+            h.classList.remove('active');
+            h.querySelector('.sort-icon').className = 'bi bi-caret-down-fill sort-icon';
+        });
+        th.classList.add('active');
+        th.querySelector('.sort-icon').className = ascending
+            ? 'bi bi-caret-up-fill sort-icon'
+            : 'bi bi-caret-down-fill sort-icon';
+
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        rows.sort((a, b) => {
+            let va, vb;
+            if (type === 'number') {
+                va = parseFloat(a.cells[col].dataset.value) || 0;
+                vb = parseFloat(b.cells[col].dataset.value) || 0;
+            } else {
+                va = a.cells[col].textContent.trim().toLowerCase();
+                vb = b.cells[col].textContent.trim().toLowerCase();
+            }
+            if (va < vb) return ascending ? -1 : 1;
+            if (va > vb) return ascending ? 1 : -1;
+            return 0;
+        });
+        rows.forEach(r => tbody.appendChild(r));
+    };
+
+    document.getElementById('salvage-search').addEventListener('input', function() {
+        const query = this.value.toLowerCase();
+        tbody.querySelectorAll('tr').forEach(row => {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(query) ? '' : 'none';
+        });
+    });
+})();
+</script>
+{% else %}
+<div class="text-center text-muted py-5">
+    <i class="bi bi-gem fs-1"></i>
+    <p class="mt-2">No characters have fleet salvage right now.</p>
+</div>
+{% endif %}
+{% endblock %}

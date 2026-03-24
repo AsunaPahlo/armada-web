@@ -477,6 +477,35 @@ def loot_details(loot_id: int):
     return render_template('loot_details.html', loot=details)
 
 
+@stats_bp.route('/salvage')
+@login_required
+def salvage():
+    """Fleet salvage breakdown by character."""
+    fleet = get_fleet_manager()
+    accounts = fleet.get_data(force_refresh=False)
+
+    total_salvage_value = 0
+    salvage_characters = []
+    for account in accounts:
+        for char in account.characters:
+            sv = getattr(char, 'salvage_value', 0)
+            total_salvage_value += sv
+            if sv > 0:
+                fc_info = account.fc_data.get(char.fc_id)
+                fc_name = fc_info.name if fc_info and fc_info.name else f"FC-{char.fc_id}"
+                salvage_characters.append({
+                    'name': char.name,
+                    'world': char.world,
+                    'fc_name': fc_name,
+                    'salvage_value': sv,
+                })
+    salvage_characters.sort(key=lambda c: c['salvage_value'], reverse=True)
+
+    return render_template('salvage.html',
+                           salvage_characters=salvage_characters,
+                           total_salvage_value=total_salvage_value)
+
+
 @stats_bp.route('/profits')
 @login_required
 def profits():
