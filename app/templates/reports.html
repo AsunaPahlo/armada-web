@@ -234,9 +234,9 @@
                     <div class="help-section">
                         <h6><i class="bi bi-code-slash"></i> Basic Syntax</h6>
                         <p class="text-muted mb-1">Queries follow this structure:</p>
-                        <div class="example-query">FIND &lt;entity&gt; WHERE &lt;conditions&gt; ORDER BY &lt;field&gt; LIMIT &lt;n&gt;</div>
+                        <div class="example-query">FIND &lt;entity&gt; [SELECT &lt;columns&gt;] [WHERE &lt;conditions&gt;] [ORDER BY &lt;field&gt;] [LIMIT &lt;n&gt;]</div>
                         <p class="text-muted mb-2" style="font-size: 0.75rem;">
-                            <code>WHERE</code>, <code>ORDER BY</code>, and <code>LIMIT</code> are optional.
+                            All clauses after <code>FIND</code> are optional.
                         </p>
                     </div>
 
@@ -283,6 +283,22 @@
                     </div>
 
                     <div class="help-section">
+                        <h6><i class="bi bi-layout-three-columns"></i> SELECT &amp; Computed Columns</h6>
+                        <p class="text-muted mb-1" style="font-size: 0.75rem;">
+                            Pick specific columns and rename them with <code>AS</code>:
+                        </p>
+                        <div class="example-query">FIND subs SELECT name, fc.name AS company, route, status</div>
+                        <p class="text-muted mb-1" style="font-size: 0.75rem;">
+                            Use arithmetic (<code>+ - * /</code>) to create computed columns:
+                        </p>
+                        <div class="example-query">FIND fcs SELECT name, ceruleum * 2 AS double_fuel</div>
+                        <p class="text-muted mb-0" style="font-size: 0.75rem;">
+                            COUNT expressions also work in SELECT:
+                        </p>
+                        <div class="example-query">FIND fcs SELECT name, COUNT(subs WHERE level >= 100) AS maxed</div>
+                    </div>
+
+                    <div class="help-section">
                         <h6><i class="bi bi-calculator"></i> Advanced: COUNT &amp; Expressions</h6>
                         <p class="text-muted mb-1" style="font-size: 0.75rem;">Count matching children or set items:</p>
                         <div class="example-query">COUNT(subs WHERE level >= 100)</div>
@@ -318,6 +334,9 @@
 
                         <div class="example-query" onclick="loadExample(this)">FIND fcs WHERE ANY subs.build CONTAINS "SSUS"</div>
                         <div class="example-desc">FCs with at least one SSUS-build submarine</div>
+
+                        <div class="example-query" onclick="loadExample(this)">FIND subs SELECT name, fc.name AS company, route, status ORDER BY fc.name</div>
+                        <div class="example-desc">All subs with custom columns, sorted by FC</div>
 
                         <div class="example-query" onclick="loadExample(this)">FIND subs WHERE fc.world = "Gilgamesh"</div>
                         <div class="example-desc">All submarines on a specific world</div>
