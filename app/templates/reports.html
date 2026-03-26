@@ -106,6 +106,50 @@
         background: rgba(74, 158, 255, 0.15) !important;
         color: #fff;
     }
+    .help-panel {
+        background: var(--bs-dark);
+        border: 1px solid var(--bs-border-color);
+        border-radius: 0.5rem;
+        font-size: 0.85rem;
+    }
+    .help-panel h6 {
+        color: #4a9eff;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 0.4rem;
+    }
+    .help-panel code {
+        background: rgba(74, 158, 255, 0.1);
+        color: #6db3ff;
+        padding: 0.1rem 0.35rem;
+        border-radius: 0.25rem;
+        font-size: 0.8rem;
+    }
+    .help-panel .example-query {
+        background: #1a1d21;
+        border: 1px solid var(--bs-border-color);
+        border-radius: 0.375rem;
+        padding: 0.4rem 0.6rem;
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 0.8rem;
+        color: #c9d1d9;
+        margin-bottom: 0.35rem;
+        cursor: pointer;
+        transition: border-color 0.15s;
+    }
+    .help-panel .example-query:hover {
+        border-color: #4a9eff;
+    }
+    .help-panel .example-desc {
+        color: #8b949e;
+        font-size: 0.75rem;
+        margin-bottom: 0.5rem;
+    }
+    .help-section + .help-section {
+        border-top: 1px solid var(--bs-border-color);
+        padding-top: 0.75rem;
+        margin-top: 0.75rem;
+    }
 </style>
 {% endblock %}
 
@@ -177,6 +221,128 @@
     </div>
 </div>
 
+<!-- Help Panel -->
+<div class="mb-3">
+    <button class="btn btn-sm btn-outline-secondary w-100" type="button" data-bs-toggle="collapse" data-bs-target="#helpPanel">
+        <i class="bi bi-question-circle"></i> Query Syntax Help
+    </button>
+    <div class="collapse mt-2" id="helpPanel">
+        <div class="help-panel p-3">
+            <div class="row">
+                <!-- Left column: Syntax -->
+                <div class="col-lg-6">
+                    <div class="help-section">
+                        <h6><i class="bi bi-code-slash"></i> Basic Syntax</h6>
+                        <p class="text-muted mb-1">Queries follow this structure:</p>
+                        <div class="example-query">FIND &lt;entity&gt; WHERE &lt;conditions&gt; ORDER BY &lt;field&gt; LIMIT &lt;n&gt;</div>
+                        <p class="text-muted mb-2" style="font-size: 0.75rem;">
+                            <code>WHERE</code>, <code>ORDER BY</code>, and <code>LIMIT</code> are optional.
+                        </p>
+                    </div>
+
+                    <div class="help-section">
+                        <h6><i class="bi bi-collection"></i> Entities</h6>
+                        <table class="table table-dark table-sm mb-1" style="font-size: 0.8rem;">
+                            <tbody>
+                                <tr><td><code>fcs</code></td><td>Free Companies &mdash; gil, supplies, sub counts</td></tr>
+                                <tr><td><code>subs</code></td><td>Submarines &mdash; level, build, route, status</td></tr>
+                                <tr><td><code>voyages</code></td><td>Voyage history &mdash; departure, return, duration</td></tr>
+                                <tr><td><code>loot</code></td><td>Loot records &mdash; items, value, route</td></tr>
+                                <tr><td><code>activity</code></td><td>Activity log &mdash; build changes, level ups, etc.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="help-section">
+                        <h6><i class="bi bi-funnel"></i> Operators</h6>
+                        <table class="table table-dark table-sm mb-1" style="font-size: 0.8rem;">
+                            <tbody>
+                                <tr><td><strong>Comparison</strong></td><td><code>=</code> <code>!=</code> <code>&gt;</code> <code>&lt;</code> <code>&gt;=</code> <code>&lt;=</code></td></tr>
+                                <tr><td><strong>Text</strong></td><td><code>CONTAINS</code> <code>NOT CONTAINS</code> <code>STARTS WITH</code> <code>ENDS WITH</code></td></tr>
+                                <tr><td><strong>Sets</strong></td><td><code>IN</code> <code>NOT IN</code> <code>BETWEEN</code></td></tr>
+                                <tr><td><strong>Null</strong></td><td><code>IS EMPTY</code> <code>IS NOT EMPTY</code></td></tr>
+                            </tbody>
+                        </table>
+                        <p class="text-muted mb-0" style="font-size: 0.75rem;">
+                            Combine with <code>AND</code> / <code>OR</code>. Use parentheses for grouping.
+                        </p>
+                    </div>
+
+                    <div class="help-section">
+                        <h6><i class="bi bi-stack"></i> Quantifiers (for child fields)</h6>
+                        <p class="text-muted mb-1" style="font-size: 0.75rem;">
+                            When filtering a parent entity by its children (e.g., FCs by their subs):
+                        </p>
+                        <table class="table table-dark table-sm mb-0" style="font-size: 0.8rem;">
+                            <tbody>
+                                <tr><td><code>ALL</code></td><td>Every child must match</td></tr>
+                                <tr><td><code>ANY</code></td><td>At least one child matches</td></tr>
+                                <tr><td><code>NO</code></td><td>No children match</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="help-section">
+                        <h6><i class="bi bi-calculator"></i> Advanced: COUNT &amp; Expressions</h6>
+                        <p class="text-muted mb-1" style="font-size: 0.75rem;">Count matching children or set items:</p>
+                        <div class="example-query">COUNT(subs WHERE level >= 100)</div>
+                        <div class="example-query">COUNT(tags, "Mining")</div>
+                        <p class="text-muted mb-0" style="font-size: 0.75rem;">
+                            Use arithmetic (<code>+ - * /</code>) in WHERE and ORDER BY clauses.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Right column: Examples -->
+                <div class="col-lg-6">
+                    <div class="help-section">
+                        <h6><i class="bi bi-lightning"></i> Examples <span class="text-muted fw-normal">(click to load)</span></h6>
+
+                        <div class="example-query" onclick="loadExample(this)">FIND fcs</div>
+                        <div class="example-desc">List all Free Companies</div>
+
+                        <div class="example-query" onclick="loadExample(this)">FIND subs WHERE level >= 100 ORDER BY level DESC</div>
+                        <div class="example-desc">High-level submarines, sorted by level</div>
+
+                        <div class="example-query" onclick="loadExample(this)">FIND fcs WHERE ceruleum < 500</div>
+                        <div class="example-desc">FCs running low on ceruleum</div>
+
+                        <div class="example-query" onclick="loadExample(this)">FIND fcs WHERE ANY subs.status = "ready"</div>
+                        <div class="example-desc">FCs with at least one idle submarine</div>
+
+                        <div class="example-query" onclick="loadExample(this)">FIND fcs WHERE ALL subs.level > 111</div>
+                        <div class="example-desc">FCs where every sub is above rank 111</div>
+
+                        <div class="example-query" onclick="loadExample(this)">FIND fcs WHERE NO subs.build CONTAINS "SSUC"</div>
+                        <div class="example-desc">FCs with no SSUC-build submarines</div>
+
+                        <div class="example-query" onclick="loadExample(this)">FIND fcs WHERE ANY subs.build CONTAINS "SSUS"</div>
+                        <div class="example-desc">FCs with at least one SSUS-build submarine</div>
+
+                        <div class="example-query" onclick="loadExample(this)">FIND subs WHERE fc.world = "Gilgamesh"</div>
+                        <div class="example-desc">All submarines on a specific world</div>
+
+                        <div class="example-query" onclick="loadExample(this)">FIND voyages WHERE departure > "2025-01-01" ORDER BY departure DESC LIMIT 50</div>
+                        <div class="example-desc">Recent voyages since a date</div>
+
+                        <div class="example-query" onclick="loadExample(this)">FIND loot WHERE value > 50000 ORDER BY value DESC</div>
+                        <div class="example-desc">Most valuable loot hauls</div>
+
+                        <div class="example-query" onclick="loadExample(this)">FIND activity WHERE activity_type = "build_change" ORDER BY date DESC LIMIT 20</div>
+                        <div class="example-desc">Recent build changes across all FCs</div>
+
+                        <div class="example-query" onclick="loadExample(this)">FIND fcs WHERE region IN ("NA", "EU") AND total_subs >= 4</div>
+                        <div class="example-desc">NA/EU FCs with 4+ submarines</div>
+
+                        <div class="example-query" onclick="loadExample(this)">FIND fcs WHERE COUNT(subs WHERE level >= 100) >= 3</div>
+                        <div class="example-desc">FCs with 3 or more max-rank submarines</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Results Area -->
 <div id="results-area" style="display: none;">
     <div class="d-flex justify-content-between align-items-center mb-2">
@@ -208,4 +374,15 @@
 </div>
 
 <script src="{{ url_for('static', filename='js/reports.js') }}"></script>
+<script>
+function loadExample(el) {
+    const query = el.textContent;
+    document.getElementById('query-editor').value = query;
+    // Switch to query tab
+    switchTab('query');
+    // Collapse help panel
+    const panel = bootstrap.Collapse.getInstance(document.getElementById('helpPanel'));
+    if (panel) panel.hide();
+}
+</script>
 {% endblock %}
