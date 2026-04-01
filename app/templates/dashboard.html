@@ -638,9 +638,8 @@ document.addEventListener('DOMContentLoaded', function() {
             totalPages = data.pages;
             currentPage = data.page;
 
-            const currentView = localStorage.getItem('armada-view') || 'table';
             renderFCTable(data.fc_summaries);
-            if (currentView === 'card') renderFCCards(data.fc_summaries);
+            renderFCCards(data.fc_summaries);
             updatePagination();
 
             // Update footer stats from global counts (not paginated slice)
