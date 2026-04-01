@@ -127,6 +127,7 @@ class ArmadaDashboard {
                 this.updateConnectionStatus(false);
             });
 
+            // Legacy full dashboard update (still supported for request_update responses)
             this.socket.on('dashboard_update', (data) => {
                 console.log('[Armada] Received dashboard update:', {
                     summary: data.summary,
@@ -134,6 +135,31 @@ class ArmadaDashboard {
                     sub_count: data.submarines ? data.submarines.length : 0
                 });
                 this.updateDashboard(data);
+            });
+
+            // Lightweight notification: new plugin data arrived
+            this.socket.on('dashboard_changed', (data) => {
+                console.log('[Armada] Dashboard changed');
+                // Update summary counters immediately from the notification
+                if (data.summary) {
+                    this.updateSummaryCounters(data.summary);
+                }
+                if (data.supply_forecast) {
+                    this.updateSupplyForecast(data.supply_forecast);
+                }
+                // Trigger FC table re-fetch (handled by dashboard.html JS)
+                document.dispatchEvent(new Event('fc-table-updated'));
+            });
+
+            // Lightweight 30-second time tick: only status/hours updates
+            this.socket.on('time_tick', (data) => {
+                if (data.summary) {
+                    this.updateSummaryCounters(data.summary);
+                }
+                // Update individual submarine timers from server data
+                if (data.submarines) {
+                    this.applyTimeTick(data.submarines);
+                }
             });
 
             this.socket.on('plugin_data_update', (data) => {
@@ -810,6 +836,70 @@ class ArmadaDashboard {
                     }
                     // Don't remove FC row highlighting here - it's based on soonest sub, not this specific timer
                 }
+            }
+        });
+    }
+
+    updateSummaryCounters(summary) {
+        if (!summary) return;
+        this.updateElement('total-subs', summary.total_subs);
+        this.updateElement('ready-subs', summary.ready_subs);
+        this.updateElement('voyaging-subs', summary.voyaging_subs);
+        this.updateElement('leveling-subs', summary.leveling_subs);
+        this.updateElement('leveling-subs-top', summary.leveling_subs);
+        this.updateElement('gil-per-day', this.formatNumber(summary.total_gil_per_day));
+        this.updateLastUpdateTime();
+    }
+
+    applyTimeTick(submarines) {
+        // Update individual timer elements based on server-sent status
+        if (!submarines) return;
+        const timers = document.querySelectorAll('.timer-countdown');
+        if (!timers.length) return;
+
+        // Build lookup: "character|name" -> sub data
+        const subMap = {};
+        for (const sub of submarines) {
+            const key = `${sub.character}|${sub.name}`;
+            subMap[key] = sub;
+        }
+
+        timers.forEach(timer => {
+            const character = timer.dataset.character;
+            const name = timer.dataset.subName;
+            if (!character || !name) return;
+
+            const key = `${character}|${name}`;
+            const sub = subMap[key];
+            if (!sub) return;
+
+            const hours = sub.hours_remaining;
+            const row = timer.closest('tr');
+
+            if (sub.status === 'ready') {
+                timer.innerHTML = '<i class="bi bi-check-circle-fill"></i> Ready';
+                timer.className = 'timer-countdown text-success fw-bold';
+                timer.dataset.state = 'ready';
+                if (row) row.classList.add('table-success');
+            } else if (hours <= 0.5) {
+                const minutes = Math.max(0, Math.ceil(hours * 60));
+                timer.innerHTML = `<i class="bi bi-clock-fill"></i> ${minutes}m`;
+                timer.className = 'timer-countdown text-warning fw-bold';
+                timer.dataset.state = 'soon';
+                if (row) {
+                    row.classList.remove('table-success');
+                    row.classList.add('table-warning');
+                }
+            } else {
+                if (hours < 1) {
+                    const minutes = Math.ceil(hours * 60);
+                    timer.innerHTML = `<i class="bi bi-clock"></i> ${minutes}m`;
+                } else {
+                    timer.innerHTML = `<i class="bi bi-clock"></i> ${hours.toFixed(1)}h`;
+                }
+                timer.className = 'timer-countdown text-muted';
+                timer.dataset.state = 'normal';
+                if (row) row.classList.remove('table-success', 'table-warning');
             }
         });
     }

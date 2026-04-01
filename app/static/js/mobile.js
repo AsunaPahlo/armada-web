@@ -105,6 +105,24 @@
             updateFleetData(data);
         });
 
+        // Lightweight notification: new data arrived, reload
+        socket.on('dashboard_changed', () => {
+            console.log('[WS] Dashboard changed, refreshing');
+            if (window._mobileReloadTimer) clearTimeout(window._mobileReloadTimer);
+            window._mobileReloadTimer = setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        });
+
+        // Lightweight time tick — no full reload needed
+        socket.on('time_tick', (data) => {
+            if (data && data.summary) {
+                // Update any visible summary counters on mobile
+                const readyEl = document.getElementById('ready-count');
+                if (readyEl) readyEl.textContent = data.summary.ready_subs;
+            }
+        });
+
         socket.on('submarine_ready', (data) => {
             showToast(`${data.submarine_name} is ready!`, 'success');
             triggerHaptic('success');

@@ -8,7 +8,7 @@ import math
 import re
 from typing import Optional
 
-from app.models.lumina import SubmarinePart, SubmarineExploration, SubmarineRank
+from app.models.lumina import SubmarineRank
 
 
 # Fixed voyage overhead: 12 hours in seconds
@@ -133,7 +133,7 @@ def _get_vector3_distance(x1: int, y1: int, z1: int, x2: int, y2: int, z2: int) 
     return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2 + (z2 - z1) ** 2)
 
 
-def _get_travel_time(sector1: SubmarineExploration, sector2: SubmarineExploration, speed: int) -> int:
+def _get_travel_time(sector1, sector2, speed: int) -> int:
     """
     Calculate travel time between two sectors in seconds.
 
@@ -146,7 +146,7 @@ def _get_travel_time(sector1: SubmarineExploration, sector2: SubmarineExploratio
     return int(math.floor(distance * TRAVEL_TIME_CONSTANT / (speed * 100) * 60))
 
 
-def _get_survey_time(sector: SubmarineExploration, speed: int) -> int:
+def _get_survey_time(sector, speed: int) -> int:
     """
     Calculate survey time at a sector in seconds.
 
@@ -175,9 +175,10 @@ def calculate_submarine_speed(part_ids: list[int], level: int) -> Optional[int]:
         return None
 
     # Get speed from each part
+    from app.services.game_data_cache import get_submarine_part
     total_speed = 0
     for part_id in part_ids:
-        part = SubmarinePart.query.get(part_id)
+        part = get_submarine_part(part_id)
         if part:
             total_speed += part.speed
         else:
@@ -231,9 +232,10 @@ def calculate_voyage_duration(route_points: list[int], part_ids: list[int], leve
         return None
 
     # Get sector data for all points
+    from app.services.game_data_cache import get_exploration, get_starting_point
     sectors = {}
     for point_id in route_points:
-        sector = SubmarineExploration.query.get(point_id)
+        sector = get_exploration(point_id)
         if sector:
             sectors[point_id] = sector
         else:
@@ -243,10 +245,7 @@ def calculate_voyage_duration(route_points: list[int], part_ids: list[int], leve
     # Need to find the starting point for the first sector
     # The starting point depends on the map - get it from the first sector's map
     first_sector = sectors[route_points[0]]
-    starting_sector = SubmarineExploration.query.filter_by(
-        map_id=first_sector.map_id,
-        starting_point=True
-    ).first()
+    starting_sector = get_starting_point(first_sector.map_id)
 
     if not starting_sector:
         # Fallback: use the first sector's coordinates as start

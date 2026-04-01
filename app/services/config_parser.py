@@ -264,13 +264,13 @@ class ConfigParser:
             if not current_app:
                 return default_tanks, default_kits
 
-            from app.models.lumina import SubmarinePart, SubmarineExploration
+            from app.services.game_data_cache import get_submarine_part, get_exploration
 
             # Calculate fuel cost (sum of ceruleum for all sectors)
             total_ceruleum = 0
             sector_ranks = []
             for sector_id in route_points:
-                sector = SubmarineExploration.query.get(sector_id)
+                sector = get_exploration(sector_id)
                 if sector:
                     total_ceruleum += sector.ceruleum_tank_req
                     sector_ranks.append(sector.rank_req)
@@ -293,7 +293,7 @@ class ConfigParser:
                 if not row_id:
                     continue
 
-                part = SubmarinePart.query.get(row_id)
+                part = get_submarine_part(row_id)
                 if not part:
                     continue
 
@@ -315,7 +315,7 @@ class ConfigParser:
             # Calculate voyage duration from actual sector survey times
             total_survey_minutes = 0
             for sector_id in route_points:
-                sector = SubmarineExploration.query.get(sector_id)
+                sector = get_exploration(sector_id)
                 if sector:
                     total_survey_minutes += sector.survey_duration_min
 

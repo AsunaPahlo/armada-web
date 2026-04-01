@@ -48,6 +48,9 @@ class FleetManager:
         self._update_thread: threading.Thread = None
         self._running = False
         self._lock = threading.Lock()
+        self._rebuild_lock = threading.Lock()  # Serializes _rebuild_dashboard calls
+        self._cached_dashboard: dict | None = None  # Pre-computed dashboard result
+        self._save_timer: threading.Timer | None = None  # Debounced file persistence
 
         # Load persisted plugin data on startup
         self._load_plugin_data()
@@ -111,26 +114,37 @@ class FleetManager:
             logger.warning(f"Error loading plugin data file: {e}")
 
     def _save_plugin_data(self):
-        """Save plugin data to file for persistence."""
-        try:
-            # Ensure data directory exists
-            PLUGIN_DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
+        """Schedule a debounced save of plugin data to file.
 
-            # Build save data with metadata
-            save_data = {}
-            for plugin_id, accounts_data in self._plugin_data_raw.items():
-                metadata = self._plugin_metadata.get(plugin_id, {})
-                save_data[plugin_id] = {
-                    'accounts': accounts_data,
-                    'timestamp': metadata.get('timestamp'),
-                    'received_at': metadata.get('received_at'),
-                    'suppliers': self._supplier_data.get(plugin_id, [])
-                }
+        If multiple updates arrive within 5 seconds, only the last one writes to disk.
+        The actual I/O happens in a background thread, outside the lock.
+        """
+        # Cancel any pending save
+        if self._save_timer is not None:
+            self._save_timer.cancel()
 
-            with open(PLUGIN_DATA_FILE, 'w', encoding='utf-8') as f:
-                json.dump(save_data, f, indent=2)
-        except Exception as e:
-            logger.warning(f"Error saving plugin data: {e}")
+        # Snapshot the data to save (under the lock, which the caller already holds)
+        save_data = {}
+        for plugin_id, accounts_data in self._plugin_data_raw.items():
+            metadata = self._plugin_metadata.get(plugin_id, {})
+            save_data[plugin_id] = {
+                'accounts': accounts_data,
+                'timestamp': metadata.get('timestamp'),
+                'received_at': metadata.get('received_at'),
+                'suppliers': self._supplier_data.get(plugin_id, [])
+            }
+
+        def _do_save():
+            try:
+                PLUGIN_DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
+                with open(PLUGIN_DATA_FILE, 'w', encoding='utf-8') as f:
+                    json.dump(save_data, f, indent=2)
+            except Exception as e:
+                logger.warning(f"Error saving plugin data: {e}")
+
+        self._save_timer = threading.Timer(5.0, _do_save)
+        self._save_timer.daemon = True
+        self._save_timer.start()
 
     def add_account(self, nickname: str, config_path: str):
         """Add an account to monitor."""
@@ -383,6 +397,12 @@ class FleetManager:
             # Persist to file (covers both fleet data and supplier updates)
             self._save_plugin_data()
 
+        # Rebuild dashboard cache outside the lock (uses its own get_data lock)
+        try:
+            self._rebuild_dashboard()
+        except Exception as e:
+            logger.warning(f"Error rebuilding dashboard after plugin data: {e}")
+
     def clear_plugin_data(self, plugin_id: str = None):
         """
         Clear plugin data.
@@ -406,6 +426,12 @@ class FleetManager:
 
             # Persist the change
             self._save_plugin_data()
+
+        # Rebuild dashboard after clearing data
+        try:
+            self._rebuild_dashboard()
+        except Exception as e:
+            logger.warning(f"Error rebuilding dashboard after clear: {e}")
 
     def get_plugin_metadata(self, plugin_id: str = None) -> dict:
         """
@@ -490,31 +516,52 @@ class FleetManager:
     def get_dashboard_data(self) -> dict:
         """
         Get aggregated data formatted for dashboard display.
+        Returns the pre-computed cached dashboard. If no cache exists yet,
+        triggers a rebuild (e.g. on first call after startup).
 
         Returns:
             Dictionary with dashboard summary and details
         """
-        accounts = self.get_data(force_refresh=True)
+        if self._cached_dashboard is None:
+            self._rebuild_dashboard()
+        return self._cached_dashboard
 
-        # Record stats snapshot (for voyage tracking)
+    def _rebuild_dashboard(self):
+        """
+        Rebuild the cached dashboard data from current fleet state.
+        Called when plugin data changes or on first access.
+        Serialized via _rebuild_lock to prevent concurrent rebuilds racing.
+        """
+        with self._rebuild_lock:
+            self._rebuild_dashboard_inner()
+
+    def _rebuild_dashboard_inner(self):
+        """Inner rebuild logic, must be called while holding _rebuild_lock."""
+        accounts = self.get_data()
+
+        # Record stats snapshot only during rebuilds (not on every read)
         try:
             from app.services.stats_tracker import stats_tracker
             stats_tracker.record_snapshot(accounts)
         except Exception as e:
             logger.info(f"Stats recording error: {e}")
 
-        # Get known production routes from database + user overrides
-        from app.models.lumina import RouteStats
+        # Get known production routes from cache + user overrides
+        from app.services.game_data_cache import get_all_route_names
         from app.models.route_override import get_override_route_names
-        known_routes = set(r.route_name for r in RouteStats.query.all())
+        known_routes = get_all_route_names()
         known_routes |= get_override_route_names()
 
         # Get FC visibility configuration (hidden FCs are excluded from views and stats)
+        # Single query, derive hidden/excluded/notes in Python
         try:
-            from app.models.fc_config import get_hidden_fc_ids, get_all_fc_configs, get_supply_excluded_fc_ids
-            hidden_fc_ids = get_hidden_fc_ids()
-            supply_excluded_fc_ids = get_supply_excluded_fc_ids()
-            fc_configs = get_all_fc_configs()
+            from app.models.fc_config import FCConfig
+            from app.models.fc_config import _migrate_fc_config_columns
+            _migrate_fc_config_columns()
+            all_fc_configs = FCConfig.query.all()
+            hidden_fc_ids = {c.fc_id for c in all_fc_configs if not c.visible}
+            supply_excluded_fc_ids = {c.fc_id for c in all_fc_configs if c.exclude_from_supply}
+            fc_notes_map = {c.fc_id: c.notes for c in all_fc_configs if c.notes}
             if hidden_fc_ids:
                 logger.info(f"Hidden FC IDs: {hidden_fc_ids}")
             if supply_excluded_fc_ids:
@@ -524,7 +571,7 @@ class FleetManager:
             logger.info(f"FC config load error (may be first run): {e}")
             hidden_fc_ids = set()
             supply_excluded_fc_ids = set()
-            fc_configs = {}
+            fc_notes_map = {}
 
         # Get FC housing data
         try:
@@ -816,19 +863,14 @@ class FleetManager:
             for fc in fc_summaries.values():
                 fc['tags'] = []
 
-        # Add notes to each FC
-        try:
-            from app.models.fc_config import get_all_fc_notes
-            fc_notes_map = get_all_fc_notes()
-            for fc in fc_summaries.values():
-                fc_id = str(fc.get('fc_id', ''))
-                fc['notes'] = fc_notes_map.get(fc_id, '')
-        except Exception:
-            # fc_config table may not have notes column yet
-            for fc in fc_summaries.values():
-                fc['notes'] = ''
+        # Add notes to each FC (using fc_notes_map from consolidated query above)
+        for fc in fc_summaries.values():
+            fc_id = str(fc.get('fc_id', ''))
+            fc['notes'] = fc_notes_map.get(fc_id, '')
 
-        return {
+        # Build the new dashboard dict, then swap it in under the lock
+        # to avoid races with update_time_fields() and get_dashboard_data()
+        new_dashboard = {
             'summary': {
                 'total_subs': total_subs,
                 'ready_subs': ready_subs,
@@ -853,6 +895,90 @@ class FleetManager:
             'fc_summaries': list(fc_summaries.values()),
             'submarines': all_submarines
         }
+        with self._lock:
+            self._cached_dashboard = new_dashboard
+
+    def update_time_fields(self):
+        """
+        Lightweight update of time-sensitive fields on the cached dashboard.
+        Called by the 30-second background loop instead of a full rebuild.
+        Only updates: status, hours_remaining, soonest_return, ready_subs counts.
+        Holds _lock to prevent concurrent mutation with _rebuild_dashboard().
+        """
+        with self._lock:
+            self._update_time_fields_locked()
+
+    def _update_time_fields_locked(self):
+        """Inner time-field update, must be called while holding self._lock."""
+        if self._cached_dashboard is None:
+            return
+
+        total_ready = 0
+        total_subs = 0
+
+        # Reset FC-level time fields before recalculating
+        fc_map = {}
+        for fc in self._cached_dashboard['fc_summaries']:
+            fc_id = fc['fc_id']
+            fc['soonest_return'] = None
+            fc['soonest_return_time'] = None
+            fc['ready_subs'] = 0
+            fc_map[fc_id] = fc
+
+        for sub in self._cached_dashboard['submarines']:
+            total_subs += 1
+
+            # Recalculate from return_time string
+            try:
+                return_time_str = sub.get('return_time', '')
+                if return_time_str:
+                    return_dt = datetime.fromisoformat(return_time_str.rstrip('Z'))
+                    return_ts = calendar.timegm(return_dt.timetuple())
+
+                    if return_ts <= 0:
+                        sub['status'] = 'ready'
+                        sub['hours_remaining'] = 0.0
+                    else:
+                        hours_remaining = (return_ts - time.time()) / 3600
+                        sub['hours_remaining'] = round(hours_remaining, 2)
+                        if hours_remaining <= 0:
+                            sub['status'] = 'ready'
+                        elif hours_remaining <= 0.5:
+                            sub['status'] = 'returning_soon'
+                        else:
+                            sub['status'] = 'voyaging'
+            except Exception:
+                pass
+
+            if sub.get('status') == 'ready':
+                total_ready += 1
+
+            # Update FC-level soonest return
+            fc_id = str(sub.get('fc_id', ''))
+            fc = fc_map.get(fc_id)
+            if fc:
+                if sub['status'] == 'ready':
+                    fc['ready_subs'] += 1
+                    effective_hours = 0
+                else:
+                    effective_hours = sub.get('hours_remaining', 999)
+
+                current_soonest = fc['soonest_return']
+                if current_soonest is None or effective_hours < current_soonest:
+                    fc['soonest_return'] = effective_hours
+                    if sub['status'] == 'ready':
+                        fc['soonest_return_time'] = None
+                    else:
+                        fc['soonest_return_time'] = sub.get('return_time')
+
+        # Default soonest_return for FCs with no updates
+        for fc in self._cached_dashboard['fc_summaries']:
+            if fc['soonest_return'] is None:
+                fc['soonest_return'] = 0
+
+        # Update summary counts
+        self._cached_dashboard['summary']['ready_subs'] = total_ready
+        self._cached_dashboard['summary']['voyaging_subs'] = total_subs - total_ready
 
     def get_supplier_summary(self, ceruleum_per_day: float = None, kits_per_day: float = None) -> dict:
         """

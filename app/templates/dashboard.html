@@ -149,18 +149,9 @@
     <div class="d-flex align-items-center gap-3">
         <h5 class="mb-0">
             <i class="bi bi-building"></i> Free Companies
-            <span class="badge bg-secondary" id="fc-count-badge">{{ data.fc_summaries|length }}</span>
+            <span class="badge bg-secondary" id="fc-count-badge">-</span>
         </h5>
-        <!-- Tag Filter -->
-        {% set tag_dict = {} %}
-        {% for fc in data.fc_summaries %}
-            {% for tag in fc.tags %}
-                {% if tag['id'] not in tag_dict %}
-                    {% set _ = tag_dict.update({tag['id']: tag}) %}
-                {% endif %}
-            {% endfor %}
-        {% endfor %}
-        {% set all_tags = tag_dict.values()|list %}
+        <!-- Tag Filter (all_tags passed from route) -->
         {% if all_tags %}
         <div class="tag-filter d-flex align-items-center gap-2">
             <small class="text-muted">Filter:</small>
@@ -244,169 +235,12 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for fc in data.fc_summaries|sort(attribute='soonest_return') %}
-                        {% set tag_ids = [] %}{% set tag_names = [] %}{% for t in fc.tags %}{% set _ = tag_ids.append(t['id']|string) %}{% set _ = tag_names.append(t['name']) %}{% endfor %}
-                        <tr class="fc-row {% if fc.ready_subs > 0 %}has-ready{% elif fc.soonest_return is not none and fc.soonest_return <= 0.5 %}has-soon{% endif %}"
-                            data-fc-id="{{ fc.fc_id|string }}"
-                            data-fc="{{ fc.fc_name }}"
-                            data-subs="{{ fc.total_subs }}"
-                            data-ready="{{ fc.ready_subs }}"
-                            data-return="{{ fc.soonest_return if fc.soonest_return is not none else 9999 }}"
-                            data-gil="{{ fc.gil_per_day }}"
-                            data-restock="{{ fc.days_until_restock if fc.days_until_restock is not none else 9999 }}"
-                            data-mode="{{ fc.mode }}"
-                            data-character="{{ fc.unified_character or '' }}"
-                            data-tags="{{ tag_ids|join(',') }}"
-                            data-tag-names="{{ tag_names|join(' ') }}"
-                            data-accounts="{{ fc.accounts|join(' ') }}"
-                            data-notes="{{ fc.notes or '' }}"
-                            data-world="{{ fc.world or '' }}">
-                            <td class="expand-toggle" style="cursor: pointer;">
-                                <i class="bi bi-chevron-right"></i>
-                            </td>
-                            <td>
-                                <strong>{{ fc.fc_name or "Unknown FC" }}</strong>
-                                <a href="{{ url_for('stats.fc_detail', fc_id=fc.fc_id) }}" class="text-decoration-none ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="FC Details & Activity Log">
-                                    <i class="bi bi-info-circle text-primary fc-info-icon"></i>
-                                </a>
-                                {% if fc.house_address %}
-                                <i class="bi bi-house-door-fill text-info ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ fc.house_address }}"></i>
-                                {% endif %}
-                                <a href="{{ url_for('unlocks.index') }}?fc_id={{ fc.fc_id }}" class="text-decoration-none ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="View Sector Unlocks">
-                                    <i class="bi bi-diagram-3 text-muted unlock-link-icon"></i>
-                                </a>
-                                {% if fc.needs_dive_credits %}
-                                <i class="bi bi-ticket-perforated text-danger ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Need {{ fc.dive_credits_needed }} more dive credits for slot {{ fc.unlocked_slots + 1 }}"></i>
-                                {% elif fc.dive_credits > 0 and fc.unlocked_slots < 4 %}
-                                <i class="bi bi-ticket-perforated text-success ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ fc.dive_credits }} dive credits available"></i>
-                                {% endif %}
-                                {% for tag in fc.tags %}
-                                <span class="badge bg-{{ tag.color }} ms-1 fc-tag-badge">{{ tag.name }}</span>
-                                {% endfor %}
-                                {% for route in fc.routes %}
-                                <span class="badge bg-dark ms-1">{{ route }}</span>
-                                {% endfor %}
-                                <br><small class="text-muted">{{ fc.accounts|join(', ') }}</small>
-                            </td>
-                            <td>
-                                {% if fc.unified_character %}
-                                {{ fc.unified_character }}@{{ fc.world }}
-                                {% else %}
-                                <span class="text-muted">-</span>
-                                {% endif %}
-                            </td>
-                            <td class="text-center">
-                                <span class="badge bg-secondary">{{ fc.total_subs }}</span>{% if fc.unbuilt_subs > 0 %}<span class="badge bg-warning text-dark" style="position: absolute; margin-left: 4px; margin-top: 3px;" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ fc.unbuilt_subs }} slot{{ 's' if fc.unbuilt_subs > 1 else '' }} unlocked but no submarine built"><i class="bi bi-hammer"></i> +{{ fc.unbuilt_subs }}</span>{% endif %}
-                            </td>
-                            <td class="text-center">
-                                {% if fc.ready_subs > 0 %}
-                                <span class="badge bg-success">{{ fc.ready_subs }}</span>
-                                {% else %}
-                                <span class="text-muted">0</span>
-                                {% endif %}
-                            </td>
-                            <td class="text-center">
-                                {% if fc.mode == 'farming' %}
-                                <span class="badge bg-warning text-dark">Farming</span>
-                                {% elif fc.mode == 'leveling' %}
-                                <span class="badge bg-purple">Leveling</span>
-                                {% elif fc.mode == 'mixed' %}
-                                <span class="badge bg-info">Mixed</span>
-                                {% else %}
-                                <span class="text-muted">-</span>
-                                {% endif %}
-                            </td>
-                            <td class="text-end">
-                                {% if fc.soonest_return is not none %}
-                                    {% if fc.soonest_return <= 0 %}
-                                    <span class="badge bg-success" data-state="ready">READY</span>
-                                    {% elif fc.soonest_return <= 0.5 %}
-                                    <span class="badge bg-warning text-dark timer-countdown" data-return="{{ fc.soonest_return_time }}" data-state="warning"><i class="bi bi-hourglass-split"></i> {{ "%.0f"|format(fc.soonest_return * 60) }}m</span>
-                                    {% elif fc.soonest_return < 1 %}
-                                    <span class="timer-countdown text-muted" data-return="{{ fc.soonest_return_time }}" data-state="normal"><i class="bi bi-clock"></i> {{ "%.0f"|format(fc.soonest_return * 60) }}m</span>
-                                    {% else %}
-                                    <span class="timer-countdown text-muted" data-return="{{ fc.soonest_return_time }}" data-state="normal"><i class="bi bi-clock"></i> {{ "%.1f"|format(fc.soonest_return) }}h</span>
-                                    {% endif %}
-                                {% else %}
-                                <span class="text-muted">-</span>
-                                {% endif %}
-                            </td>
-                            <td class="text-end text-warning">{{ "{:,.0f}".format(fc.gil_per_day) }}</td>
-                            <td class="text-center">
-                                <small>
-                                    <i class="bi bi-fuel-pump {% if fc.ceruleum < 200 %}text-danger{% elif fc.ceruleum < 600 %}text-warning{% else %}text-success{% endif %}"></i> <span class="text-info" title="Ceruleum">{{ fc.ceruleum }}</span>
-                                    /
-                                    <i class="bi bi-wrench {% if fc.repair_kits < 100 %}text-danger{% elif fc.repair_kits < 300 %}text-warning{% else %}text-success{% endif %}"></i> <span class="text-info" title="Repair Kits">{{ fc.repair_kits }}</span>
-                                </small>
-                            </td>
-                            <td class="text-center">
-                                {% if fc.days_until_restock is not none %}
-                                    {% if fc.days_until_restock < 7 %}
-                                    <span class="text-danger" title="{{ fc.limiting_resource }}">{{ fc.days_until_restock }}d</span>
-                                    {% elif fc.days_until_restock < 14 %}
-                                    <span class="text-warning" title="{{ fc.limiting_resource }}">{{ fc.days_until_restock }}d</span>
-                                    {% else %}
-                                    <span class="text-success" title="{{ fc.limiting_resource }}">{{ fc.days_until_restock }}d</span>
-                                    {% endif %}
-                                {% else %}
-                                <span class="text-muted">-</span>
-                                {% endif %}
+                        <tr id="fc-loading-row">
+                            <td colspan="10" class="text-center text-muted py-4">
+                                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                Loading fleet data...
                             </td>
                         </tr>
-                        <!-- Expandable Detail Row -->
-                        <tr class="fc-detail-row" data-fc-id="{{ fc.fc_id|string }}" style="display: none;">
-                            <td colspan="10" class="p-0">
-                                <div class="fc-detail-content">
-                                    <table class="table table-sm table-dark mb-0 sub-table" style="table-layout: fixed;">
-                                        <thead>
-                                            <tr class="text-muted">
-                                                <th style="padding-left: 40px; width: 18%;">Submarine</th>
-                                                <th style="width: 25%;">Character</th>
-                                                <th style="width: 12%;">Build</th>
-                                                <th style="width: 20%;">Route</th>
-                                                <th class="text-center" style="width: 10%;">Level</th>
-                                                <th class="text-end" style="width: 15%;">Status</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {% for sub in fc.submarines|sort(attribute='hours_remaining') %}
-                                            <tr class="{% if sub.status == 'ready' %}sub-ready{% elif sub.status == 'returning_soon' %}sub-soon{% endif %}">
-                                                <td style="padding-left: 40px;">
-                                                    <strong>{{ sub.name }}</strong>
-                                                </td>
-                                                <td>
-                                                    {{ sub.character }}
-                                                    <small class="text-muted">@ {{ sub.world }}</small>
-                                                </td>
-                                                <td><code>{{ sub.build or "-" }}</code></td>
-                                                <td>{{ sub.route or "-" }}</td>
-                                                <td class="text-center">
-                                                    {{ sub.level }}
-                                                    {% if sub.exp_progress > 0 %}
-                                                    <div class="progress exp-bar-mini mt-1">
-                                                        <div class="progress-bar bg-info" style="width: {{ sub.exp_progress }}%"></div>
-                                                    </div>
-                                                    {% endif %}
-                                                </td>
-                                                <td class="text-end">
-                                                    {% if sub.status == 'ready' %}
-                                                    <span class="badge bg-success">READY</span>
-                                                    {% elif sub.status == 'returning_soon' %}
-                                                    <span class="text-warning">{{ "%.0f"|format(sub.hours_remaining * 60) }}m</span>
-                                                    {% else %}
-                                                    <span class="text-muted">
-                                                        {% if sub.hours_remaining >= 1 %}{{ "%.1f"|format(sub.hours_remaining) }}h{% else %}{{ "%.0f"|format(sub.hours_remaining * 60) }}m{% endif %}
-                                                    </span>
-                                                    {% endif %}
-                                                </td>
-                                            </tr>
-                                            {% endfor %}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
                     </tbody>
                 </table>
             </div>
@@ -417,125 +251,7 @@
 <!-- ==================== CARD VIEW ==================== -->
 <div id="card-view" style="display: none;">
     <div class="row" id="fc-cards">
-        {% for fc in data.fc_summaries|sort(attribute='soonest_return') %}
-        {% set card_tag_ids = [] %}{% set card_tag_names = [] %}{% for t in fc.tags %}{% set _ = card_tag_ids.append(t['id']|string) %}{% set _ = card_tag_names.append(t['name']) %}{% endfor %}
-        {% set char_names = [] %}{% for c in fc.characters %}{% set _ = char_names.append(c['name']) %}{% endfor %}
-        <div class="col-lg-6 col-xl-4 mb-4 fc-card-wrapper" data-tags="{{ card_tag_ids|join(',') }}" data-tag-names="{{ card_tag_names|join(' ') }}" data-characters="{{ char_names|join(' ') }}" data-accounts="{{ fc.accounts|join(' ') }}" data-notes="{{ fc.notes or '' }}" data-world="{{ fc.world or '' }}">
-            <div class="card fc-card" data-fc-id="{{ fc.fc_id|string }}">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="mb-0">
-                            <i class="bi bi-building"></i>
-                            {{ fc.fc_name or "Unknown FC" }}
-                            <a href="{{ url_for('stats.fc_detail', fc_id=fc.fc_id) }}" class="text-decoration-none ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="FC Details & Activity Log">
-                                <i class="bi bi-info-circle text-primary fc-info-icon" style="font-size: 0.8em;"></i>
-                            </a>
-                            {% if fc.house_address %}
-                            <i class="bi bi-house-door-fill text-info ms-1" style="font-size: 0.8em;" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ fc.house_address }}"></i>
-                            {% endif %}
-                            <a href="{{ url_for('unlocks.index') }}?fc_id={{ fc.fc_id }}" class="text-decoration-none ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="View Sector Unlocks">
-                                <i class="bi bi-diagram-3 text-muted unlock-link-icon" style="font-size: 0.8em;"></i>
-                            </a>
-                            {% if fc.needs_dive_credits %}
-                            <i class="bi bi-ticket-perforated text-danger ms-1" style="font-size: 0.8em;" data-bs-toggle="tooltip" data-bs-placement="top" title="Need {{ fc.dive_credits_needed }} more dive credits for slot {{ fc.unlocked_slots + 1 }}"></i>
-                            {% elif fc.dive_credits > 0 and fc.unlocked_slots < 4 %}
-                            <i class="bi bi-ticket-perforated text-success ms-1" style="font-size: 0.8em;" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ fc.dive_credits }} dive credits available"></i>
-                            {% endif %}
-                            {% for tag in fc.tags %}
-                            <span class="badge bg-{{ tag.color }} ms-1 fc-tag-badge">{{ tag.name }}</span>
-                            {% endfor %}
-                            {% for route in fc.routes %}
-                            <span class="badge bg-dark ms-1">{{ route }}</span>
-                            {% endfor %}
-                        </h5>
-                        <small class="text-muted">{{ fc.accounts|join(', ') }}</small>
-                    </div>
-                    <div class="text-end">
-                        <span class="badge {% if fc.ready_subs > 0 %}bg-success{% else %}bg-secondary{% endif %}">
-                            {{ fc.ready_subs }}/{{ fc.total_subs }} Ready
-                        </span>{% if fc.unbuilt_subs > 0 %}<span class="badge bg-warning text-dark ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ fc.unbuilt_subs }} slot{{ 's' if fc.unbuilt_subs > 1 else '' }} unlocked but no submarine built"><i class="bi bi-hammer"></i> +{{ fc.unbuilt_subs }}</span>{% endif %}
-                    </div>
-                </div>
-                <div class="card-body">
-                    <!-- FC Stats Row -->
-                    <div class="row mb-3 fc-stats">
-                        <div class="col-4 text-center">
-                            <small class="text-muted d-block">Gil/Day</small>
-                            <strong class="text-warning">{{ "{:,.0f}".format(fc.gil_per_day) }}</strong>
-                        </div>
-                        <div class="col-4 text-center">
-                            <small class="text-muted d-block"><i class="bi bi-fuel-pump {% if fc.ceruleum < 200 %}text-danger{% elif fc.ceruleum < 600 %}text-warning{% else %}text-success{% endif %}"></i> Ceruleum</small>
-                            <strong class="text-info">{{ "{:,}".format(fc.ceruleum) }}</strong>
-                        </div>
-                        <div class="col-4 text-center">
-                            <small class="text-muted d-block"><i class="bi bi-wrench {% if fc.repair_kits < 100 %}text-danger{% elif fc.repair_kits < 300 %}text-warning{% else %}text-success{% endif %}"></i> Repair Kits</small>
-                            <strong class="text-info">{{ "{:,}".format(fc.repair_kits) }}</strong>
-                        </div>
-                    </div>
-
-                    <!-- Submarines List -->
-                    <div class="submarine-list">
-                        {% for sub in fc.submarines|sort(attribute='hours_remaining') %}
-                        <div class="submarine-row {% if sub.status == 'ready' %}ready{% elif sub.status == 'returning_soon' %}soon{% endif %}">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div class="sub-info">
-                                    <span class="sub-name">{{ sub.name }}</span>
-                                    <span class="sub-build badge bg-dark">{{ sub.build or "?" }}</span>
-                                    {% if sub.route %}
-                                    <span class="sub-route badge bg-secondary">{{ sub.route }}</span>
-                                    {% endif %}
-                                </div>
-                                <div class="sub-timer text-end">
-                                    {% if sub.status == 'ready' %}
-                                    <span class="text-success fw-bold" data-state="ready">
-                                        <i class="bi bi-check-circle-fill"></i> READY
-                                    </span>
-                                    {% elif sub.hours_remaining <= 0.5 %}
-                                    <span class="badge bg-warning text-dark timer-countdown" data-return="{{ sub.return_time }}" data-state="warning">
-                                        <i class="bi bi-hourglass-split"></i> {{ "%.0f"|format(sub.hours_remaining * 60) }}m
-                                    </span>
-                                    {% elif sub.hours_remaining < 1 %}
-                                    <span class="text-muted timer-countdown" data-return="{{ sub.return_time }}" data-state="normal">
-                                        <i class="bi bi-clock"></i> {{ "%.0f"|format(sub.hours_remaining * 60) }}m
-                                    </span>
-                                    {% else %}
-                                    <span class="text-muted timer-countdown" data-return="{{ sub.return_time }}" data-state="normal">
-                                        <i class="bi bi-clock"></i> {{ "%.1f"|format(sub.hours_remaining) }}h
-                                    </span>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="sub-details">
-                                <small class="text-muted">
-                                    Lv.{{ sub.level }} | {{ sub.character }} @ {{ sub.world }}
-                                </small>
-                                {% if sub.exp_progress > 0 %}
-                                <div class="progress exp-bar mt-1">
-                                    <div class="progress-bar bg-info" style="width: {{ sub.exp_progress }}%"></div>
-                                </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                <div class="card-footer">
-                    {% if fc.soonest_return and fc.soonest_return > 0 %}
-                    <small class="text-muted float-end">
-                        Next return:
-                        {% if fc.soonest_return <= 0.5 %}
-                        <span class="badge bg-warning text-dark timer-countdown" data-return="{{ fc.soonest_return_time }}" data-state="warning"><i class="bi bi-hourglass-split"></i> {{ "%.0f"|format(fc.soonest_return * 60) }}m</span>
-                        {% elif fc.soonest_return < 1 %}
-                        <span class="timer-countdown text-muted" data-return="{{ fc.soonest_return_time }}" data-state="normal"><i class="bi bi-clock"></i> {{ "%.0f"|format(fc.soonest_return * 60) }}m</span>
-                        {% else %}
-                        <span class="timer-countdown text-muted" data-return="{{ fc.soonest_return_time }}" data-state="normal"><i class="bi bi-clock"></i> {{ "%.1f"|format(fc.soonest_return) }}h</span>
-                        {% endif %}
-                    </small>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        {% endfor %}
+        <!-- Cards rendered client-side from API data -->
     </div>
 </div>
 
@@ -547,7 +263,7 @@
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                     <div>
                         <small class="text-muted">FCs with Ready Subs:</small>
-                        <strong class="text-success ms-1">{{ data.fc_summaries|selectattr('ready_subs', 'gt', 0)|list|length }}</strong>
+                        <strong class="text-success ms-1" id="fcs-with-ready">-</strong>
                     </div>
                     <div>
                         <small class="text-muted">Leveling:</small>
@@ -555,7 +271,7 @@
                     </div>
                     <div>
                         <small class="text-muted">Total Characters:</small>
-                        <strong class="ms-1">{{ data.fc_summaries|map(attribute='characters')|map('length')|sum if data.fc_summaries else 0 }}</strong>
+                        <strong class="ms-1" id="total-characters">-</strong>
                     </div>
                     <div>
                         <small class="text-muted">Accounts:</small>
@@ -863,302 +579,267 @@ table.sub-table tbody tr.sub-soon:hover {
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Tooltips are handled by delegated tooltip in dashboard.js - no individual initialization needed
-
     const tableView = document.getElementById('table-view');
     const cardView = document.getElementById('card-view');
     const tableBtn = document.getElementById('view-table');
     const cardBtn = document.getElementById('view-card');
     const tableControls = document.querySelector('.table-controls');
-
-    // Pagination state
-    let currentPage = 1;
-    let pageSize = parseInt(localStorage.getItem('armada-page-size') || '10');
+    const fcTable = document.getElementById('fc-table');
+    const fcTbody = fcTable.querySelector('tbody');
+    const fcCountBadge = document.getElementById('fc-count-badge');
     const pageSizeSelect = document.getElementById('page-size');
     const pageInfo = document.getElementById('pagination-info');
     const prevBtn = document.getElementById('page-prev');
     const nextBtn = document.getElementById('page-next');
+    const fcSearchInput = document.getElementById('fc-search');
 
-    // Set saved page size
+    // State
+    let currentPage = 1;
+    let pageSize = parseInt(localStorage.getItem('armada-page-size') || '10');
+    let totalFCs = 0;
+    let totalPages = 1;
+    let fcSort = { column: 'return', direction: 'asc' };
+    let searchQuery = '';
+    let searchDebounce = null;
+
     pageSizeSelect.value = pageSize.toString();
 
-    function getTotalFCs() {
-        const currentView = localStorage.getItem('armada-view') || 'table';
-        if (currentView === 'table') {
-            return document.querySelectorAll('#fc-table tbody > tr.fc-row:not(.tag-hidden):not(.search-hidden)').length;
-        } else {
-            return document.querySelectorAll('#fc-cards > div:not(.tag-hidden):not(.search-hidden)').length;
+    // ==================== HTML ESCAPING ====================
+    function esc(str) {
+        if (str == null) return '';
+        const d = document.createElement('div');
+        d.textContent = String(str);
+        return d.innerHTML;
+    }
+    function escAttr(str) {
+        return esc(str).replace(/"/g, '&quot;');
+    }
+
+    // ==================== API FETCH ====================
+    function buildApiUrl() {
+        const params = new URLSearchParams({
+            page: currentPage,
+            per_page: pageSize,
+            sort_by: fcSort.column,
+            sort_dir: fcSort.direction,
+        });
+        if (searchQuery) params.set('search', searchQuery);
+        if (activeTagFilters.size > 0) params.set('include_tags', [...activeTagFilters].join(','));
+        return `/api/fc-summaries?${params}`;
+    }
+
+    async function fetchAndRender() {
+        try {
+            const resp = await fetch(buildApiUrl());
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const data = await resp.json();
+
+            totalFCs = data.total;
+            totalPages = data.pages;
+            currentPage = data.page;
+
+            const currentView = localStorage.getItem('armada-view') || 'table';
+            renderFCTable(data.fc_summaries);
+            if (currentView === 'card') renderFCCards(data.fc_summaries);
+            updatePagination();
+
+            // Update footer stats from global counts (not paginated slice)
+            const fcsReady = document.getElementById('fcs-with-ready');
+            const totalChars = document.getElementById('total-characters');
+            if (fcsReady) fcsReady.textContent = data.fcs_with_ready;
+            if (totalChars) totalChars.textContent = data.total_characters;
+            if (fcCountBadge) fcCountBadge.textContent = totalFCs;
+        } catch (err) {
+            console.error('[Armada] Failed to fetch FC data:', err);
+            fcTbody.innerHTML = '<tr><td colspan="10" class="text-center text-danger py-4">Failed to load fleet data</td></tr>';
         }
     }
 
-    function applyPagination() {
-        const total = getTotalFCs();
-        const currentView = localStorage.getItem('armada-view') || 'table';
+    // ==================== RENDER ====================
+    function formatTimer(hours, returnTime) {
+        if (hours <= 0) return '<span class="badge bg-success" data-state="ready">READY</span>';
+        if (hours <= 0.5) return `<span class="badge bg-warning text-dark timer-countdown" data-return="${returnTime}" data-state="warning"><i class="bi bi-hourglass-split"></i> ${Math.ceil(hours * 60)}m</span>`;
+        if (hours < 1) return `<span class="timer-countdown text-muted" data-return="${returnTime}" data-state="normal"><i class="bi bi-clock"></i> ${Math.ceil(hours * 60)}m</span>`;
+        return `<span class="timer-countdown text-muted" data-return="${returnTime}" data-state="normal"><i class="bi bi-clock"></i> ${hours.toFixed(1)}h</span>`;
+    }
 
-        // If pageSize is 0 (All), show all non-filtered items
-        if (pageSize === 0) {
-            if (currentView === 'table') {
-                document.querySelectorAll('#fc-table tbody > tr.fc-row:not(.tag-hidden):not(.search-hidden)').forEach(row => {
-                    row.style.display = '';
-                    const fcId = row.dataset.fcId;
-                    const detailRow = document.querySelector(`.fc-detail-row[data-fc-id="${fcId}"]`);
-                    if (detailRow && row.classList.contains('expanded')) {
-                        detailRow.style.display = 'table-row';
-                    }
-                });
-                // Ensure hidden rows stay hidden
-                document.querySelectorAll('#fc-table tbody > tr.fc-row.tag-hidden, #fc-table tbody > tr.fc-row.search-hidden').forEach(row => {
-                    row.style.display = 'none';
-                });
-            } else {
-                document.querySelectorAll('#fc-cards > div:not(.tag-hidden):not(.search-hidden)').forEach(card => {
-                    card.style.display = '';
-                });
-                document.querySelectorAll('#fc-cards > div.tag-hidden, #fc-cards > div.search-hidden').forEach(card => {
-                    card.style.display = 'none';
-                });
-            }
-            pageInfo.textContent = `1-${total} of ${total}`;
-            prevBtn.disabled = true;
-            nextBtn.disabled = true;
+    function modeHTML(mode) {
+        if (mode === 'farming') return '<span class="badge bg-warning text-dark">Farming</span>';
+        if (mode === 'leveling') return '<span class="badge bg-purple">Leveling</span>';
+        if (mode === 'mixed') return '<span class="badge bg-info">Mixed</span>';
+        return '<span class="text-muted">-</span>';
+    }
+
+    function supplyColor(val, low, mid) {
+        if (val < low) return 'text-danger';
+        if (val < mid) return 'text-warning';
+        return 'text-success';
+    }
+
+    function restockHTML(days, resource) {
+        if (days == null) return '<span class="text-muted">-</span>';
+        const cls = days < 7 ? 'text-danger' : (days < 14 ? 'text-warning' : 'text-success');
+        return `<span class="${cls}" title="${resource || ''}">${days}d</span>`;
+    }
+
+    function renderFCTable(fcs) {
+        if (!fcs || fcs.length === 0) {
+            fcTbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">No Free Companies found</td></tr>';
             return;
         }
 
-        const totalPages = Math.ceil(total / pageSize);
-        currentPage = Math.min(currentPage, Math.max(1, totalPages));
+        let html = '';
+        for (const fc of fcs) {
+            const fcId = String(fc.fc_id);
+            const highlightClass = fc.ready_subs > 0 ? 'has-ready' : (fc.soonest_return != null && fc.soonest_return <= 0.5 ? 'has-soon' : '');
+            const tagIds = (fc.tags || []).map(t => t.id).join(',');
+            const tagNames = (fc.tags || []).map(t => t.name).join(' ');
+            const tagsHtml = (fc.tags || []).map(t => `<span class="badge bg-${t.color} ms-1 fc-tag-badge">${t.name}</span>`).join('');
+            const routesHtml = (fc.routes || []).map(r => `<span class="badge bg-dark ms-1">${r}</span>`).join('');
+            const charDisplay = fc.unified_character ? `${fc.unified_character}@${fc.world}` : '<span class="text-muted">-</span>';
+            const unbuiltHtml = fc.unbuilt_subs > 0 ? `<span class="badge bg-warning text-dark" style="position:absolute;margin-left:4px;margin-top:3px;" data-bs-toggle="tooltip" title="${fc.unbuilt_subs} slot${fc.unbuilt_subs > 1 ? 's' : ''} unlocked but no submarine built"><i class="bi bi-hammer"></i> +${fc.unbuilt_subs}</span>` : '';
+            const houseHtml = fc.house_address ? `<i class="bi bi-house-door-fill text-info ms-1" data-bs-toggle="tooltip" title="${fc.house_address}"></i>` : '';
+            let diveHtml = '';
+            if (fc.needs_dive_credits) diveHtml = `<i class="bi bi-ticket-perforated text-danger ms-1" data-bs-toggle="tooltip" title="Need ${fc.dive_credits_needed} more dive credits for slot ${fc.unlocked_slots + 1}"></i>`;
+            else if (fc.dive_credits > 0 && fc.unlocked_slots < 4) diveHtml = `<i class="bi bi-ticket-perforated text-success ms-1" data-bs-toggle="tooltip" title="${fc.dive_credits} dive credits available"></i>`;
 
-        const startIdx = (currentPage - 1) * pageSize;
-        const endIdx = startIdx + pageSize;
+            const returnHtml = fc.soonest_return != null ? formatTimer(fc.soonest_return, fc.soonest_return_time || '') : '<span class="text-muted">-</span>';
 
-        if (currentView === 'table') {
-            // Only paginate visible (non-filtered) rows
-            const fcRows = document.querySelectorAll('#fc-table tbody > tr.fc-row:not(.tag-hidden):not(.search-hidden)');
-            fcRows.forEach((row, idx) => {
-                const fcId = row.dataset.fcId;
-                const detailRow = document.querySelector(`.fc-detail-row[data-fc-id="${fcId}"]`);
-                if (idx >= startIdx && idx < endIdx) {
-                    row.style.display = '';
-                    if (detailRow && row.classList.contains('expanded')) {
-                        detailRow.style.display = 'table-row';
-                    }
-                } else {
-                    row.style.display = 'none';
-                    if (detailRow) detailRow.style.display = 'none';
-                }
-            });
-            // Ensure hidden rows stay hidden
-            document.querySelectorAll('#fc-table tbody > tr.fc-row.tag-hidden, #fc-table tbody > tr.fc-row.search-hidden').forEach(row => {
-                row.style.display = 'none';
-                const fcId = row.dataset.fcId;
-                const detailRow = document.querySelector(`.fc-detail-row[data-fc-id="${fcId}"]`);
-                if (detailRow) detailRow.style.display = 'none';
-            });
-        } else {
-            // Only paginate visible (non-filtered) cards
-            const cards = document.querySelectorAll('#fc-cards > div:not(.tag-hidden):not(.search-hidden)');
-            cards.forEach((card, idx) => {
-                card.style.display = (idx >= startIdx && idx < endIdx) ? '' : 'none';
-            });
-            // Ensure hidden cards stay hidden
-            document.querySelectorAll('#fc-cards > div.tag-hidden, #fc-cards > div.search-hidden').forEach(card => {
-                card.style.display = 'none';
-            });
+            html += `<tr class="fc-row ${highlightClass}" data-fc-id="${fcId}" data-fc="${fc.fc_name || ''}" data-subs="${fc.total_subs}" data-ready="${fc.ready_subs}" data-return="${fc.soonest_return != null ? fc.soonest_return : 9999}" data-gil="${fc.gil_per_day}" data-restock="${fc.days_until_restock != null ? fc.days_until_restock : 9999}" data-mode="${fc.mode}" data-character="${fc.unified_character || ''}" data-tags="${tagIds}" data-tag-names="${tagNames}" data-accounts="${(fc.accounts||[]).join(' ')}" data-notes="${fc.notes || ''}" data-world="${fc.world || ''}">
+                <td class="expand-toggle" style="cursor:pointer;"><i class="bi bi-chevron-right"></i></td>
+                <td>
+                    <strong>${fc.fc_name || 'Unknown FC'}</strong>
+                    <a href="/stats/fc/${fcId}" class="text-decoration-none ms-1" data-bs-toggle="tooltip" title="FC Details"><i class="bi bi-info-circle text-primary fc-info-icon"></i></a>
+                    ${houseHtml}
+                    <a href="/unlocks?fc_id=${fcId}" class="text-decoration-none ms-1" data-bs-toggle="tooltip" title="Sector Unlocks"><i class="bi bi-diagram-3 text-muted unlock-link-icon"></i></a>
+                    ${diveHtml}${tagsHtml}${routesHtml}
+                    <br><small class="text-muted">${(fc.accounts||[]).join(', ')}</small>
+                </td>
+                <td>${charDisplay}</td>
+                <td class="text-center"><span class="badge bg-secondary">${fc.total_subs}</span>${unbuiltHtml}</td>
+                <td class="text-center">${fc.ready_subs > 0 ? `<span class="badge bg-success">${fc.ready_subs}</span>` : '<span class="text-muted">0</span>'}</td>
+                <td class="text-center">${modeHTML(fc.mode)}</td>
+                <td class="text-end">${returnHtml}</td>
+                <td class="text-end text-warning">${fc.gil_per_day.toLocaleString()}</td>
+                <td class="text-center"><small><i class="bi bi-fuel-pump ${supplyColor(fc.ceruleum, 200, 600)}"></i> <span class="text-info">${fc.ceruleum}</span> / <i class="bi bi-wrench ${supplyColor(fc.repair_kits, 100, 300)}"></i> <span class="text-info">${fc.repair_kits}</span></small></td>
+                <td class="text-center">${restockHTML(fc.days_until_restock, fc.limiting_resource)}</td>
+            </tr>`;
+
+            // Detail row with submarines
+            const subs = (fc.submarines || []).slice().sort((a, b) => (a.hours_remaining || 0) - (b.hours_remaining || 0));
+            html += `<tr class="fc-detail-row" data-fc-id="${fcId}" style="display:none;"><td colspan="10" class="p-0"><div class="fc-detail-content"><table class="table table-sm table-dark mb-0 sub-table" style="table-layout:fixed;"><thead><tr class="text-muted"><th style="padding-left:40px;width:18%;">Submarine</th><th style="width:25%;">Character</th><th style="width:12%;">Build</th><th style="width:20%;">Route</th><th class="text-center" style="width:10%;">Level</th><th class="text-end" style="width:15%;">Status</th></tr></thead><tbody>`;
+            for (const sub of subs) {
+                const subClass = sub.status === 'ready' ? 'sub-ready' : (sub.status === 'returning_soon' ? 'sub-soon' : '');
+                const expBar = sub.exp_progress > 0 ? `<div class="progress exp-bar-mini mt-1"><div class="progress-bar bg-info" style="width:${sub.exp_progress}%"></div></div>` : '';
+                let statusHtml;
+                if (sub.status === 'ready') statusHtml = '<span class="badge bg-success">READY</span>';
+                else if (sub.status === 'returning_soon') statusHtml = `<span class="text-warning">${Math.ceil(sub.hours_remaining * 60)}m</span>`;
+                else statusHtml = `<span class="text-muted">${sub.hours_remaining >= 1 ? sub.hours_remaining.toFixed(1) + 'h' : Math.ceil(sub.hours_remaining * 60) + 'm'}</span>`;
+
+                html += `<tr class="${subClass}"><td style="padding-left:40px;"><strong>${sub.name}</strong></td><td>${sub.character} <small class="text-muted">@ ${sub.world}</small></td><td><code>${sub.build || '-'}</code></td><td>${sub.route || '-'}</td><td class="text-center">${sub.level}${expBar}</td><td class="text-end">${statusHtml}</td></tr>`;
+            }
+            html += `</tbody></table></div></td></tr>`;
         }
 
-        // Update info text
-        const showStart = total === 0 ? 0 : startIdx + 1;
-        const showEnd = Math.min(endIdx, total);
-        pageInfo.textContent = `${showStart}-${showEnd} of ${total}`;
-
-        // Update button states
-        prevBtn.disabled = currentPage <= 1;
-        nextBtn.disabled = currentPage >= totalPages;
+        fcTbody.innerHTML = html;
+        attachRowClickHandlers();
     }
 
-    // Pagination event handlers
-    prevBtn.addEventListener('click', function() {
-        if (currentPage > 1) {
-            currentPage--;
-            if (window.armada) window.armada.currentPage = currentPage;
-            applyPagination();
-        }
-    });
+    function attachRowClickHandlers() {
+        fcTbody.querySelectorAll('.fc-row').forEach(row => {
+            row.addEventListener('click', function(e) {
+                if (e.target.closest('a')) return;
+                const fcId = this.dataset.fcId;
+                const detailRow = fcTbody.querySelector(`.fc-detail-row[data-fc-id="${fcId}"]`);
+                if (detailRow) {
+                    const isExpanded = detailRow.style.display !== 'none';
+                    detailRow.style.display = isExpanded ? 'none' : 'table-row';
+                    this.classList.toggle('expanded', !isExpanded);
+                    const icon = this.querySelector('.expand-toggle i');
+                    if (icon) {
+                        icon.classList.toggle('bi-chevron-right', isExpanded);
+                        icon.classList.toggle('bi-chevron-down', !isExpanded);
+                    }
+                }
+            });
+        });
+    }
 
-    nextBtn.addEventListener('click', function() {
-        const total = getTotalFCs();
-        const totalPages = pageSize === 0 ? 1 : Math.ceil(total / pageSize);
-        if (currentPage < totalPages) {
-            currentPage++;
-            if (window.armada) window.armada.currentPage = currentPage;
-            applyPagination();
+    // ==================== CARD VIEW RENDERING ====================
+    function renderFCCards(fcs) {
+        const cardsContainer = document.getElementById('fc-cards');
+        if (!cardsContainer) return;
+        if (!fcs || fcs.length === 0) {
+            cardsContainer.innerHTML = '<div class="col-12 text-center text-muted py-4">No Free Companies found</div>';
+            return;
         }
-    });
+        let html = '';
+        for (const fc of fcs) {
+            const fcId = String(fc.fc_id);
+            const tagsHtml = (fc.tags || []).map(t => `<span class="badge bg-${t.color} ms-1 fc-tag-badge">${t.name}</span>`).join('');
+            const routesHtml = (fc.routes || []).map(r => `<span class="badge bg-dark ms-1">${r}</span>`).join('');
+            const readyBadge = fc.ready_subs > 0 ? 'bg-success' : 'bg-secondary';
+            const subs = (fc.submarines || []).slice().sort((a, b) => (a.hours_remaining || 0) - (b.hours_remaining || 0));
 
+            let subsHtml = '';
+            for (const sub of subs) {
+                const rowClass = sub.status === 'ready' ? 'ready' : (sub.status === 'returning_soon' ? 'soon' : '');
+                let timerHtml;
+                if (sub.status === 'ready') timerHtml = '<span class="text-success fw-bold"><i class="bi bi-check-circle-fill"></i> READY</span>';
+                else if (sub.hours_remaining <= 0.5) timerHtml = `<span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> ${Math.ceil(sub.hours_remaining * 60)}m</span>`;
+                else if (sub.hours_remaining < 1) timerHtml = `<span class="text-muted"><i class="bi bi-clock"></i> ${Math.ceil(sub.hours_remaining * 60)}m</span>`;
+                else timerHtml = `<span class="text-muted"><i class="bi bi-clock"></i> ${sub.hours_remaining.toFixed(1)}h</span>`;
+                const expBar = sub.exp_progress > 0 ? `<div class="progress exp-bar mt-1"><div class="progress-bar bg-info" style="width:${sub.exp_progress}%"></div></div>` : '';
+
+                subsHtml += `<div class="submarine-row ${rowClass}"><div class="d-flex justify-content-between align-items-center"><div class="sub-info"><span class="sub-name">${sub.name}</span> <span class="sub-build badge bg-dark">${sub.build || '?'}</span>${sub.route ? ` <span class="sub-route badge bg-secondary">${sub.route}</span>` : ''}</div><div class="sub-timer text-end">${timerHtml}</div></div><div class="sub-details"><small class="text-muted">Lv.${sub.level} | ${sub.character} @ ${sub.world}</small>${expBar}</div></div>`;
+            }
+
+            let footerHtml = '';
+            if (fc.soonest_return && fc.soonest_return > 0) {
+                footerHtml = `<small class="text-muted float-end">Next return: ${formatTimer(fc.soonest_return, fc.soonest_return_time || '')}</small>`;
+            }
+
+            html += `<div class="col-lg-6 col-xl-4 mb-4 fc-card-wrapper"><div class="card fc-card" data-fc-id="${fcId}"><div class="card-header d-flex justify-content-between align-items-center"><div><h5 class="mb-0"><i class="bi bi-building"></i> ${fc.fc_name || 'Unknown FC'}${tagsHtml}${routesHtml}</h5><small class="text-muted">${(fc.accounts||[]).join(', ')}</small></div><div class="text-end"><span class="badge ${readyBadge}">${fc.ready_subs}/${fc.total_subs} Ready</span></div></div><div class="card-body"><div class="row mb-3 fc-stats"><div class="col-4 text-center"><small class="text-muted d-block">Gil/Day</small><strong class="text-warning">${fc.gil_per_day.toLocaleString()}</strong></div><div class="col-4 text-center"><small class="text-muted d-block"><i class="bi bi-fuel-pump ${supplyColor(fc.ceruleum, 200, 600)}"></i> Ceruleum</small><strong class="text-info">${fc.ceruleum.toLocaleString()}</strong></div><div class="col-4 text-center"><small class="text-muted d-block"><i class="bi bi-wrench ${supplyColor(fc.repair_kits, 100, 300)}"></i> Repair Kits</small><strong class="text-info">${fc.repair_kits.toLocaleString()}</strong></div></div><div class="submarine-list">${subsHtml}</div></div><div class="card-footer">${footerHtml}</div></div></div>`;
+        }
+        cardsContainer.innerHTML = html;
+    }
+
+    // ==================== PAGINATION ====================
+    function updatePagination() {
+        if (pageSize === 0) {
+            pageInfo.textContent = `1-${totalFCs} of ${totalFCs}`;
+            prevBtn.disabled = true;
+            nextBtn.disabled = true;
+        } else {
+            const start = totalFCs === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+            const end = Math.min(currentPage * pageSize, totalFCs);
+            pageInfo.textContent = `${start}-${end} of ${totalFCs}`;
+            prevBtn.disabled = currentPage <= 1;
+            nextBtn.disabled = currentPage >= totalPages;
+        }
+    }
+
+    prevBtn.addEventListener('click', () => { if (currentPage > 1) { currentPage--; fetchAndRender(); } });
+    nextBtn.addEventListener('click', () => { if (currentPage < totalPages) { currentPage++; fetchAndRender(); } });
     pageSizeSelect.addEventListener('change', function() {
         pageSize = parseInt(this.value);
         localStorage.setItem('armada-page-size', pageSize.toString());
         currentPage = 1;
-        if (window.armada) {
-            window.armada.pageSize = pageSize;
-            window.armada.currentPage = currentPage;
-        }
-        applyPagination();
+        fetchAndRender();
     });
 
-    function showTableView() {
-        tableView.style.display = 'block';
-        cardView.style.display = 'none';
-        tableBtn.classList.add('active');
-        cardBtn.classList.remove('active');
-        tableControls.style.display = 'flex';
-        currentPage = 1;
-        if (window.armada) window.armada.currentPage = currentPage;
-        applyPagination();
-    }
-
-    function showCardView() {
-        tableView.style.display = 'none';
-        cardView.style.display = 'block';
-        tableBtn.classList.remove('active');
-        cardBtn.classList.add('active');
-        tableControls.style.display = 'none';
-        currentPage = 1;
-        if (window.armada) window.armada.currentPage = currentPage;
-        applyPagination();
-    }
-
-    // Load saved preference (default to table view)
-    const savedView = localStorage.getItem('armada-view');
-    if (savedView === 'card') {
-        showCardView();
-    } else {
-        // Ensure table view is the default
-        localStorage.setItem('armada-view', 'table');
-        showTableView();
-    }
-
-    // View toggle handlers
-    tableBtn.addEventListener('click', function() {
-        showTableView();
-        localStorage.setItem('armada-view', 'table');
-    });
-
-    cardBtn.addEventListener('click', function() {
-        showCardView();
-        localStorage.setItem('armada-view', 'card');
-    });
-
-    // Toggle FC detail rows (Table View)
-    document.querySelectorAll('.fc-row').forEach(row => {
-        row.addEventListener('click', function(e) {
-            if (e.target.closest('a')) return;
-
-            const fcId = this.dataset.fcId;
-            const detailRow = document.querySelector(`.fc-detail-row[data-fc-id="${fcId}"]`);
-
-            if (detailRow) {
-                const isExpanded = detailRow.style.display !== 'none';
-                detailRow.style.display = isExpanded ? 'none' : 'table-row';
-                this.classList.toggle('expanded', !isExpanded);
-
-                // Toggle chevron icon
-                const icon = this.querySelector('.expand-toggle i');
-                if (icon) {
-                    icon.classList.toggle('bi-chevron-right', isExpanded);
-                    icon.classList.toggle('bi-chevron-down', !isExpanded);
-                }
-            }
-        });
-    });
-
-    // Expand all
-    document.getElementById('expand-all').addEventListener('click', function() {
-        document.querySelectorAll('.fc-detail-row').forEach(row => {
-            row.style.display = 'table-row';
-        });
-        document.querySelectorAll('.fc-row').forEach(row => {
-            row.classList.add('expanded');
-            const icon = row.querySelector('.expand-toggle i');
-            if (icon) {
-                icon.classList.remove('bi-chevron-right');
-                icon.classList.add('bi-chevron-down');
-            }
-        });
-    });
-
-    // Collapse all
-    document.getElementById('collapse-all').addEventListener('click', function() {
-        document.querySelectorAll('.fc-detail-row').forEach(row => {
-            row.style.display = 'none';
-        });
-        document.querySelectorAll('.fc-row').forEach(row => {
-            row.classList.remove('expanded');
-            const icon = row.querySelector('.expand-toggle i');
-            if (icon) {
-                icon.classList.remove('bi-chevron-down');
-                icon.classList.add('bi-chevron-right');
-            }
-        });
-    });
-
-    // FC Table Sorting
-    const fcTable = document.getElementById('fc-table');
-    const fcTbody = fcTable.querySelector('tbody');
+    // ==================== SORTING ====================
     const fcHeaders = fcTable.querySelectorAll('th.sortable');
-
-    let fcCurrentSort = { column: 'return', direction: 'asc' };
-    const numericFcColumns = ['subs', 'ready', 'return', 'gil', 'restock'];
-
-    function sortFcTable(column, direction) {
-        // Get all fc-rows and their paired detail rows
-        const fcRows = Array.from(fcTbody.querySelectorAll('tr.fc-row'));
-        const isNumeric = numericFcColumns.includes(column);
-
-        fcRows.sort((a, b) => {
-            let aVal = a.dataset[column] || '';
-            let bVal = b.dataset[column] || '';
-
-            if (isNumeric) {
-                aVal = parseFloat(aVal) || 0;
-                bVal = parseFloat(bVal) || 0;
-                return direction === 'asc' ? aVal - bVal : bVal - aVal;
-            } else {
-                aVal = aVal.toLowerCase();
-                bVal = bVal.toLowerCase();
-                return direction === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
-            }
-        });
-
-        // Re-append rows in sorted order (with their detail rows)
-        fcRows.forEach(row => {
-            const fcId = row.dataset.fcId;
-            const detailRow = fcTbody.querySelector(`.fc-detail-row[data-fc-id="${fcId}"]`);
-            fcTbody.appendChild(row);
-            if (detailRow) fcTbody.appendChild(detailRow);
-        });
-
-        // Reset to page 1 and re-apply pagination after sort
-        currentPage = 1;
-        if (window.armada) window.armada.currentPage = 1;
-        applyPagination();
-    }
 
     function updateFcHeaderStyles() {
         fcHeaders.forEach(header => {
-            const column = header.dataset.sort;
+            const col = header.dataset.sort;
             const icon = header.querySelector('.sort-icon');
-
             header.classList.remove('sort-asc', 'sort-desc');
             icon.className = 'bi sort-icon';
-
-            if (column === fcCurrentSort.column) {
-                if (fcCurrentSort.direction === 'asc') {
-                    header.classList.add('sort-asc');
-                    icon.classList.add('bi-arrow-up');
-                } else {
-                    header.classList.add('sort-desc');
-                    icon.classList.add('bi-arrow-down');
-                }
+            if (col === fcSort.column) {
+                header.classList.add(fcSort.direction === 'asc' ? 'sort-asc' : 'sort-desc');
+                icon.classList.add(fcSort.direction === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down');
             } else {
                 icon.classList.add('bi-arrow-down-up');
             }
@@ -1168,239 +849,108 @@ document.addEventListener('DOMContentLoaded', function() {
     fcHeaders.forEach(header => {
         header.addEventListener('click', function(e) {
             e.stopPropagation();
-            const column = this.dataset.sort;
-
-            if (column === fcCurrentSort.column) {
-                fcCurrentSort.direction = fcCurrentSort.direction === 'asc' ? 'desc' : 'asc';
+            const col = this.dataset.sort;
+            if (col === fcSort.column) {
+                fcSort.direction = fcSort.direction === 'asc' ? 'desc' : 'asc';
             } else {
-                fcCurrentSort.column = column;
-                // Default directions: ready/gil descending, return/restock ascending
-                fcCurrentSort.direction = ['ready', 'gil', 'subs'].includes(column) ? 'desc' : 'asc';
+                fcSort.column = col;
+                fcSort.direction = ['ready', 'gil', 'subs'].includes(col) ? 'desc' : 'asc';
             }
-
-            // Sync with armada instance so WebSocket updates preserve sort
-            if (window.armada) {
-                window.armada.setFCSort(fcCurrentSort.column, fcCurrentSort.direction);
-            }
-
-            sortFcTable(fcCurrentSort.column, fcCurrentSort.direction);
+            if (window.armada) window.armada.setFCSort(fcSort.column, fcSort.direction);
+            currentPage = 1;
+            fetchAndRender();
             updateFcHeaderStyles();
         });
     });
 
-    // Initial sort and header styles
-    sortFcTable(fcCurrentSort.column, fcCurrentSort.direction);
-    updateFcHeaderStyles();
+    // ==================== SEARCH ====================
+    fcSearchInput.addEventListener('input', function() {
+        clearTimeout(searchDebounce);
+        searchDebounce = setTimeout(() => {
+            searchQuery = fcSearchInput.value.trim();
+            currentPage = 1;
+            fetchAndRender();
+        }, 300);
+    });
+
+    // ==================== VIEW TOGGLE ====================
+    function showTableView() {
+        tableView.style.display = 'block';
+        cardView.style.display = 'none';
+        tableBtn.classList.add('active');
+        cardBtn.classList.remove('active');
+        tableControls.style.display = 'flex';
+    }
+
+    function showCardView() {
+        tableView.style.display = 'none';
+        cardView.style.display = 'block';
+        tableBtn.classList.remove('active');
+        cardBtn.classList.add('active');
+        tableControls.style.display = 'none';
+    }
+
+    const savedView = localStorage.getItem('armada-view');
+    if (savedView === 'card') showCardView();
+    else { localStorage.setItem('armada-view', 'table'); showTableView(); }
+
+    tableBtn.addEventListener('click', () => { showTableView(); localStorage.setItem('armada-view', 'table'); });
+    cardBtn.addEventListener('click', () => { showCardView(); localStorage.setItem('armada-view', 'card'); });
+
+    // ==================== EXPAND/COLLAPSE ====================
+    document.getElementById('expand-all').addEventListener('click', () => {
+        fcTbody.querySelectorAll('.fc-detail-row').forEach(r => r.style.display = 'table-row');
+        fcTbody.querySelectorAll('.fc-row').forEach(r => { r.classList.add('expanded'); const i = r.querySelector('.expand-toggle i'); if (i) { i.classList.remove('bi-chevron-right'); i.classList.add('bi-chevron-down'); } });
+    });
+    document.getElementById('collapse-all').addEventListener('click', () => {
+        fcTbody.querySelectorAll('.fc-detail-row').forEach(r => r.style.display = 'none');
+        fcTbody.querySelectorAll('.fc-row').forEach(r => { r.classList.remove('expanded'); const i = r.querySelector('.expand-toggle i'); if (i) { i.classList.remove('bi-chevron-down'); i.classList.add('bi-chevron-right'); } });
+    });
 
     // ==================== TAG FILTERING ====================
     const tagFilterButtons = document.querySelectorAll('.tag-filter-btn');
     const clearTagFilterBtn = document.getElementById('clear-tag-filter');
-    const fcCountBadge = document.getElementById('fc-count-badge');
     let activeTagFilters = new Set();
 
-    // Load saved filter from localStorage
     const savedTagFilters = localStorage.getItem('armada-tag-filters');
     if (savedTagFilters) {
         try {
-            const saved = JSON.parse(savedTagFilters);
-            saved.forEach(id => activeTagFilters.add(id.toString()));
-            // Activate saved buttons
-            tagFilterButtons.forEach(btn => {
-                if (activeTagFilters.has(btn.dataset.tagId)) {
-                    btn.classList.add('active');
-                }
-            });
-            if (activeTagFilters.size > 0 && clearTagFilterBtn) {
-                clearTagFilterBtn.style.display = '';
-            }
+            JSON.parse(savedTagFilters).forEach(id => activeTagFilters.add(id.toString()));
+            tagFilterButtons.forEach(btn => { if (activeTagFilters.has(btn.dataset.tagId)) btn.classList.add('active'); });
+            if (activeTagFilters.size > 0 && clearTagFilterBtn) clearTagFilterBtn.style.display = '';
         } catch (e) {}
     }
 
-    function applyTagFilter(resetPage = true) {
-        const currentView = localStorage.getItem('armada-view') || 'table';
-        const totalFCs = currentView === 'table'
-            ? document.querySelectorAll('#fc-table tbody > tr.fc-row').length
-            : document.querySelectorAll('#fc-cards > .fc-card-wrapper').length;
-
-        let visibleCount = 0;
-
-        if (currentView === 'table') {
-            document.querySelectorAll('#fc-table tbody > tr.fc-row').forEach(row => {
-                const rowTags = (row.dataset.tags || '').split(',').filter(t => t);
-                const fcId = row.dataset.fcId;
-                const detailRow = document.querySelector(`.fc-detail-row[data-fc-id="${fcId}"]`);
-
-                let shouldShow = true;
-                if (activeTagFilters.size > 0) {
-                    // Show if FC has ANY of the selected tags
-                    shouldShow = rowTags.some(t => activeTagFilters.has(t));
-                }
-
-                if (shouldShow) {
-                    row.classList.remove('tag-hidden');
-                    visibleCount++;
-                } else {
-                    row.classList.add('tag-hidden');
-                    if (detailRow) detailRow.style.display = 'none';
-                }
-            });
-        } else {
-            document.querySelectorAll('#fc-cards > .fc-card-wrapper').forEach(card => {
-                const cardTags = (card.dataset.tags || '').split(',').filter(t => t);
-
-                let shouldShow = true;
-                if (activeTagFilters.size > 0) {
-                    shouldShow = cardTags.some(t => activeTagFilters.has(t));
-                }
-
-                if (shouldShow) {
-                    card.classList.remove('tag-hidden');
-                    visibleCount++;
-                } else {
-                    card.classList.add('tag-hidden');
-                }
-            });
-        }
-
-        // Save to localStorage
-        localStorage.setItem('armada-tag-filters', JSON.stringify([...activeTagFilters]));
-
-        // Reset pagination after filter (only when user changes filter, not on WebSocket update)
-        if (resetPage) {
-            currentPage = 1;
-            if (window.armada) window.armada.currentPage = 1;
-        }
-        applyPagination();
-
-        // Update count badge
-        if (typeof updateFilteredCount === 'function') {
-            updateFilteredCount();
-        }
-    }
-
-    // Tag filter button click handlers
     tagFilterButtons.forEach(btn => {
         btn.addEventListener('click', function() {
             const tagId = this.dataset.tagId;
-
-            if (activeTagFilters.has(tagId)) {
-                activeTagFilters.delete(tagId);
-                this.classList.remove('active');
-            } else {
-                activeTagFilters.add(tagId);
-                this.classList.add('active');
-            }
-
-            // Show/hide clear button
-            if (clearTagFilterBtn) {
-                clearTagFilterBtn.style.display = activeTagFilters.size > 0 ? '' : 'none';
-            }
-
-            applyTagFilter();
+            if (activeTagFilters.has(tagId)) { activeTagFilters.delete(tagId); this.classList.remove('active'); }
+            else { activeTagFilters.add(tagId); this.classList.add('active'); }
+            if (clearTagFilterBtn) clearTagFilterBtn.style.display = activeTagFilters.size > 0 ? '' : 'none';
+            localStorage.setItem('armada-tag-filters', JSON.stringify([...activeTagFilters]));
+            currentPage = 1;
+            fetchAndRender();
         });
     });
 
-    // Clear filter button
     if (clearTagFilterBtn) {
         clearTagFilterBtn.addEventListener('click', function() {
             activeTagFilters.clear();
             tagFilterButtons.forEach(btn => btn.classList.remove('active'));
             this.style.display = 'none';
-            applyTagFilter();
+            localStorage.setItem('armada-tag-filters', JSON.stringify([]));
+            currentPage = 1;
+            fetchAndRender();
         });
     }
 
-    // ==================== FC SEARCH ====================
-    const fcSearchInput = document.getElementById('fc-search');
+    // ==================== WEBSOCKET REFRESH ====================
+    // When dashboard changes (new plugin data), re-fetch current page
+    document.addEventListener('fc-table-updated', () => fetchAndRender());
 
-    function applyFcSearch(resetPage = true) {
-        const query = fcSearchInput.value.toLowerCase().trim();
-        const currentView = localStorage.getItem('armada-view') || 'table';
-
-        if (currentView === 'table') {
-            document.querySelectorAll('#fc-table tbody > tr.fc-row').forEach(row => {
-                const fcName = (row.dataset.fc || '').toLowerCase();
-                const character = (row.dataset.character || '').toLowerCase();
-                const tagNames = (row.dataset.tagNames || '').toLowerCase();
-                const accounts = (row.dataset.accounts || '').toLowerCase();
-                const notes = (row.dataset.notes || '').toLowerCase();
-                const world = (row.dataset.world || '').toLowerCase();
-                const fcId = row.dataset.fcId;
-                const detailRow = document.querySelector(`.fc-detail-row[data-fc-id="${fcId}"]`);
-
-                const matches = query === '' || fcName.includes(query) || character.includes(query) || tagNames.includes(query) || accounts.includes(query) || notes.includes(query) || world.includes(query);
-
-                if (matches) {
-                    row.classList.remove('search-hidden');
-                } else {
-                    row.classList.add('search-hidden');
-                    if (detailRow) detailRow.style.display = 'none';
-                }
-            });
-        } else {
-            document.querySelectorAll('#fc-cards > .fc-card-wrapper').forEach(card => {
-                const fcCard = card.querySelector('.fc-card');
-                const fcName = (fcCard?.querySelector('h5')?.textContent || '').toLowerCase();
-                const characters = (card.dataset.characters || '').toLowerCase();
-                const tagNames = (card.dataset.tagNames || '').toLowerCase();
-                const accounts = (card.dataset.accounts || '').toLowerCase();
-                const notes = (card.dataset.notes || '').toLowerCase();
-                const world = (card.dataset.world || '').toLowerCase();
-
-                const matches = query === '' || fcName.includes(query) || characters.includes(query) || tagNames.includes(query) || accounts.includes(query) || notes.includes(query) || world.includes(query);
-
-                if (matches) {
-                    card.classList.remove('search-hidden');
-                } else {
-                    card.classList.add('search-hidden');
-                }
-            });
-        }
-
-        // Update count and pagination
-        updateFilteredCount();
-        if (resetPage) {
-            currentPage = 1;
-            if (window.armada) window.armada.currentPage = 1;
-        }
-        applyPagination();
-    }
-
-    function updateFilteredCount() {
-        const currentView = localStorage.getItem('armada-view') || 'table';
-        let total, visible;
-
-        if (currentView === 'table') {
-            total = document.querySelectorAll('#fc-table tbody > tr.fc-row').length;
-            visible = document.querySelectorAll('#fc-table tbody > tr.fc-row:not(.search-hidden):not(.tag-hidden)').length;
-        } else {
-            total = document.querySelectorAll('#fc-cards > .fc-card-wrapper').length;
-            visible = document.querySelectorAll('#fc-cards > .fc-card-wrapper:not(.search-hidden):not(.tag-hidden)').length;
-        }
-
-        if (fcSearchInput.value.trim() !== '' || activeTagFilters.size > 0) {
-            fcCountBadge.textContent = `${visible}/${total}`;
-        } else {
-            fcCountBadge.textContent = total;
-        }
-    }
-
-    fcSearchInput.addEventListener('input', applyFcSearch);
-
-    // Listen for WebSocket updates and reapply filters (don't reset page)
-    document.addEventListener('fc-table-updated', function() {
-        applyTagFilter(false);
-        applyFcSearch(false);
-    });
-
-    document.addEventListener('fc-cards-updated', function() {
-        applyTagFilter(false);
-        applyFcSearch(false);
-    });
-
-    // Apply filters on initial page load
-    applyTagFilter();
-    applyFcSearch();
+    // ==================== INITIAL LOAD ====================
+    updateFcHeaderStyles();
+    fetchAndRender();
 });
 </script>
 {% endblock %}

@@ -369,6 +369,9 @@ class LuminaDataService:
         }
         total = sum(results.values())
         if total > 0:
+            # Invalidate the in-memory game data cache so fresh data is loaded
+            from app.services.game_data_cache import invalidate as invalidate_game_cache
+            invalidate_game_cache()
             logger.info(f"[Lumina] Total updated: {total} rows")
         return results
 
@@ -405,12 +408,14 @@ lumina_service = LuminaDataService()
 
 def get_part_by_id(part_id: int) -> Optional[SubmarinePart]:
     """Get submarine part by ID."""
-    return SubmarinePart.query.get(part_id)
+    from app.services.game_data_cache import get_submarine_part
+    return get_submarine_part(part_id)
 
 
 def get_exploration_by_id(sector_id: int) -> Optional[SubmarineExploration]:
     """Get exploration sector by ID."""
-    return SubmarineExploration.query.get(sector_id)
+    from app.services.game_data_cache import get_exploration
+    return get_exploration(sector_id)
 
 
 def get_exploration_by_location(location: str, map_id: int = None) -> Optional[SubmarineExploration]:

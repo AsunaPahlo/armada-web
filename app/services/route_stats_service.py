@@ -208,6 +208,11 @@ class RouteStatsService:
         version.row_count = count
 
         db.session.commit()
+
+        if count > 0:
+            from app.services.game_data_cache import invalidate as invalidate_game_cache
+            invalidate_game_cache()
+
         logger.info(f"[RouteStats] Updated {count} route entries from spreadsheet")
         return count
 
@@ -249,7 +254,8 @@ def _lookup_route_gil(route_name: str, duration_hours: Optional[int] = None) -> 
     2. Closest duration match
     3. Any match for this route (highest gil/day if no duration info)
     """
-    routes = RouteStats.query.filter_by(route_name=route_name).all()
+    from app.services.game_data_cache import get_route_stats_for
+    routes = get_route_stats_for(route_name)
     if not routes:
         # Check user-defined route overrides
         from app.models.route_override import get_override_gil
@@ -299,7 +305,8 @@ def get_route_stats(route_name: str, duration_hours: Optional[int] = None) -> Op
 
     Returns dict with route_name, duration_hours, gil_per_sub_day, avg_exp, fc_points.
     """
-    routes = RouteStats.query.filter_by(route_name=route_name).all()
+    from app.services.game_data_cache import get_route_stats_for
+    routes = get_route_stats_for(route_name)
     if not routes:
         return None
 

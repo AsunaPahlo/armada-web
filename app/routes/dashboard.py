@@ -12,10 +12,117 @@ dashboard_bp = Blueprint('dashboard', __name__)
 @dashboard_bp.route('/')
 @login_required
 def index():
-    """Main dashboard view."""
+    """Main dashboard view - renders skeleton, FC data loaded via AJAX."""
+    from app.models.tag import get_all_fc_tags_map
+
     fleet = get_fleet_manager()
     data = fleet.get_dashboard_data()
-    return render_template('dashboard.html', data=data)
+
+    # Only pass summary/supply to the template - FC data loaded via /api/fc-summaries
+    fc_tags = get_all_fc_tags_map()
+    # Collect unique tags for the filter bar
+    all_tags = {}
+    for tags_list in fc_tags.values():
+        for tag in tags_list:
+            all_tags[tag['id']] = tag
+
+    return render_template('dashboard.html',
+                           data={'summary': data.get('summary', {}),
+                                 'supply_forecast': data.get('supply_forecast', {}),
+                                 'fc_summaries': [],
+                                 'submarines': []},
+                           all_tags=list(all_tags.values()))
+
+
+@dashboard_bp.route('/api/fc-summaries')
+@login_required
+def api_fc_summaries():
+    """API endpoint for paginated FC summaries with sorting and search."""
+    from app.models.tag import get_all_fc_tags_map
+
+    fleet = get_fleet_manager()
+    data = fleet.get_dashboard_data()
+    if not data:
+        return jsonify({'fc_summaries': [], 'total': 0, 'page': 1, 'pages': 1})
+
+    fc_tags = get_all_fc_tags_map()
+    fc_list = data.get('fc_summaries', [])
+
+    # Add tags for search
+    for fc in fc_list:
+        fc_id = str(fc.get('fc_id', ''))
+        tags = fc_tags.get(fc_id, [])
+        fc['tags'] = tags
+        fc['tag_names'] = ' '.join(t['name'] for t in tags).lower()
+
+    # Tag filter: include_tags=1,3 means show only FCs that have tag 1 OR tag 3
+    include_tags_param = request.args.get('include_tags', '', type=str).strip()
+    if include_tags_param:
+        include_tag_ids = set(include_tags_param.split(','))
+        fc_list = [
+            fc for fc in fc_list
+            if any(str(t.get('id', '')) in include_tag_ids for t in fc.get('tags', []))
+        ]
+
+    # Search filter
+    search = request.args.get('search', '', type=str).lower().strip()
+    if search:
+        def fc_matches(fc):
+            if search in fc.get('fc_name', '').lower(): return True
+            if search in fc.get('world', '').lower(): return True
+            if fc.get('unified_character') and search in fc['unified_character'].lower(): return True
+            if search in ' '.join(fc.get('accounts', [])).lower(): return True
+            if search in fc.get('tag_names', ''): return True
+            if search in (fc.get('notes') or '').lower(): return True
+            return False
+        fc_list = [fc for fc in fc_list if fc_matches(fc)]
+
+    # Sort
+    sort_by = request.args.get('sort_by', 'return', type=str)
+    sort_dir = request.args.get('sort_dir', 'asc', type=str)
+    sort_keys = {
+        'fc': lambda x: (x.get('fc_name') or '').lower(),
+        'character': lambda x: (x.get('unified_character') or '').lower(),
+        'subs': lambda x: x.get('total_subs', 0),
+        'ready': lambda x: x.get('ready_subs', 0),
+        'mode': lambda x: x.get('mode', ''),
+        'return': lambda x: x.get('soonest_return') if x.get('soonest_return') is not None else 9999,
+        'gil': lambda x: x.get('gil_per_day', 0),
+        'restock': lambda x: x.get('days_until_restock') if x.get('days_until_restock') is not None else 9999,
+    }
+    key_fn = sort_keys.get(sort_by, sort_keys['return'])
+    fc_list = sorted(fc_list, key=key_fn, reverse=(sort_dir == 'desc'))
+
+    # Compute global stats from the full filtered list (before pagination)
+    fcs_with_ready = sum(1 for fc in fc_list if fc.get('ready_subs', 0) > 0)
+    total_characters = sum(len(fc.get('characters', [])) for fc in fc_list)
+
+    # Paginate
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+    total = len(fc_list)
+
+    if per_page == 0:
+        paginated = fc_list
+        pages = 1
+    else:
+        per_page = min(max(per_page, 5), 100)
+        pages = max(1, (total + per_page - 1) // per_page)
+        page = min(page, pages)
+        offset = (page - 1) * per_page
+        paginated = fc_list[offset:offset + per_page]
+
+    return jsonify({
+        'fc_summaries': paginated,
+        'total': total,
+        'page': page,
+        'per_page': per_page,
+        'pages': pages,
+        'summary': data.get('summary'),
+        'supply_forecast': data.get('supply_forecast'),
+        'fcs_with_ready': fcs_with_ready,
+        'total_characters': total_characters,
+    })
 
 
 @dashboard_bp.route('/submarines')

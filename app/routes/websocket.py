@@ -352,12 +352,23 @@ class PluginNamespace(Namespace):
                 'account_count': len(accounts)
             }, room='dashboard', namespace='/')
 
-            # Trigger a full dashboard refresh
+            # Send lightweight notification — clients fetch full data if needed
             try:
                 fleet = get_ws_fleet_manager(app)
                 data = fleet.get_dashboard_data()
-                main_socketio.emit('dashboard_update', data, room='dashboard', namespace='/')
-                plugin_logger.info(f"Broadcast dashboard update to clients")
+                if data:
+                    main_socketio.emit('dashboard_changed', {
+                        'summary': data.get('summary'),
+                        'supply_forecast': data.get('supply_forecast'),
+                    }, room='dashboard', namespace='/')
+
+                    # Also emit full FC updates to FC-specific rooms
+                    for fc in data.get('fc_summaries', []):
+                        fc_id = fc.get('fc_id')
+                        if fc_id:
+                            main_socketio.emit('fc_update', fc, room=f'fc_{fc_id}', namespace='/')
+
+                    plugin_logger.info(f"Broadcast dashboard_changed to clients")
             except Exception as e:
                 plugin_logger.warning(f"Error broadcasting dashboard update: {e}")
 
@@ -548,18 +559,35 @@ def start_background_updates(socketio: SocketIO, app, interval: int = 30):
         while _running:
             try:
                 with app.app_context():
+                    # Lightweight time-tick: only update status/hours, no full rebuild
+                    fleet.update_time_fields()
                     data = fleet.get_dashboard_data()
-                    socketio.emit('dashboard_update', data, room='dashboard')
 
-                    # Also emit to FC-specific rooms
-                    for fc in data.get('fc_summaries', []):
-                        fc_id = fc.get('fc_id')
-                        if fc_id:
-                            socketio.emit('fc_update', fc, room=f'fc_{fc_id}')
+                    if data:
+                        # Send lightweight time_tick with just per-sub status updates
+                        time_updates = []
+                        for sub in data.get('submarines', []):
+                            time_updates.append({
+                                'fc_id': sub.get('fc_id'),
+                                'name': sub.get('name'),
+                                'character': sub.get('character'),
+                                'status': sub.get('status'),
+                                'hours_remaining': sub.get('hours_remaining'),
+                            })
+                        socketio.emit('time_tick', {
+                            'summary': data.get('summary'),
+                            'submarines': time_updates,
+                            'fc_summaries': [{
+                                'fc_id': fc.get('fc_id'),
+                                'ready_subs': fc.get('ready_subs'),
+                                'soonest_return': fc.get('soonest_return'),
+                                'soonest_return_time': fc.get('soonest_return_time'),
+                            } for fc in data.get('fc_summaries', [])]
+                        }, room='dashboard')
 
-                    # Check alert conditions
-                    from app.services.alert_service import alert_service
-                    alert_service.check_alerts(data)
+                        # Check alert conditions
+                        from app.services.alert_service import alert_service
+                        alert_service.check_alerts(data)
 
             except Exception as e:
                 logger.info(f"Update error: {e}")

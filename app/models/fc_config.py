@@ -31,8 +31,16 @@ class FCConfig(db.Model):
         }
 
 
+_migration_done = False
+
+
 def _migrate_fc_config_columns():
-    """Add any missing columns to the fc_configs table (for existing databases)."""
+    """Add any missing columns to the fc_configs table (for existing databases).
+    Only runs once per process."""
+    global _migration_done
+    if _migration_done:
+        return
+
     from sqlalchemy import inspect, text
 
     inspector = inspect(db.engine)
@@ -56,6 +64,8 @@ def _migrate_fc_config_columns():
                 db.session.commit()
             except Exception:
                 db.session.rollback()
+
+    _migration_done = True
 
 
 def get_all_fc_configs() -> dict:
