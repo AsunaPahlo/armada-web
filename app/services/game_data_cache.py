@@ -4,8 +4,14 @@ In-memory cache for static Lumina game data tables.
 These tables (SubmarinePart, SubmarineExploration, RouteStats) are only updated
 every 6 hours by the Lumina update job, so we cache them in memory to avoid
 thousands of individual DB queries per fleet data parse.
+
+Important: We snapshot ORM objects into plain SimpleNamespace objects so that
+the cached data is not tied to any SQLAlchemy session. SQLAlchemy 2.0 expires
+object attributes when the session closes, which would cause DetachedInstanceError
+if we cached the ORM objects directly.
 """
 import threading
+from types import SimpleNamespace
 
 from app.utils.logging import get_logger
 
@@ -13,11 +19,16 @@ logger = get_logger('GameDataCache')
 
 _lock = threading.Lock()
 
-# Cached data
-_submarine_parts: dict | None = None       # row_id -> SubmarinePart
-_explorations: dict | None = None           # sector_id -> SubmarineExploration
-_exploration_starting: dict | None = None   # map_id -> SubmarineExploration (starting points)
-_route_stats: dict | None = None            # route_name -> list[RouteStats]
+# Cached data (all values are plain SimpleNamespace objects, not ORM instances)
+_submarine_parts: dict | None = None       # row_id -> SimpleNamespace
+_explorations: dict | None = None           # sector_id -> SimpleNamespace
+_exploration_starting: dict | None = None   # map_id -> SimpleNamespace (starting points)
+_route_stats: dict | None = None            # route_name -> list[SimpleNamespace]
+
+
+def _snapshot(obj, attrs: list[str]) -> SimpleNamespace:
+    """Convert an ORM object to a plain SimpleNamespace with the given attributes."""
+    return SimpleNamespace(**{a: getattr(obj, a) for a in attrs})
 
 
 def get_submarine_part(row_id: int):
@@ -61,6 +72,23 @@ def invalidate():
         logger.info("Game data cache invalidated")
 
 
+_PART_ATTRS = [
+    'id', 'slot', 'rank', 'class_type', 'components', 'repair_materials',
+    'surveillance', 'retrieval', 'speed', 'range', 'favor',
+]
+
+_EXPLORATION_ATTRS = [
+    'id', 'destination', 'location', 'map_id',
+    'rank_req', 'ceruleum_tank_req', 'stars',
+    'exp_reward', 'survey_duration_min', 'survey_distance',
+    'x', 'y', 'z', 'starting_point',
+]
+
+_ROUTE_STATS_ATTRS = [
+    'id', 'route_name', 'duration_hours', 'gil_per_sub_day', 'avg_exp', 'fc_points',
+]
+
+
 def _ensure_parts_loaded():
     global _submarine_parts
     if _submarine_parts is not None:
@@ -70,7 +98,7 @@ def _ensure_parts_loaded():
             return
         from app.models.lumina import SubmarinePart
         parts = SubmarinePart.query.all()
-        _submarine_parts = {p.id: p for p in parts}
+        _submarine_parts = {p.id: _snapshot(p, _PART_ATTRS) for p in parts}
         logger.info(f"Cached {len(_submarine_parts)} submarine parts")
 
 
@@ -83,9 +111,10 @@ def _ensure_explorations_loaded():
             return
         from app.models.lumina import SubmarineExploration
         sectors = SubmarineExploration.query.all()
-        _explorations = {s.id: s for s in sectors}
+        snapped = [_snapshot(s, _EXPLORATION_ATTRS) for s in sectors]
+        _explorations = {s.id: s for s in snapped}
         _exploration_starting = {}
-        for s in sectors:
+        for s in snapped:
             if s.starting_point:
                 _exploration_starting[s.map_id] = s
         logger.info(f"Cached {len(_explorations)} exploration sectors")
@@ -102,5 +131,7 @@ def _ensure_route_stats_loaded():
         all_routes = RouteStats.query.all()
         _route_stats = {}
         for r in all_routes:
-            _route_stats.setdefault(r.route_name, []).append(r)
+            _route_stats.setdefault(r.route_name, []).append(
+                _snapshot(r, _ROUTE_STATS_ATTRS)
+            )
         logger.info(f"Cached route stats for {len(_route_stats)} routes")
