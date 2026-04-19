@@ -130,7 +130,6 @@ def get_supply_excluded_fc_ids() -> set:
 
 def get_credits_excluded_fc_ids() -> set:
     """Get set of FC IDs that are excluded from the /credits page."""
-    _migrate_fc_config_columns()
     excluded = FCConfig.query.filter_by(excluded_from_credits=True).all()
     return {c.fc_id for c in excluded}
 

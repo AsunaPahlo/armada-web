@@ -1,6 +1,7 @@
 """Tests for FC credits tracking model + tracker service."""
 from datetime import date, datetime, timedelta
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 
 def test_snapshot_model_upsert_unique_per_fc_per_day(app, db):
@@ -19,7 +20,7 @@ def test_snapshot_model_upsert_unique_per_fc_per_day(app, db):
         credits=2000, updated_at=datetime.utcnow()
     )
     db.session.add(s2)
-    with pytest.raises(Exception):
+    with pytest.raises(IntegrityError):
         db.session.commit()
     db.session.rollback()
 
