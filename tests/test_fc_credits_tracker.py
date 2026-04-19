@@ -201,3 +201,30 @@ def test_get_report_empty(app, db, monkeypatch):
     }
     assert report["included_fcs"] == []
     assert report["excluded_fcs"] == []
+
+
+def test_get_report_window_includes_pre_cutoff_anchor(app, db, monkeypatch):
+    """Earnings on day 1 of the window should reflect delta from the last pre-window snapshot."""
+    from app.services.fc_credits_tracker import FCCreditsTracker
+    from app.models.fc_credits_snapshot import FCCreditsSnapshot
+    from datetime import datetime
+
+    today = date.today()
+    # Snapshot 10 days ago at 1000, then today at 1500.
+    # week_earned (7-day window) should be 500 — the anchor at today-10
+    # gets included so the delta from anchor to today fires.
+    db.session.add(FCCreditsSnapshot(
+        fc_id="fc_a", snapshot_date=today - timedelta(days=10),
+        credits=1000, updated_at=datetime.utcnow()
+    ))
+    db.session.add(FCCreditsSnapshot(
+        fc_id="fc_a", snapshot_date=today,
+        credits=1500, updated_at=datetime.utcnow()
+    ))
+    db.session.commit()
+    monkeypatch.setattr(
+        "app.services.fc_credits_tracker._fc_info_lookup",
+        lambda fid: (fid, "")
+    )
+    report = FCCreditsTracker.get_report(days=7, exclude_fc_ids=set())
+    assert report["cards"]["week_earned"] == 500

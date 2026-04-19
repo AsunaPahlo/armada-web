@@ -71,14 +71,14 @@ def _fc_info_lookup(fc_id: str) -> tuple:
         fleet = get_fleet_manager()
         data = fleet.get_dashboard_data() or {}
         summaries = data.get('fc_summaries', [])
-        # fc_summaries may be a list of dicts or a dict keyed by fc_id depending on caller
         if isinstance(summaries, dict):
             summaries = list(summaries.values())
         for fc in summaries:
             if str(fc.get('fc_id')) == str(fc_id):
                 return (fc.get('fc_name', fc_id), fc.get('world', ''))
-    except Exception:
-        pass
+    except Exception as e:
+        from app.utils.logging import get_logger
+        get_logger('FCCreditsTracker').debug(f"FC info lookup failed for {fc_id}: {e}")
     return (fc_id, "")
 
 
@@ -87,7 +87,13 @@ class FCCreditsTracker:
 
     @staticmethod
     def record_snapshot(fc_id: str, credits: int) -> None:
-        """Upsert today's snapshot for an FC. Latest value wins within a day."""
+        """Upsert today's snapshot for an FC. Latest value wins within a day.
+
+        Concurrency-safe under gevent: a competing greenlet that inserts the same
+        (fc_id, today) row first will cause our INSERT to raise IntegrityError;
+        we then re-fetch and update.
+        """
+        from sqlalchemy.exc import IntegrityError
         from app import db
         from app.models.fc_credits_snapshot import FCCreditsSnapshot
 
@@ -98,15 +104,27 @@ class FCCreditsTracker:
         if row:
             row.credits = int(credits)
             row.updated_at = datetime.utcnow()
-        else:
-            row = FCCreditsSnapshot(
-                fc_id=str(fc_id),
-                snapshot_date=today,
-                credits=int(credits),
-                updated_at=datetime.utcnow()
-            )
-            db.session.add(row)
-        db.session.commit()
+            db.session.commit()
+            return
+
+        row = FCCreditsSnapshot(
+            fc_id=str(fc_id),
+            snapshot_date=today,
+            credits=int(credits),
+            updated_at=datetime.utcnow()
+        )
+        db.session.add(row)
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            existing = FCCreditsSnapshot.query.filter_by(
+                fc_id=str(fc_id), snapshot_date=today
+            ).first()
+            if existing:
+                existing.credits = int(credits)
+                existing.updated_at = datetime.utcnow()
+                db.session.commit()
 
     @staticmethod
     def get_report(days: int, exclude_fc_ids: set) -> dict:
