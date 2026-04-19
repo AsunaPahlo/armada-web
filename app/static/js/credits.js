@@ -68,15 +68,21 @@
       const li = document.createElement('li');
       li.className = 'list-group-item d-flex align-items-center justify-content-between';
       const label = document.createElement('div');
-      label.innerHTML = `<strong>${fc.fc_name || fc.fc_id}</strong>`
-        + `<span class="text-muted ms-2">${fc.world || ''}</span>`
-        + `<span class="badge bg-secondary ms-2">${fmt(fc.current_balance)}</span>`;
+      const name = document.createElement('strong');
+      name.textContent = fc.fc_name || fc.fc_id;
+      const world = document.createElement('span');
+      world.className = 'text-muted ms-2';
+      world.textContent = fc.world || '';
+      const balance = document.createElement('span');
+      balance.className = 'badge bg-secondary ms-2';
+      balance.textContent = fmt(fc.current_balance);
+      label.append(name, world, balance);
       const switchWrap = document.createElement('div');
       switchWrap.className = 'form-check form-switch';
       const input = document.createElement('input');
       input.className = 'form-check-input';
       input.type = 'checkbox';
-      input.role = 'switch';
+      input.setAttribute('role', 'switch');
       input.checked = !fc.excluded;  // checked == included
       input.addEventListener('change', () => toggleFc(fc.fc_id, !input.checked));
       switchWrap.appendChild(input);
