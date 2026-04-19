@@ -140,14 +140,20 @@ class FCCreditsTracker:
         """
         from app.models.fc_credits_snapshot import FCCreditsSnapshot
 
+        from app.models.fc_config import get_hidden_fc_ids
+
         exclude_fc_ids = {str(x) for x in exclude_fc_ids}
+        hidden_fc_ids = {str(x) for x in get_hidden_fc_ids()}
         all_rows = FCCreditsSnapshot.query.order_by(
             FCCreditsSnapshot.fc_id, FCCreditsSnapshot.snapshot_date
         ).all()
 
-        # Group by fc_id
+        # Group by fc_id, dropping hidden FCs entirely so they never appear
+        # in the chart, stat cards, or toggle list — matches the site-wide convention.
         per_fc_all = {}
         for r in all_rows:
+            if r.fc_id in hidden_fc_ids:
+                continue
             per_fc_all.setdefault(r.fc_id, []).append((r.snapshot_date, r.credits))
 
         if not per_fc_all:

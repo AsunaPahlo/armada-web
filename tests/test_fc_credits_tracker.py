@@ -230,6 +230,36 @@ def test_get_report_window_includes_pre_cutoff_anchor(app, db, monkeypatch):
     assert report["cards"]["week_earned"] == 500
 
 
+def test_get_report_drops_hidden_fcs(app, db, monkeypatch):
+    """FCs marked visible=False must not appear anywhere in the report."""
+    from app.services.fc_credits_tracker import FCCreditsTracker
+    from app.models.fc_credits_snapshot import FCCreditsSnapshot
+    from app.models.fc_config import FCConfig
+    from datetime import datetime
+
+    today = date.today()
+    # Two FCs with snapshots; fc_hidden is hidden via FCConfig.visible=False
+    db.session.add(FCCreditsSnapshot(fc_id="fc_visible",
+        snapshot_date=today, credits=1000, updated_at=datetime.utcnow()))
+    db.session.add(FCCreditsSnapshot(fc_id="fc_hidden",
+        snapshot_date=today, credits=9999, updated_at=datetime.utcnow()))
+    db.session.add(FCConfig(fc_id="fc_hidden", visible=False))
+    db.session.commit()
+
+    monkeypatch.setattr(
+        "app.services.fc_credits_tracker._fc_info_lookup",
+        lambda fid: (fid, "")
+    )
+    report = FCCreditsTracker.get_report(days=7, exclude_fc_ids=set())
+
+    included_ids = [f["fc_id"] for f in report["included_fcs"]]
+    excluded_ids = [f["fc_id"] for f in report["excluded_fcs"]]
+    assert "fc_hidden" not in included_ids
+    assert "fc_hidden" not in excluded_ids
+    assert included_ids == ["fc_visible"]
+    assert report["cards"]["current_balance"] == 1000  # hidden FC's 9999 not counted
+
+
 def test_process_fc_credits_snapshots_from_fc_points(app, db):
     """Ingestion helper reads fc_points from parsed fleet data and writes snapshots."""
     from app.routes.websocket import _process_fc_credits_snapshots
