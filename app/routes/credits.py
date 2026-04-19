@@ -23,11 +23,8 @@ def index():
 @login_required
 def data():
     """Return the FC credits report as JSON for the chart + cards."""
-    try:
-        days = int(request.args.get('days', 30))
-    except (TypeError, ValueError):
-        days = 30
-    if days not in ALLOWED_DAYS:
+    days = request.args.get('days', 30, type=int)
+    if days is None or days not in ALLOWED_DAYS:
         days = 30
 
     excluded = get_credits_excluded_fc_ids()

@@ -299,9 +299,14 @@ def _login_test_user(client, app):
             u.set_password("testpass")
             _db.session.add(u)
             _db.session.commit()
-    return client.post("/auth/login", data={
+    resp = client.post("/auth/login", data={
         "username": "tester", "password": "testpass"
     }, follow_redirects=True)
+    # Sanity-check: if login failed we'd still see the login form.
+    assert b"Invalid username" not in resp.data
+    assert b'name="password"' not in resp.data, \
+        "Login did not succeed \u2014 still on login form"
+    return resp
 
 
 def test_credits_index_renders(client, app):
@@ -351,4 +356,18 @@ def test_credits_toggle_bad_payload(client, app):
     """Missing fc_id returns 400."""
     _login_test_user(client, app)
     resp = client.post("/credits/toggle", json={"excluded": True})
+    assert resp.status_code == 400
+
+
+def test_credits_toggle_rejects_string_excluded(client, app):
+    """excluded='true' (string, not bool) must return 400."""
+    _login_test_user(client, app)
+    resp = client.post("/credits/toggle", json={"fc_id": "fc_y", "excluded": "true"})
+    assert resp.status_code == 400
+
+
+def test_credits_toggle_rejects_int_excluded(client, app):
+    """excluded=1 (int, not bool) must return 400."""
+    _login_test_user(client, app)
+    resp = client.post("/credits/toggle", json={"fc_id": "fc_y", "excluded": 1})
     assert resp.status_code == 400
