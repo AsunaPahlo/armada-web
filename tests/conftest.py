@@ -6,7 +6,7 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 os.environ.setdefault('SECRET_KEY', 'test-secret-key-not-for-production')
-os.environ.setdefault('DATABASE_URL', 'sqlite:///:memory:')
+os.environ.setdefault('SQLALCHEMY_DATABASE_URI', 'sqlite:///:memory:')
 
 
 @pytest.fixture
@@ -16,7 +16,6 @@ def app():
 
     flask_app = create_app()
     flask_app.config['TESTING'] = True
-    flask_app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
     flask_app.config['WTF_CSRF_ENABLED'] = False
 
     with flask_app.app_context():

@@ -19,7 +19,10 @@ class Config:
     # Database
     BASEDIR = Path(__file__).parent.parent
     DATA_DIR = BASEDIR / 'data'
-    SQLALCHEMY_DATABASE_URI = f'sqlite:///{DATA_DIR / "armada.db"}'
+    SQLALCHEMY_DATABASE_URI = os.environ.get(
+        'SQLALCHEMY_DATABASE_URI',
+        f'sqlite:///{DATA_DIR / "armada.db"}'
+    )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # Armada specific
