@@ -35,3 +35,55 @@ def test_fc_config_excluded_from_credits_column(app, db):
 
     loaded = FCConfig.query.filter_by(fc_id="99999").first()
     assert loaded.excluded_from_credits is False
+
+
+from datetime import date
+
+
+def test_positive_delta_sum_ignores_decreases():
+    """Positive-delta sum: spending (negative delta) must not subtract from earnings."""
+    from app.services.fc_credits_tracker import positive_delta_sum
+
+    snapshots = [
+        (date(2026, 4, 10), 1000),
+        (date(2026, 4, 11), 1500),  # +500 earned
+        (date(2026, 4, 12), 1200),  # -300 spent (ignored)
+        (date(2026, 4, 13), 1800),  # +600 earned
+    ]
+    assert positive_delta_sum(snapshots) == 1100
+
+
+def test_positive_delta_sum_empty_or_single_point():
+    """A single snapshot or empty list returns 0."""
+    from app.services.fc_credits_tracker import positive_delta_sum
+
+    assert positive_delta_sum([]) == 0
+    assert positive_delta_sum([(date(2026, 4, 10), 500)]) == 0
+
+
+def test_aggregate_daily_balance_carry_forward():
+    """Aggregate across FCs, carrying last known value forward when an FC has no snapshot on a day."""
+    from app.services.fc_credits_tracker import aggregate_daily_balance
+
+    per_fc = {
+        "fc_a": [(date(2026, 4, 10), 1000), (date(2026, 4, 12), 1500)],
+        "fc_b": [(date(2026, 4, 11), 500)],
+    }
+    result = aggregate_daily_balance(per_fc, date(2026, 4, 10), date(2026, 4, 13))
+    # 2026-04-10: fc_a=1000, fc_b=0 (no snapshot yet)  => 1000
+    # 2026-04-11: fc_a=1000 (carry), fc_b=500         => 1500
+    # 2026-04-12: fc_a=1500, fc_b=500 (carry)         => 2000
+    # 2026-04-13: fc_a=1500 (carry), fc_b=500 (carry) => 2000
+    assert result == [
+        (date(2026, 4, 10), 1000),
+        (date(2026, 4, 11), 1500),
+        (date(2026, 4, 12), 2000),
+        (date(2026, 4, 13), 2000),
+    ]
+
+
+def test_aggregate_daily_balance_no_snapshots():
+    """Empty input returns empty list."""
+    from app.services.fc_credits_tracker import aggregate_daily_balance
+
+    assert aggregate_daily_balance({}, date(2026, 4, 10), date(2026, 4, 13)) == []
