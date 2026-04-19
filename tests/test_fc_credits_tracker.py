@@ -108,3 +108,96 @@ def test_aggregate_daily_balance_snapshots_before_window():
         (date(2026, 4, 10), 200),
         (date(2026, 4, 11), 200),
     ]
+
+
+def test_record_snapshot_inserts_new(app, db):
+    """First call for (fc_id, today) inserts a new row."""
+    from app.services.fc_credits_tracker import FCCreditsTracker
+    from app.models.fc_credits_snapshot import FCCreditsSnapshot
+
+    FCCreditsTracker.record_snapshot("fc_1", 5000)
+    row = FCCreditsSnapshot.query.filter_by(fc_id="fc_1").first()
+    assert row is not None
+    assert row.credits == 5000
+    assert row.snapshot_date == date.today()
+
+
+def test_record_snapshot_upserts_same_day(app, db):
+    """Second call same day updates the existing row; no duplicate."""
+    from app.services.fc_credits_tracker import FCCreditsTracker
+    from app.models.fc_credits_snapshot import FCCreditsSnapshot
+
+    FCCreditsTracker.record_snapshot("fc_1", 5000)
+    FCCreditsTracker.record_snapshot("fc_1", 7500)
+    rows = FCCreditsSnapshot.query.filter_by(fc_id="fc_1").all()
+    assert len(rows) == 1
+    assert rows[0].credits == 7500
+
+
+def test_get_report_basic_shape(app, db, monkeypatch):
+    """get_report returns the expected dict keys and respects exclusions."""
+    from app.services.fc_credits_tracker import FCCreditsTracker
+    from app.models.fc_credits_snapshot import FCCreditsSnapshot
+    from datetime import datetime
+
+    today = date.today()
+    # Two FCs, multiple days
+    for fc_id, creds_by_day in [
+        ("fc_a", [(today - timedelta(days=2), 1000),
+                  (today - timedelta(days=1), 1500),
+                  (today, 2000)]),
+        ("fc_b", [(today - timedelta(days=2), 500),
+                  (today, 800)]),
+    ]:
+        for d, c in creds_by_day:
+            db.session.add(FCCreditsSnapshot(
+                fc_id=fc_id, snapshot_date=d, credits=c,
+                updated_at=datetime.utcnow()
+            ))
+    db.session.commit()
+
+    # Stub fc_summaries lookup so FC names resolve
+    def fake_fc_info(fc_id):
+        return {"fc_a": ("FC Alpha", "Gilgamesh"),
+                "fc_b": ("FC Beta", "Gilgamesh")}.get(fc_id, (fc_id, ""))
+    monkeypatch.setattr(
+        "app.services.fc_credits_tracker._fc_info_lookup",
+        fake_fc_info
+    )
+
+    # With no exclusions
+    report = FCCreditsTracker.get_report(days=7, exclude_fc_ids=set())
+    assert set(report.keys()) == {"series", "cards", "included_fcs", "excluded_fcs"}
+    assert report["cards"]["current_balance"] == 2800  # 2000 + 800
+    # fc_a positive deltas: (1500-1000) + (2000-1500) = 1000
+    # fc_b positive deltas: (800-500) = 300
+    # all_time_earned = 1300
+    assert report["cards"]["all_time_earned"] == 1300
+    assert len(report["included_fcs"]) == 2
+    assert len(report["excluded_fcs"]) == 0
+
+    # With fc_b excluded
+    report = FCCreditsTracker.get_report(days=7, exclude_fc_ids={"fc_b"})
+    assert report["cards"]["current_balance"] == 2000
+    assert report["cards"]["all_time_earned"] == 1000
+    assert len(report["included_fcs"]) == 1
+    assert len(report["excluded_fcs"]) == 1
+    assert report["excluded_fcs"][0]["fc_id"] == "fc_b"
+
+
+def test_get_report_empty(app, db, monkeypatch):
+    """With no snapshots, report returns zeros and empty lists."""
+    from app.services.fc_credits_tracker import FCCreditsTracker
+
+    monkeypatch.setattr(
+        "app.services.fc_credits_tracker._fc_info_lookup",
+        lambda fc_id: (fc_id, "")
+    )
+    report = FCCreditsTracker.get_report(days=30, exclude_fc_ids=set())
+    assert report["series"] == []
+    assert report["cards"] == {
+        "week_earned": 0, "month_earned": 0,
+        "all_time_earned": 0, "current_balance": 0
+    }
+    assert report["included_fcs"] == []
+    assert report["excluded_fcs"] == []
