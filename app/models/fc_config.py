@@ -13,6 +13,7 @@ class FCConfig(db.Model):
     fc_id = db.Column(db.String(30), nullable=False, unique=True, index=True)
     visible = db.Column(db.Boolean, default=True)
     exclude_from_supply = db.Column(db.Boolean, default=False)  # Exclude from restock calculations
+    excluded_from_credits = db.Column(db.Boolean, default=False)  # Exclude from /credits page
     notes = db.Column(db.Text, nullable=True)  # User notes for this FC
     target_sub_level = db.Column(db.Integer, nullable=True)  # Per-FC target submarine level for not-farming alert
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -25,6 +26,7 @@ class FCConfig(db.Model):
             'fc_id': self.fc_id,
             'visible': self.visible,
             'exclude_from_supply': self.exclude_from_supply,
+            'excluded_from_credits': self.excluded_from_credits,
             'notes': self.notes,
             'target_sub_level': self.target_sub_level,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
@@ -53,6 +55,7 @@ def _migrate_fc_config_columns():
     migrations = [
         ('exclude_from_supply', 'BOOLEAN DEFAULT 0'),
         ('target_sub_level', 'INTEGER DEFAULT NULL'),
+        ('excluded_from_credits', 'BOOLEAN DEFAULT 0'),
     ]
 
     for col_name, col_def in migrations:
@@ -122,6 +125,13 @@ def get_supply_excluded_fc_ids() -> set:
         Set of fc_id strings that have exclude_from_supply=True
     """
     excluded = FCConfig.query.filter_by(exclude_from_supply=True).all()
+    return {c.fc_id for c in excluded}
+
+
+def get_credits_excluded_fc_ids() -> set:
+    """Get set of FC IDs that are excluded from the /credits page."""
+    _migrate_fc_config_columns()
+    excluded = FCConfig.query.filter_by(excluded_from_credits=True).all()
     return {c.fc_id for c in excluded}
 
 
