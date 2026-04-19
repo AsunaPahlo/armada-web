@@ -60,13 +60,13 @@
     ul.innerHTML = '';
     const all = included.concat(excluded);
     if (all.length === 0) {
-      ul.innerHTML = '<li class="list-group-item text-muted">No FCs yet</li>';
+      ul.innerHTML = '<li class="list-group-item bg-transparent text-muted">No FCs yet</li>';
       return;
     }
     all.sort((a, b) => (b.current_balance || 0) - (a.current_balance || 0));
     for (const fc of all) {
       const li = document.createElement('li');
-      li.className = 'list-group-item d-flex align-items-center justify-content-between';
+      li.className = 'list-group-item bg-transparent d-flex align-items-center justify-content-between';
       const label = document.createElement('div');
       const name = document.createElement('strong');
       name.textContent = fc.fc_name || fc.fc_id;
