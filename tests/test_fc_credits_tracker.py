@@ -37,9 +37,6 @@ def test_fc_config_excluded_from_credits_column(app, db):
     assert loaded.excluded_from_credits is False
 
 
-from datetime import date
-
-
 def test_positive_delta_sum_ignores_decreases():
     """Positive-delta sum: spending (negative delta) must not subtract from earnings."""
     from app.services.fc_credits_tracker import positive_delta_sum
@@ -59,6 +56,18 @@ def test_positive_delta_sum_empty_or_single_point():
 
     assert positive_delta_sum([]) == 0
     assert positive_delta_sum([(date(2026, 4, 10), 500)]) == 0
+
+
+def test_positive_delta_sum_all_decreases_returns_zero():
+    """A strictly decreasing series has no positive deltas, so earnings are 0."""
+    from app.services.fc_credits_tracker import positive_delta_sum
+
+    snapshots = [
+        (date(2026, 4, 10), 1000),
+        (date(2026, 4, 11), 500),
+        (date(2026, 4, 12), 100),
+    ]
+    assert positive_delta_sum(snapshots) == 0
 
 
 def test_aggregate_daily_balance_carry_forward():
@@ -87,3 +96,15 @@ def test_aggregate_daily_balance_no_snapshots():
     from app.services.fc_credits_tracker import aggregate_daily_balance
 
     assert aggregate_daily_balance({}, date(2026, 4, 10), date(2026, 4, 13)) == []
+
+
+def test_aggregate_daily_balance_snapshots_before_window():
+    """Snapshots dated before the window start must carry forward to the window's first day."""
+    from app.services.fc_credits_tracker import aggregate_daily_balance
+
+    per_fc = {"fc_a": [(date(2026, 4, 1), 100), (date(2026, 4, 5), 200)]}
+    result = aggregate_daily_balance(per_fc, date(2026, 4, 10), date(2026, 4, 11))
+    assert result == [
+        (date(2026, 4, 10), 200),
+        (date(2026, 4, 11), 200),
+    ]
