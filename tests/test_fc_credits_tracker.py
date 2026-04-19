@@ -286,3 +286,69 @@ def test_process_fc_credits_snapshots_skips_zero_fc_points(app, db):
     _process_fc_credits_snapshots(accounts, [])
 
     assert FCCreditsSnapshot.query.count() == 0
+
+
+def _login_test_user(client, app):
+    """Seed + log in a test user so @login_required routes are accessible."""
+    from app.models.user import User
+    from app import db as _db
+
+    with app.app_context():
+        if not User.query.filter_by(username="tester").first():
+            u = User(username="tester", role="admin")
+            u.set_password("testpass")
+            _db.session.add(u)
+            _db.session.commit()
+    return client.post("/auth/login", data={
+        "username": "tester", "password": "testpass"
+    }, follow_redirects=True)
+
+
+def test_credits_index_renders(client, app):
+    """GET /credits returns 200 with the page skeleton."""
+    _login_test_user(client, app)
+    resp = client.get("/credits/")
+    assert resp.status_code == 200
+    assert b"FC Credits" in resp.data
+
+
+def test_credits_data_returns_json(client, app, db):
+    """GET /credits/data returns report JSON with expected keys."""
+    _login_test_user(client, app)
+    resp = client.get("/credits/data?days=30")
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert set(body.keys()) == {"series", "cards", "included_fcs", "excluded_fcs"}
+
+
+def test_credits_data_days_param_bounds(client, app, db):
+    """Invalid days values should be coerced to a safe default."""
+    _login_test_user(client, app)
+    resp = client.get("/credits/data?days=abc")
+    assert resp.status_code == 200
+    resp = client.get("/credits/data?days=-1")
+    assert resp.status_code == 200
+
+
+def test_credits_toggle_upserts_fc_config(client, app, db):
+    """POST /credits/toggle flips excluded_from_credits for a given fc_id."""
+    from app.models.fc_config import FCConfig
+    _login_test_user(client, app)
+
+    resp = client.post("/credits/toggle", json={"fc_id": "fc_x", "excluded": True})
+    assert resp.status_code == 200
+    cfg = FCConfig.query.filter_by(fc_id="fc_x").first()
+    assert cfg is not None
+    assert cfg.excluded_from_credits is True
+
+    resp = client.post("/credits/toggle", json={"fc_id": "fc_x", "excluded": False})
+    assert resp.status_code == 200
+    cfg = FCConfig.query.filter_by(fc_id="fc_x").first()
+    assert cfg.excluded_from_credits is False
+
+
+def test_credits_toggle_bad_payload(client, app):
+    """Missing fc_id returns 400."""
+    _login_test_user(client, app)
+    resp = client.post("/credits/toggle", json={"excluded": True})
+    assert resp.status_code == 400

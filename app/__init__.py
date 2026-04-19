@@ -68,6 +68,7 @@ def create_app(config_name=None):
     from app.routes.gil import gil_bp
     from app.routes.gil_config import gil_config_bp
     from app.routes.reports import reports_bp
+    from app.routes.credits import credits_bp
 
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(api_bp, url_prefix='/api')
@@ -86,6 +87,7 @@ def create_app(config_name=None):
     app.register_blueprint(gil_bp, url_prefix='/gil')
     app.register_blueprint(gil_config_bp, url_prefix='/settings/gil-config')
     app.register_blueprint(reports_bp, url_prefix='/reports')
+    app.register_blueprint(credits_bp, url_prefix='/credits')
 
     # Create database tables
     with app.app_context():
