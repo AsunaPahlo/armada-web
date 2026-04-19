@@ -277,6 +277,12 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint and request.endpoint.startswith('credits.') %}active{% endif %}"
+                           href="{{ url_for('credits.index') }}">
+                            <i class="bi bi-coin"></i> Credits
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link {% if request.endpoint and request.endpoint.startswith('reports.') %}active{% endif %}"
                            href="{{ url_for('reports.index') }}">
                             <i class="bi bi-clipboard-data"></i> Reports
