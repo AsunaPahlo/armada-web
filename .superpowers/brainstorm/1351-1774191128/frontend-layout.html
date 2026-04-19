@@ -1,0 +1,130 @@
+<h2>Reports Page Layout</h2>
+<p class="subtitle">How should the overall page be structured?</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Top-Down Flow</h3>
+      <p>Query builder at top, results fill the rest of the page below. Clean vertical flow — build your query, see results underneath.</p>
+      <div class="mockup" style="margin-top: 12px;">
+        <div class="mockup-body" style="padding: 0;">
+          <!-- Nav -->
+          <div style="display:flex; gap:16px; padding:8px 12px; background:#1a1a2e; border-bottom:1px solid #333; font-size:11px; color:#888;">
+            <span>Dashboard</span><span>Stats</span><span>Profits</span><span style="color:#4a9eff; border-bottom:2px solid #4a9eff; padding-bottom:4px;">Reports</span><span>Settings</span>
+          </div>
+          <!-- Query area -->
+          <div style="padding:12px; border-bottom:1px solid #333;">
+            <div style="display:flex; gap:8px; margin-bottom:10px; font-size:11px;">
+              <div style="padding:4px 12px; background:#4a9eff; color:white; border-radius:4px 0 0 4px;">Visual</div>
+              <div style="padding:4px 12px; background:#2a2a3a; color:#888; border-radius:0 4px 4px 0;">Query</div>
+              <div style="margin-left:auto; display:flex; gap:6px;">
+                <div style="padding:4px 10px; background:#2a2a3a; color:#aaa; border-radius:4px; font-size:10px;">📁 Saved Reports ▾</div>
+                <div style="padding:4px 10px; background:#2a2a3a; color:#aaa; border-radius:4px; font-size:10px;">💾 Save</div>
+              </div>
+            </div>
+            <div style="background:#1a1a2e; padding:10px; border-radius:6px; font-size:11px;">
+              <div style="display:flex; gap:6px; align-items:center; margin-bottom:6px;">
+                <span style="color:#4a9eff; font-weight:bold;">FIND</span>
+                <span style="background:#2a2a3a; padding:2px 8px; border-radius:3px; color:#ddd;">FCs ▾</span>
+                <span style="color:#4a9eff; font-weight:bold;">WHERE</span>
+              </div>
+              <div style="display:flex; gap:6px; align-items:center; margin-left:16px; margin-bottom:6px;">
+                <span style="background:#3a2a4a; padding:2px 6px; border-radius:3px; color:#c084fc; font-size:10px;">ALL</span>
+                <span style="background:#2a2a3a; padding:2px 8px; border-radius:3px; color:#ddd;">subs.level ▾</span>
+                <span style="background:#2a2a3a; padding:2px 8px; border-radius:3px; color:#ddd;">> ▾</span>
+                <span style="background:#2a2a3a; padding:2px 8px; border-radius:3px; color:#ddd;">111</span>
+                <span style="color:#ef4444; cursor:pointer; font-size:10px;">✕</span>
+              </div>
+              <div style="display:flex; gap:6px; align-items:center; margin-left:16px;">
+                <span style="color:#4a9eff; font-size:10px;">AND</span>
+                <span style="background:#3a2a4a; padding:2px 6px; border-radius:3px; color:#c084fc; font-size:10px;">NO</span>
+                <span style="background:#2a2a3a; padding:2px 8px; border-radius:3px; color:#ddd;">subs.build ▾</span>
+                <span style="background:#2a2a3a; padding:2px 8px; border-radius:3px; color:#ddd;">CONTAINS ▾</span>
+                <span style="background:#2a2a3a; padding:2px 8px; border-radius:3px; color:#ddd;">"SSUC"</span>
+                <span style="color:#ef4444; cursor:pointer; font-size:10px;">✕</span>
+              </div>
+              <div style="margin-top:8px; display:flex; gap:8px;">
+                <span style="color:#4a9eff; font-size:10px; cursor:pointer;">+ Add condition</span>
+              </div>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:10px; justify-content:flex-end;">
+              <div style="padding:5px 16px; background:#4a9eff; color:white; border-radius:4px; font-size:11px; font-weight:bold;">▶ Run Query</div>
+            </div>
+          </div>
+          <!-- Results -->
+          <div style="padding:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <div style="font-size:11px; color:#aaa;">12 FCs found <span style="color:#666;">· 0.3s</span></div>
+              <div style="display:flex; gap:6px; font-size:10px;">
+                <span style="padding:3px 8px; background:#4a9eff; color:white; border-radius:3px;">Table</span>
+                <span style="padding:3px 8px; background:#2a2a3a; color:#888; border-radius:3px;">Summary</span>
+                <span style="padding:3px 8px; background:#2a2a3a; color:#888; border-radius:3px;">⬇ CSV</span>
+              </div>
+            </div>
+            <div style="font-size:10px;">
+              <div style="display:grid; grid-template-columns:2fr 1fr 1fr 1fr 1fr; gap:1px; background:#333;">
+                <div style="background:#1a1a2e; padding:6px 8px; color:#4a9eff; font-weight:bold;">FC Name</div>
+                <div style="background:#1a1a2e; padding:6px 8px; color:#4a9eff; font-weight:bold;">World</div>
+                <div style="background:#1a1a2e; padding:6px 8px; color:#4a9eff; font-weight:bold;">Subs</div>
+                <div style="background:#1a1a2e; padding:6px 8px; color:#4a9eff; font-weight:bold;">Gil/Day</div>
+                <div style="background:#1a1a2e; padding:6px 8px; color:#4a9eff; font-weight:bold;">Region</div>
+                <div style="background:#12121e; padding:6px 8px; color:#ddd;">Storm Armada</div>
+                <div style="background:#12121e; padding:6px 8px; color:#aaa;">Gilgamesh</div>
+                <div style="background:#12121e; padding:6px 8px; color:#aaa;">4</div>
+                <div style="background:#12121e; padding:6px 8px; color:#4ade80;">285,000</div>
+                <div style="background:#12121e; padding:6px 8px; color:#aaa;">NA</div>
+                <div style="background:#16162a; padding:6px 8px; color:#ddd;">Ocean Fleet</div>
+                <div style="background:#16162a; padding:6px 8px; color:#aaa;">Cactuar</div>
+                <div style="background:#16162a; padding:6px 8px; color:#aaa;">4</div>
+                <div style="background:#16162a; padding:6px 8px; color:#4ade80;">312,000</div>
+                <div style="background:#16162a; padding:6px 8px; color:#aaa;">NA</div>
+                <div style="background:#12121e; padding:6px 8px; color:#ddd;">Deep Divers</div>
+                <div style="background:#12121e; padding:6px 8px; color:#aaa;">Tonberry</div>
+                <div style="background:#12121e; padding:6px 8px; color:#aaa;">4</div>
+                <div style="background:#12121e; padding:6px 8px; color:#4ade80;">198,000</div>
+                <div style="background:#12121e; padding:6px 8px; color:#aaa;">JP</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Sidebar + Main</h3>
+      <p>Left sidebar with saved reports list and query builder. Main area shows results. Good for switching between saved reports quickly.</p>
+      <div class="mockup" style="margin-top: 12px;">
+        <div class="mockup-body" style="padding: 0;">
+          <div style="display:flex; gap:16px; padding:8px 12px; background:#1a1a2e; border-bottom:1px solid #333; font-size:11px; color:#888;">
+            <span>Dashboard</span><span>Stats</span><span>Profits</span><span style="color:#4a9eff; border-bottom:2px solid #4a9eff; padding-bottom:4px;">Reports</span><span>Settings</span>
+          </div>
+          <div style="display:flex; min-height:200px;">
+            <!-- Sidebar -->
+            <div style="width:220px; border-right:1px solid #333; padding:10px; font-size:10px;">
+              <div style="color:#4a9eff; font-weight:bold; margin-bottom:8px;">Saved Reports</div>
+              <div style="padding:4px 8px; background:#2a2a4a; border-radius:3px; color:#ddd; margin-bottom:4px;">FCs missing SSUC</div>
+              <div style="padding:4px 8px; color:#aaa; margin-bottom:4px;">Low supply FCs</div>
+              <div style="padding:4px 8px; color:#aaa; margin-bottom:4px;">Top loot routes</div>
+              <div style="border-top:1px solid #333; margin-top:8px; padding-top:8px;">
+                <div style="color:#4a9eff; font-weight:bold; margin-bottom:8px;">Query</div>
+                <div style="background:#1a1a2e; padding:6px; border-radius:4px; font-family:monospace; color:#aaa; font-size:9px; line-height:1.4;">
+                  FIND fcs WHERE<br>ALL subs.level > 111<br>AND NO subs.build<br>CONTAINS "SSUC"
+                </div>
+                <div style="margin-top:6px; padding:4px 10px; background:#4a9eff; color:white; border-radius:3px; text-align:center; font-size:10px;">▶ Run</div>
+              </div>
+            </div>
+            <!-- Main -->
+            <div style="flex:1; padding:12px;">
+              <div style="font-size:11px; color:#aaa; margin-bottom:8px;">12 FCs found</div>
+              <div style="font-size:10px; color:#666;">[Results table here]</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

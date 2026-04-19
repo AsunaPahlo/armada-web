@@ -1,0 +1,83 @@
+<h2>Query Builder Layout</h2>
+<p class="subtitle">How should the visual builder and text mode relate to each other?</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Tabbed Mode Switch</h3>
+      <p>Two tabs at the top: <strong>"Visual"</strong> and <strong>"Query"</strong>. Switching to Query tab shows the generated text query that you can edit directly. Changes sync both ways — edit the text and the visual builder updates, or use the builder and the text updates.</p>
+      <div class="mockup" style="margin-top: 12px;">
+        <div class="mockup-body" style="padding: 12px;">
+          <div style="display:flex; gap:0; margin-bottom:12px;">
+            <div style="padding:6px 16px; background:#4a9eff; color:white; border-radius:6px 0 0 6px; font-size:13px;">Visual Builder</div>
+            <div style="padding:6px 16px; background:#2a2a3a; color:#888; border-radius:0 6px 6px 0; font-size:13px;">Query Text</div>
+          </div>
+          <div style="background:#1a1a2e; padding:12px; border-radius:6px; font-size:12px; color:#aaa;">
+            <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+              <span style="color:#4a9eff;">FIND</span>
+              <span style="background:#2a2a3a; padding:3px 8px; border-radius:4px;">FCs ▾</span>
+              <span style="color:#4a9eff;">WHERE</span>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center; margin-left:20px;">
+              <span style="background:#2a2a3a; padding:3px 8px; border-radius:4px;">all subs level ▾</span>
+              <span style="background:#2a2a3a; padding:3px 8px; border-radius:4px;">> ▾</span>
+              <span style="background:#2a2a3a; padding:3px 8px; border-radius:4px;">111</span>
+              <span style="color:#666; cursor:pointer;">+ Add condition</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Live Preview Below</h3>
+      <p>Visual builder on top, with a <strong>collapsible query text preview</strong> always visible below it. As you click dropdowns, the query text updates in real-time. You can expand the text area to edit directly.</p>
+      <div class="mockup" style="margin-top: 12px;">
+        <div class="mockup-body" style="padding: 12px;">
+          <div style="background:#1a1a2e; padding:12px; border-radius:6px 6px 0 0; font-size:12px; color:#aaa;">
+            <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+              <span style="color:#4a9eff;">FIND</span>
+              <span style="background:#2a2a3a; padding:3px 8px; border-radius:4px;">FCs ▾</span>
+              <span style="color:#4a9eff;">WHERE</span>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center; margin-left:20px;">
+              <span style="background:#2a2a3a; padding:3px 8px; border-radius:4px;">all subs level ▾</span>
+              <span style="background:#2a2a3a; padding:3px 8px; border-radius:4px;">> ▾</span>
+              <span style="background:#2a2a3a; padding:3px 8px; border-radius:4px;">111</span>
+            </div>
+          </div>
+          <div style="background:#12121e; padding:8px 12px; border-radius:0 0 6px 6px; border-top:1px solid #333; font-family:monospace; font-size:11px; color:#7a7;">
+            <span style="color:#666;">▸ Query:</span> FIND fcs WHERE all_subs.level > 111
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Smart Text Input with Autocomplete</h3>
+      <p>Primary interface is a <strong>text input</strong> with rich autocomplete, syntax highlighting, and inline suggestions. A small helper panel on the side shows available fields and operators. More like a search bar than a form builder.</p>
+      <div class="mockup" style="margin-top: 12px;">
+        <div class="mockup-body" style="padding: 12px;">
+          <div style="background:#1a1a2e; padding:12px; border-radius:6px; font-size:12px;">
+            <div style="background:#2a2a3a; padding:10px; border-radius:4px; border:1px solid #4a9eff; font-family:monospace; color:#ddd;">
+              FIND fcs WHERE all_subs.level > <span style="color:#4a9eff; border-bottom:1px dashed #4a9eff;">▌</span>
+            </div>
+            <div style="background:#2a2a4a; border:1px solid #333; border-top:none; border-radius:0 0 4px 4px; padding:4px 0; font-size:11px;">
+              <div style="padding:4px 10px; color:#aaa;">📋 Suggestions:</div>
+              <div style="padding:4px 10px; background:#3a3a5a; color:#ddd;">level (submarine rank 1-125)</div>
+              <div style="padding:4px 10px; color:#aaa;">build (part configuration)</div>
+              <div style="padding:4px 10px; color:#aaa;">route (current route)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
