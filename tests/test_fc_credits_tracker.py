@@ -228,3 +228,61 @@ def test_get_report_window_includes_pre_cutoff_anchor(app, db, monkeypatch):
     )
     report = FCCreditsTracker.get_report(days=7, exclude_fc_ids=set())
     assert report["cards"]["week_earned"] == 500
+
+
+def test_process_fc_credits_snapshots_from_fc_points(app, db):
+    """Ingestion helper reads fc_points from parsed fleet data and writes snapshots."""
+    from app.routes.websocket import _process_fc_credits_snapshots
+    from app.models.fc_credits_snapshot import FCCreditsSnapshot
+
+    # Fleet data shape: accounts is a list; we look for FC data under the 'fcs' key
+    # Plugin payload (lowercase keys) has fcs: { "<fc_id>": { ..., "fc_points": N } }
+    accounts = [
+        {
+            "fcs": {
+                "111": {"name": "FC One", "fc_points": 12000},
+                "222": {"name": "FC Two", "fc_points": 3400},
+            }
+        }
+    ]
+    suppliers = []
+
+    _process_fc_credits_snapshots(accounts, suppliers)
+
+    rows = FCCreditsSnapshot.query.order_by(FCCreditsSnapshot.fc_id).all()
+    assert len(rows) == 2
+    assert rows[0].fc_id == "111"
+    assert rows[0].credits == 12000
+    assert rows[1].fc_id == "222"
+    assert rows[1].credits == 3400
+
+
+def test_process_fc_credits_snapshots_supplier_fallback(app, db):
+    """If no fc_points in fcs, fall back to supplier fc_credits (max per fc)."""
+    from app.routes.websocket import _process_fc_credits_snapshots
+    from app.models.fc_credits_snapshot import FCCreditsSnapshot
+
+    accounts = []
+    suppliers = [
+        {"fc_id": "333", "fc_credits": 500},
+        {"fc_id": "333", "fc_credits": 800},  # max wins
+        {"fc_id": "444", "fc_credits": 0},     # zero is skipped
+    ]
+
+    _process_fc_credits_snapshots(accounts, suppliers)
+
+    rows = FCCreditsSnapshot.query.order_by(FCCreditsSnapshot.fc_id).all()
+    assert len(rows) == 1
+    assert rows[0].fc_id == "333"
+    assert rows[0].credits == 800
+
+
+def test_process_fc_credits_snapshots_skips_zero_fc_points(app, db):
+    """fc_points == 0 should not write a snapshot (likely missing FC access)."""
+    from app.routes.websocket import _process_fc_credits_snapshots
+    from app.models.fc_credits_snapshot import FCCreditsSnapshot
+
+    accounts = [{"fcs": {"555": {"name": "FC Five", "fc_points": 0}}}]
+    _process_fc_credits_snapshots(accounts, [])
+
+    assert FCCreditsSnapshot.query.count() == 0

@@ -101,6 +101,64 @@ def _process_gil_records(api_key_str: str, plugin_id: str, accounts: list):
     return upserted
 
 
+def _process_fc_credits_snapshots(accounts, suppliers):
+    """Write one FC credits snapshot per FC present in the payload.
+
+    Preference: fc_points inside accounts[*].fcs[fc_id]. Fallback: max fc_credits
+    across supplier entries for the same fc_id. Zero values are skipped so a character
+    without FC access doesn't overwrite a real balance with 0.
+    """
+    from app.services.fc_credits_tracker import FCCreditsTracker
+
+    per_fc = {}  # fc_id -> credits (best guess)
+
+    # Pass 1: authoritative fc_points from account FC dicts
+    if isinstance(accounts, list):
+        for acct in accounts:
+            if not isinstance(acct, dict):
+                continue
+            fcs = acct.get('fcs') or acct.get('FCData') or {}
+            if not isinstance(fcs, dict):
+                continue
+            for fc_id, fc_info in fcs.items():
+                if not isinstance(fc_info, dict):
+                    continue
+                points = fc_info.get('fc_points', fc_info.get('FCPoints', 0))
+                try:
+                    points = int(points or 0)
+                except (TypeError, ValueError):
+                    points = 0
+                if points > 0:
+                    per_fc[str(fc_id)] = points
+
+    # Pass 2: supplier fallback (max per fc_id) — only if no fc_points entry yet
+    if isinstance(suppliers, list):
+        supplier_maxes = {}
+        for s in suppliers:
+            if not isinstance(s, dict):
+                continue
+            fc_id = s.get('fc_id')
+            if not fc_id:
+                continue
+            try:
+                creds = int(s.get('fc_credits', 0) or 0)
+            except (TypeError, ValueError):
+                creds = 0
+            if creds <= 0:
+                continue
+            fc_id = str(fc_id)
+            if creds > supplier_maxes.get(fc_id, 0):
+                supplier_maxes[fc_id] = creds
+        for fc_id, creds in supplier_maxes.items():
+            per_fc.setdefault(fc_id, creds)
+
+    for fc_id, credits in per_fc.items():
+        try:
+            FCCreditsTracker.record_snapshot(fc_id, credits)
+        except Exception as e:
+            plugin_logger.warning(f"Failed to record FC credits snapshot for {fc_id}: {e}")
+
+
 _update_thread: threading.Thread = None
 _lumina_thread: threading.Thread = None
 _running = False
@@ -341,6 +399,12 @@ class PluginNamespace(Namespace):
                     plugin_logger.info(f"Processed {gil_count} gil records from {plugin_id}")
             except Exception as e:
                 plugin_logger.warning(f"Error processing gil records: {e}")
+
+            # Record FC credits snapshots (per FC per day)
+            try:
+                _process_fc_credits_snapshots(accounts, suppliers)
+            except Exception as e:
+                plugin_logger.warning(f"Error processing FC credits snapshots: {e}")
 
             # Broadcast update to dashboard clients with full refresh
             from app import socketio as main_socketio
