@@ -27,8 +27,13 @@ def data():
     if days is None or days not in ALLOWED_DAYS:
         days = 30
 
+    tz_offset = request.args.get('tz', 0, type=int)
+    tz_offset = max(-720, min(840, tz_offset))
+
     excluded = get_credits_excluded_fc_ids()
-    report = FCCreditsTracker.get_report(days=days, exclude_fc_ids=excluded)
+    report = FCCreditsTracker.get_report(
+        days=days, exclude_fc_ids=excluded, tz_offset_minutes=tz_offset
+    )
     return jsonify(report)
 
 

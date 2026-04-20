@@ -100,7 +100,8 @@
   async function loadData(days) {
     currentDays = days;
     setDayActive(days);
-    const resp = await fetch(`/credits/data?days=${days}`);
+    const tz = new Date().getTimezoneOffset();
+    const resp = await fetch(`/credits/data?days=${days}&tz=${tz}`);
     if (!resp.ok) {
       console.error('Failed to load credits data', resp.status);
       return;
