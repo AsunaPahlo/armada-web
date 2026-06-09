@@ -70,6 +70,39 @@ def test_positive_delta_sum_all_decreases_returns_zero():
     assert positive_delta_sum(snapshots) == 0
 
 
+def test_negative_delta_sum_ignores_increases():
+    """Negative-delta sum: earnings (positive delta) must not reduce the spent total."""
+    from app.services.fc_credits_tracker import negative_delta_sum
+
+    snapshots = [
+        (date(2026, 4, 10), 1000),
+        (date(2026, 4, 11), 1500),  # +500 earned (ignored)
+        (date(2026, 4, 12), 1200),  # -300 spent
+        (date(2026, 4, 13), 400),   # -800 spent
+    ]
+    assert negative_delta_sum(snapshots) == 1100
+
+
+def test_negative_delta_sum_empty_or_single_point():
+    """A single snapshot or empty list returns 0."""
+    from app.services.fc_credits_tracker import negative_delta_sum
+
+    assert negative_delta_sum([]) == 0
+    assert negative_delta_sum([(date(2026, 4, 10), 500)]) == 0
+
+
+def test_negative_delta_sum_all_increases_returns_zero():
+    """A strictly increasing series has no negative deltas, so spending is 0."""
+    from app.services.fc_credits_tracker import negative_delta_sum
+
+    snapshots = [
+        (date(2026, 4, 10), 100),
+        (date(2026, 4, 11), 500),
+        (date(2026, 4, 12), 1000),
+    ]
+    assert negative_delta_sum(snapshots) == 0
+
+
 def test_aggregate_daily_balance_carry_forward():
     """Aggregate across FCs, carrying last known value forward when an FC has no snapshot on a day."""
     from app.services.fc_credits_tracker import aggregate_daily_balance
@@ -168,21 +201,110 @@ def test_get_report_basic_shape(app, db, monkeypatch):
     # With no exclusions
     report = FCCreditsTracker.get_report(days=7, exclude_fc_ids=set())
     assert set(report.keys()) == {"series", "cards", "included_fcs", "excluded_fcs"}
+    assert set(report["cards"].keys()) == {
+        "period_earned", "period_used", "period_net", "current_balance", "days"
+    }
     assert report["cards"]["current_balance"] == 2800  # 2000 + 800
+    assert report["cards"]["days"] == 7
+    # All snapshots fall within the 7-day window, so the period totals equal
+    # the full-history totals here.
     # fc_a positive deltas: (1500-1000) + (2000-1500) = 1000
-    # fc_b positive deltas: (800-500) = 300
-    # all_time_earned = 1300
-    assert report["cards"]["all_time_earned"] == 1300
+    # fc_b positive deltas: (800-500) = 300  => period_earned = 1300
+    assert report["cards"]["period_earned"] == 1300
+    assert report["cards"]["period_used"] == 0  # strictly increasing series
+    assert report["cards"]["period_net"] == 1300
     assert len(report["included_fcs"]) == 2
     assert len(report["excluded_fcs"]) == 0
 
     # With fc_b excluded
     report = FCCreditsTracker.get_report(days=7, exclude_fc_ids={"fc_b"})
     assert report["cards"]["current_balance"] == 2000
-    assert report["cards"]["all_time_earned"] == 1000
+    assert report["cards"]["period_earned"] == 1000
+    assert report["cards"]["period_used"] == 0
+    assert report["cards"]["period_net"] == 1000
     assert len(report["included_fcs"]) == 1
     assert len(report["excluded_fcs"]) == 1
     assert report["excluded_fcs"][0]["fc_id"] == "fc_b"
+
+
+def test_get_report_cards_period_aware_earn_and_spend(app, db, monkeypatch):
+    """Cards reflect gross earned AND gross used within the selected window."""
+    from app.services.fc_credits_tracker import FCCreditsTracker
+    from app.models.fc_credits_snapshot import FCCreditsSnapshot
+
+    today = date.today()
+    # 1000 -> 1500 (+500) -> 1200 (-300) -> 1800 (+600), all within last 3 days
+    for d, c in [
+        (today - timedelta(days=3), 1000),
+        (today - timedelta(days=2), 1500),
+        (today - timedelta(days=1), 1200),
+        (today, 1800),
+    ]:
+        db.session.add(FCCreditsSnapshot(
+            fc_id="fc_a", snapshot_date=d, credits=c, updated_at=datetime.utcnow()
+        ))
+    db.session.commit()
+    monkeypatch.setattr(
+        "app.services.fc_credits_tracker._fc_info_lookup", lambda fid: (fid, "")
+    )
+
+    report = FCCreditsTracker.get_report(days=7, exclude_fc_ids=set())
+    cards = report["cards"]
+    assert cards["period_earned"] == 1100  # 500 + 600
+    assert cards["period_used"] == 300      # the single 300 drop
+    assert cards["period_net"] == 800       # 1100 - 300
+
+
+def test_get_report_period_used_window_with_anchor(app, db, monkeypatch):
+    """Spending on day 1 of the window counts the drop from the pre-window anchor."""
+    from app.services.fc_credits_tracker import FCCreditsTracker
+    from app.models.fc_credits_snapshot import FCCreditsSnapshot
+
+    today = date.today()
+    # Anchor 10 days ago at 2000, then today at 1500 -> 500 spent inside a 7-day window.
+    db.session.add(FCCreditsSnapshot(
+        fc_id="fc_a", snapshot_date=today - timedelta(days=10),
+        credits=2000, updated_at=datetime.utcnow()
+    ))
+    db.session.add(FCCreditsSnapshot(
+        fc_id="fc_a", snapshot_date=today, credits=1500, updated_at=datetime.utcnow()
+    ))
+    db.session.commit()
+    monkeypatch.setattr(
+        "app.services.fc_credits_tracker._fc_info_lookup", lambda fid: (fid, "")
+    )
+
+    report = FCCreditsTracker.get_report(days=7, exclude_fc_ids=set())
+    assert report["cards"]["period_used"] == 500
+    assert report["cards"]["period_earned"] == 0
+    assert report["cards"]["period_net"] == -500
+
+
+def test_get_report_period_all_time(app, db, monkeypatch):
+    """days=0 sums earned and used over each FC's full history."""
+    from app.services.fc_credits_tracker import FCCreditsTracker
+    from app.models.fc_credits_snapshot import FCCreditsSnapshot
+
+    today = date.today()
+    for d, c in [
+        (today - timedelta(days=40), 1000),
+        (today - timedelta(days=30), 1500),  # +500
+        (today - timedelta(days=20), 1200),  # -300
+        (today - timedelta(days=1), 1800),   # +600
+    ]:
+        db.session.add(FCCreditsSnapshot(
+            fc_id="fc_a", snapshot_date=d, credits=c, updated_at=datetime.utcnow()
+        ))
+    db.session.commit()
+    monkeypatch.setattr(
+        "app.services.fc_credits_tracker._fc_info_lookup", lambda fid: (fid, "")
+    )
+
+    report = FCCreditsTracker.get_report(days=0, exclude_fc_ids=set())
+    assert report["cards"]["days"] == 0
+    assert report["cards"]["period_earned"] == 1100  # 500 + 600
+    assert report["cards"]["period_used"] == 300
+    assert report["cards"]["period_net"] == 800
 
 
 def test_get_report_empty(app, db, monkeypatch):
@@ -196,8 +318,8 @@ def test_get_report_empty(app, db, monkeypatch):
     report = FCCreditsTracker.get_report(days=30, exclude_fc_ids=set())
     assert report["series"] == []
     assert report["cards"] == {
-        "week_earned": 0, "month_earned": 0,
-        "all_time_earned": 0, "current_balance": 0
+        "period_earned": 0, "period_used": 0,
+        "period_net": 0, "current_balance": 0, "days": 30
     }
     assert report["included_fcs"] == []
     assert report["excluded_fcs"] == []
@@ -211,7 +333,7 @@ def test_get_report_window_includes_pre_cutoff_anchor(app, db, monkeypatch):
 
     today = date.today()
     # Snapshot 10 days ago at 1000, then today at 1500.
-    # week_earned (7-day window) should be 500 — the anchor at today-10
+    # period_earned (7-day window) should be 500 — the anchor at today-10
     # gets included so the delta from anchor to today fires.
     db.session.add(FCCreditsSnapshot(
         fc_id="fc_a", snapshot_date=today - timedelta(days=10),
@@ -227,7 +349,7 @@ def test_get_report_window_includes_pre_cutoff_anchor(app, db, monkeypatch):
         lambda fid: (fid, "")
     )
     report = FCCreditsTracker.get_report(days=7, exclude_fc_ids=set())
-    assert report["cards"]["week_earned"] == 500
+    assert report["cards"]["period_earned"] == 500
 
 
 def test_get_report_drops_hidden_fcs(app, db, monkeypatch):

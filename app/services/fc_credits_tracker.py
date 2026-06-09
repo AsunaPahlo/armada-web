@@ -21,6 +21,28 @@ def positive_delta_sum(snapshots: list) -> int:
     return total
 
 
+def negative_delta_sum(snapshots: list) -> int:
+    """Sum of the magnitude of negative deltas between consecutive snapshots.
+
+    The mirror of :func:`positive_delta_sum`: it measures gross spending and
+    ignores earnings (positive deltas).
+
+    Args:
+        snapshots: list of (date, credits) tuples, sorted ascending by date.
+
+    Returns:
+        Total amount spent as a positive integer (increases are ignored).
+    """
+    if len(snapshots) < 2:
+        return 0
+    total = 0
+    for i in range(1, len(snapshots)):
+        delta = snapshots[i][1] - snapshots[i - 1][1]
+        if delta < 0:
+            total -= delta
+    return total
+
+
 def aggregate_daily_balance(per_fc: dict, start: date, end: date) -> list:
     """Produce one (date, total_balance) tuple per day between start and end inclusive.
 
@@ -176,8 +198,8 @@ class FCCreditsTracker:
         if not per_fc_all:
             return {
                 "series": [],
-                "cards": {"week_earned": 0, "month_earned": 0,
-                          "all_time_earned": 0, "current_balance": 0},
+                "cards": {"period_earned": 0, "period_used": 0,
+                          "period_net": 0, "current_balance": 0, "days": days},
                 "included_fcs": [],
                 "excluded_fcs": [],
             }
@@ -201,31 +223,31 @@ class FCCreditsTracker:
         agg = aggregate_daily_balance(per_fc_included, start, today)
         series = [{"date": d.isoformat(), "balance": b} for d, b in agg]
 
-        # Cards (only over included FCs)
-        def window_delta_sum(window_days: int) -> int:
+        # Cards (only over included FCs), driven by the selected `days` window so
+        # every stat reflects what the chart shows. days <= 0 means all history.
+        def _window_snaps(snaps: list, window_days: int) -> list:
             if window_days <= 0:
-                # All-time
-                return sum(positive_delta_sum(per_fc_included[fid]) for fid in included_fc_ids)
+                return snaps
             cutoff = today - timedelta(days=window_days - 1)
-            total = 0
-            for fid in included_fc_ids:
-                snaps = per_fc_included[fid]
-                # Include the last snapshot strictly before the cutoff as the "anchor"
-                # so the first day's delta reflects earnings relative to the entering balance.
-                anchor = None
-                in_window = []
-                for d, c in snaps:
-                    if d < cutoff:
-                        anchor = (d, c)
-                    else:
-                        in_window.append((d, c))
-                windowed = ([anchor] if anchor else []) + in_window
-                total += positive_delta_sum(windowed)
-            return total
+            # Include the last snapshot strictly before the cutoff as the "anchor"
+            # so the first in-window day's delta reflects the change relative to
+            # the balance the FC entered the window with.
+            anchor = None
+            in_window = []
+            for d, c in snaps:
+                if d < cutoff:
+                    anchor = (d, c)
+                else:
+                    in_window.append((d, c))
+            return ([anchor] if anchor else []) + in_window
 
-        week_earned = window_delta_sum(7)
-        month_earned = window_delta_sum(30)
-        all_time_earned = sum(positive_delta_sum(per_fc_all[fid]) for fid in included_fc_ids)
+        period_earned = 0
+        period_used = 0
+        for fid in included_fc_ids:
+            windowed = _window_snaps(per_fc_included[fid], days)
+            period_earned += positive_delta_sum(windowed)
+            period_used += negative_delta_sum(windowed)
+        period_net = period_earned - period_used
         current_balance = sum(
             per_fc_included[fid][-1][1] for fid in included_fc_ids if per_fc_included[fid]
         )
@@ -249,10 +271,11 @@ class FCCreditsTracker:
         return {
             "series": series,
             "cards": {
-                "week_earned": week_earned,
-                "month_earned": month_earned,
-                "all_time_earned": all_time_earned,
+                "period_earned": period_earned,
+                "period_used": period_used,
+                "period_net": period_net,
                 "current_balance": current_balance,
+                "days": days,
             },
             "included_fcs": included_fcs,
             "excluded_fcs": excluded_fcs,

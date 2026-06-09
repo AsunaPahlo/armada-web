@@ -15,11 +15,33 @@
     });
   }
 
+  function periodLabel(days) {
+    switch (Number(days)) {
+      case 0: return 'All time';
+      case 7: return 'Last 7 days';
+      case 14: return 'Last 14 days';
+      case 30: return 'Last 30 days';
+      case 90: return 'Last 90 days';
+      case 365: return 'Last year';
+      default: return `Last ${days} days`;
+    }
+  }
+
   function renderCards(cards) {
-    document.getElementById('card-week-earned').textContent = fmt(cards.week_earned);
-    document.getElementById('card-month-earned').textContent = fmt(cards.month_earned);
-    document.getElementById('card-alltime-earned').textContent = fmt(cards.all_time_earned);
+    document.getElementById('card-period-earned').textContent = fmt(cards.period_earned);
+    document.getElementById('card-period-used').textContent = fmt(cards.period_used);
     document.getElementById('card-current-balance').textContent = fmt(cards.current_balance);
+
+    const net = Number(cards.period_net) || 0;
+    const netEl = document.getElementById('card-period-net');
+    netEl.textContent = (net > 0 ? '+' : '') + fmt(net);
+    netEl.classList.toggle('text-success', net >= 0);
+    netEl.classList.toggle('text-danger', net < 0);
+
+    const label = periodLabel(cards.days);
+    document.getElementById('card-period-earned-sub').textContent = label;
+    document.getElementById('card-period-used-sub').textContent = label;
+    document.getElementById('card-period-net-sub').textContent = label;
   }
 
   function renderChart(series) {
