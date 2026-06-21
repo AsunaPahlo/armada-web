@@ -526,6 +526,50 @@ class FleetManager:
             self._rebuild_dashboard()
         return self._cached_dashboard
 
+    def get_character_region_counts(self) -> dict:
+        """Per-account character counts by region and world (live snapshot).
+
+        Counts every character currently in fleet data, grouped by account
+        (plugin nickname). Not affected by stats-page filters. Accounts with no
+        characters are omitted.
+        """
+        from app.services.submarine_data import get_world_region
+
+        totals: dict[str, int] = {}
+        grand_total = 0
+        accounts_out = []
+
+        for account in self.get_data():
+            region_totals: dict[str, int] = {}
+            regions: dict[str, dict[str, int]] = {}
+            acct_total = 0
+            for char in account.characters:
+                world = char.world or 'Unknown'
+                region = get_world_region(world)
+                region_totals[region] = region_totals.get(region, 0) + 1
+                regions.setdefault(region, {})
+                regions[region][world] = regions[region].get(world, 0) + 1
+                totals[region] = totals.get(region, 0) + 1
+                acct_total += 1
+                grand_total += 1
+
+            if acct_total == 0:
+                continue
+
+            sorted_regions = {
+                r: dict(sorted(worlds.items(), key=lambda kv: (-kv[1], kv[0])))
+                for r, worlds in regions.items()
+            }
+            accounts_out.append({
+                'nickname': account.nickname,
+                'total': acct_total,
+                'region_totals': region_totals,
+                'regions': sorted_regions,
+            })
+
+        accounts_out.sort(key=lambda a: a['nickname'])
+        return {'totals': totals, 'grand_total': grand_total, 'accounts': accounts_out}
+
     def _rebuild_dashboard(self):
         """
         Rebuild the cached dashboard data from current fleet state.

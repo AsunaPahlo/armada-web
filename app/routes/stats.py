@@ -230,6 +230,7 @@ def index():
     fleet = get_fleet_manager()
     fleet_data = fleet.get_dashboard_data()
     region_counts = fleet_data['summary'].get('region_counts', {})
+    character_region_counts = fleet.get_character_region_counts()
 
     # Filter fc_summaries by excluded FCs and allowed worlds
     fc_summaries = fleet_data.get('fc_summaries', [])
@@ -266,6 +267,7 @@ def index():
                            summary=summary,
                            daily_stats=daily,
                            region_counts=region_counts,
+                           character_region_counts=character_region_counts,
                            fleet_summary=filtered_summary,
                            supply_data=supply_data,
                            supplier_data=supplier_data,

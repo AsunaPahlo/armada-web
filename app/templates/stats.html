@@ -155,6 +155,73 @@
     </div>
 </div>
 
+<!-- Characters by Region (live snapshot) -->
+<div class="row mb-4">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center" role="button"
+             data-bs-toggle="collapse" data-bs-target="#characters-by-region"
+             aria-expanded="false" aria-controls="characters-by-region">
+          <h5 class="mb-0">
+            <i class="bi bi-people"></i> Characters by Region
+            <span class="text-muted small ms-1">(current)</span>
+          </h5>
+          <div>
+            {% for region, count in character_region_counts.totals.items() %}
+              <span class="badge bg-secondary ms-1">{{ region }} {{ count }}</span>
+            {% endfor %}
+            <i class="bi bi-chevron-down ms-2"></i>
+          </div>
+        </div>
+        <div id="characters-by-region" class="collapse">
+          <div class="card-body">
+            {% if character_region_counts.accounts %}
+            {% set REGION_ORDER = ['NA', 'EU', 'JP', 'OCE', 'Unknown'] %}
+            {% set REGION_COLORS = {'NA': '#378ADD', 'EU': '#1D9E75', 'JP': '#BA7517', 'OCE': '#7F77DD', 'Unknown': '#888780'} %}
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px;">
+            {% for acct in character_region_counts.accounts %}
+            <div style="border: 0.5px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 12px 14px;">
+              <div class="d-flex justify-content-between align-items-baseline mb-2">
+                <span style="font-weight: 500;">{{ acct.nickname }}</span>
+                <span class="text-muted small">{{ acct.total }} characters</span>
+              </div>
+
+              <div class="d-flex mb-3" style="height: 24px; border-radius: 6px; overflow: hidden; font-size: 12px;">
+                {% for region in REGION_ORDER if region in acct.region_totals %}
+                {% set rc = acct.region_totals[region] %}
+                <div title="{{ region }} {{ rc }}" style="flex: {{ rc }}; background: {{ REGION_COLORS.get(region, '#888780') }}; color: #fff; display: flex; align-items: center; justify-content: center; min-width: 0; overflow: hidden; white-space: nowrap;">{{ region }} {{ rc }}</div>
+                {% endfor %}
+              </div>
+
+              {% for region in REGION_ORDER if region in acct.regions %}
+              {% set worlds = acct.regions[region] %}
+              {% set rmax = worlds.values() | max %}
+              {% set rcolor = REGION_COLORS.get(region, '#888780') %}
+              <div class="small mb-1" style="font-weight: 500; color: {{ rcolor }};">{{ region }} ({{ acct.region_totals[region] }})</div>
+              <div class="mb-3">
+                {% for world, c in worlds.items() %}
+                <div class="d-flex align-items-center" style="margin-bottom: 3px;">
+                  <span class="small" style="flex: 0 0 130px;">{{ world }}</span>
+                  <span style="flex: 1 1 auto; height: 12px; background: rgba(255,255,255,0.08); border-radius: 3px; margin: 0 8px;">
+                    <span style="display: block; height: 100%; width: {{ (c / rmax * 100) | round | int }}%; background: {{ rcolor }}; border-radius: 3px;"></span>
+                  </span>
+                  <span class="text-muted small" style="flex: 0 0 24px; text-align: right;">{{ c }}</span>
+                </div>
+                {% endfor %}
+              </div>
+              {% endfor %}
+            </div>
+            {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-muted">No character data yet.</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+</div>
+
 <!-- Supplier Reserves -->
 {% if supplier_data and supplier_data.suppliers %}
 <div class="row mb-4">
