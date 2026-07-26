@@ -23,6 +23,63 @@ logger = get_logger('FleetManager')
 PLUGIN_DATA_FILE = Path(__file__).parent.parent.parent / 'data' / 'plugin_data.json'
 
 
+def compute_gil_per_day_by_tag(fc_summaries: list) -> list:
+    """Aggregate gil/day per FC tag, plus an 'Untagged' bucket.
+
+    An FC's gil/day is counted in full in every tag it carries, so buckets can
+    overlap for multi-tag FCs. FCs with no tags accumulate into a single
+    'Untagged' bucket.
+
+    Returns a list of bucket dicts (tag_id, tag_name, color, gil_per_day,
+    fc_count) sorted by gil/day descending (tie-break by name). The 'Untagged'
+    bucket, when present, is appended last; it is omitted entirely when every FC
+    is tagged.
+    """
+    tag_buckets: dict = {}  # tag_id -> bucket dict
+    untagged_gpd = 0.0
+    untagged_count = 0
+
+    for fc in fc_summaries:
+        gpd = fc.get('gil_per_day', 0) or 0
+        tags = fc.get('tags') or []
+        if tags:
+            for tag in tags:
+                tid = tag.get('id')
+                bucket = tag_buckets.get(tid)
+                if bucket is None:
+                    bucket = {
+                        'tag_id': tid,
+                        'tag_name': tag.get('name', ''),
+                        'color': tag.get('color', 'secondary'),
+                        'gil_per_day': 0.0,
+                        'fc_count': 0,
+                    }
+                    tag_buckets[tid] = bucket
+                bucket['gil_per_day'] += gpd
+                bucket['fc_count'] += 1
+        else:
+            untagged_gpd += gpd
+            untagged_count += 1
+
+    result = sorted(
+        tag_buckets.values(),
+        key=lambda b: (-b['gil_per_day'], b['tag_name']),
+    )
+    for bucket in result:
+        bucket['gil_per_day'] = int(bucket['gil_per_day'])
+
+    if untagged_count > 0:
+        result.append({
+            'tag_id': None,
+            'tag_name': 'Untagged',
+            'color': 'secondary',
+            'gil_per_day': int(untagged_gpd),
+            'fc_count': untagged_count,
+        })
+
+    return result
+
+
 class FleetManager:
     """
     Manages submarine fleet data across all accounts.
@@ -937,6 +994,7 @@ class FleetManager:
                 'limiting_fc': limiting_fc
             },
             'fc_summaries': list(fc_summaries.values()),
+            'gil_per_day_by_tag': compute_gil_per_day_by_tag(list(fc_summaries.values())),
             'submarines': all_submarines
         }
         with self._lock:
