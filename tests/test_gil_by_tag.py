@@ -58,3 +58,18 @@ def test_get_dashboard_data_includes_gil_per_day_by_tag_list(app, db):
     from app.services import get_fleet_manager
     data = get_fleet_manager().get_dashboard_data()
     assert isinstance(data.get('gil_per_day_by_tag'), list)
+
+
+def test_api_v1_status_includes_gil_per_day_by_tag(client, app, db):
+    from app.models.api_key import APIKey
+    from app import db as _db
+    with app.app_context():
+        k = APIKey.create(name="test-key")
+        _db.session.add(k)
+        _db.session.commit()
+        key = k.key
+    resp = client.get('/api/v1/status', headers={'Authorization': f'Bearer {key}'})
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert 'gil_per_day_by_tag' in body
+    assert isinstance(body['gil_per_day_by_tag'], list)

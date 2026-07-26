@@ -116,6 +116,7 @@ def status():
         'days_until_restock': supply.get('days_until_restock'),
         'limiting_resource': supply.get('limiting_resource'),
         'fc_count': summary.get('fc_count', 0),
+        'gil_per_day_by_tag': data.get('gil_per_day_by_tag', []),
         'last_updated': summary.get('last_updated'),
     })
 
