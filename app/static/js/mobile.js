@@ -474,6 +474,7 @@
                         <div class="fc-card-meta">
                             ${fc.world ? `<span class="fc-card-world"><i class="bi bi-globe"></i> ${fc.world}</span>` : ''}
                             <span class="fc-card-sub-count">${subs.length} submarine${subs.length !== 1 ? 's' : ''}</span>
+                            ${fc.workshop_disabled ? `<span class="fc-card-world text-warning"><i class="bi bi-exclamation-triangle"></i> Workshop off</span>` : ''}
                         </div>
                     </div>
                     <div class="fc-card-status">

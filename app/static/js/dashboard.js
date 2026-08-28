@@ -334,6 +334,7 @@ class ArmadaDashboard {
                         <i class="bi bi-diagram-3 text-muted unlock-link-icon"></i>
                     </a>
                     ${fc.needs_dive_credits ? `<i class="bi bi-ticket-perforated text-danger ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Need ${fc.dive_credits_needed} more dive credits for slot ${fc.unlocked_slots + 1}"></i>` : (fc.dive_credits > 0 && fc.unlocked_slots < 4 ? `<i class="bi bi-ticket-perforated text-success ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="${fc.dive_credits} dive credits available"></i>` : '')}
+                    ${fc.workshop_disabled ? `<span class="badge bg-warning text-dark ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Submarine workshop is disabled in AutoRetainer — these subs won't be sent out"><i class="bi bi-exclamation-triangle"></i> Workshop off</span>` : ''}
                     ${(fc.tags || []).map(t => `<span class="badge bg-${t.color} ms-1 fc-tag-badge">${t.name}</span>`).join('')}
                     ${(fc.routes || []).map(r => `<span class="badge bg-dark ms-1">${r}</span>`).join('')}
                     <br><small class="text-muted">${fc.accounts ? fc.accounts.join(', ') : ''}</small>

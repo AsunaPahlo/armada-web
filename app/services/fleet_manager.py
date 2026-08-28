@@ -754,7 +754,8 @@ class FleetManager:
                         'unlocked_slots': 0,
                         'needs_dive_credits': False,
                         'dive_credits_needed': 0,
-                        'exclude_from_supply': fc_id_str in supply_excluded_fc_ids
+                        'exclude_from_supply': fc_id_str in supply_excluded_fc_ids,
+                        'workshop_disabled': False
                     }
 
                 # Aggregate supplies (skip FCs excluded from supply calculations)
@@ -771,6 +772,9 @@ class FleetManager:
                 fc_summaries[fc_id_str]['ceruleum'] += char.ceruleum
                 fc_summaries[fc_id_str]['repair_kits'] += char.repair_kits
                 fc_summaries[fc_id_str]['dive_credits'] += getattr(char, 'dive_credits', 0)
+                # Flag FCs whose contributing character has subs but workshop automation is off
+                if getattr(char, 'total_subs', 0) > 0 and not getattr(char, 'workshop_enabled', True):
+                    fc_summaries[fc_id_str]['workshop_disabled'] = True
                 # Aggregate inventory parts across characters in this FC
                 for item_id, count in getattr(char, 'inventory_parts', {}).items():
                     fc_summaries[fc_id_str]['inventory_parts'][item_id] = \

@@ -96,6 +96,7 @@ def api_fleet():
             'soonest_return': fc.get('soonest_return'),
             'ceruleum': fc.get('ceruleum', 0),
             'repair_kits': fc.get('repair_kits', 0),
+            'workshop_disabled': fc.get('workshop_disabled', False),
         })
 
     return jsonify({

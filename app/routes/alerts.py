@@ -56,6 +56,14 @@ def save_settings():
     settings.not_farming_use_fc_target_level = request.form.get('not_farming_use_fc_target_level') == 'on'
     settings.not_farming_cooldown_minutes = int(request.form.get('not_farming_cooldown_minutes', 60))
 
+    # Unbuilt submarines settings
+    settings.unbuilt_subs_enabled = request.form.get('unbuilt_subs_enabled') == 'on'
+    settings.unbuilt_subs_cooldown_minutes = int(request.form.get('unbuilt_subs_cooldown_minutes', 1440))
+
+    # Workshop-disabled settings
+    settings.workshop_disabled_enabled = request.form.get('workshop_disabled_enabled') == 'on'
+    settings.workshop_disabled_cooldown_minutes = int(request.form.get('workshop_disabled_cooldown_minutes', 1440))
+
     # Email settings
     settings.email_enabled = request.form.get('email_enabled') == 'on'
     settings.smtp_host = request.form.get('smtp_host', '').strip() or None
@@ -115,6 +123,14 @@ def save_settings_json():
     settings.not_farming_level_threshold = int(data.get('not_farming_level_threshold', 90))
     settings.not_farming_use_fc_target_level = data.get('not_farming_use_fc_target_level', False)
     settings.not_farming_cooldown_minutes = int(data.get('not_farming_cooldown_minutes', 60))
+
+    # Unbuilt submarines settings
+    settings.unbuilt_subs_enabled = data.get('unbuilt_subs_enabled', False)
+    settings.unbuilt_subs_cooldown_minutes = int(data.get('unbuilt_subs_cooldown_minutes', 1440))
+
+    # Workshop-disabled settings
+    settings.workshop_disabled_enabled = data.get('workshop_disabled_enabled', False)
+    settings.workshop_disabled_cooldown_minutes = int(data.get('workshop_disabled_cooldown_minutes', 1440))
 
     # Email settings
     settings.email_enabled = data.get('email_enabled', False)

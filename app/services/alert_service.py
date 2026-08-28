@@ -87,6 +87,10 @@ class AlertService:
             if settings.unbuilt_subs_enabled:
                 pending_alerts.extend(self._check_unbuilt_submarines(dashboard_data, settings))
 
+            # Check workshop-disabled alerts (FC has submarines but workshop toggle is off)
+            if settings.workshop_disabled_enabled:
+                pending_alerts.extend(self._check_workshop_disabled(dashboard_data, settings))
+
             # Dispatch batched alerts if any
             if pending_alerts:
                 logger.info(f"[AlertService] Batching {len(pending_alerts)} alerts into single notification")
@@ -304,6 +308,31 @@ class AlertService:
                 'target_name': fc_name,
                 'message': message,
                 'severity': severity
+            })
+
+        return alerts
+
+    def _check_workshop_disabled(self, dashboard_data: dict, settings: AlertSettings) -> list[dict]:
+        """Alert on FCs that have submarines but AutoRetainer's workshop toggle is off."""
+        alerts = []
+        cooldown_minutes = settings.workshop_disabled_cooldown_minutes
+
+        for fc in dashboard_data.get('fc_summaries', []):
+            if not fc.get('workshop_disabled'):
+                continue
+
+            fc_id = str(fc.get('fc_id', ''))
+            fc_name = fc.get('fc_name', 'Unknown FC')
+
+            if self._is_in_cooldown('workshop_disabled', fc_id, cooldown_minutes):
+                continue
+
+            alerts.append({
+                'alert_type': 'workshop_disabled',
+                'target_id': fc_id,
+                'target_name': fc_name,
+                'message': f"FC {fc_name} has submarines but its workshop is disabled in AutoRetainer.",
+                'severity': 'warning'
             })
 
         return alerts

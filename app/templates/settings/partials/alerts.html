@@ -142,6 +142,28 @@
                 </div>
             </div>
         </div>
+
+        <!-- Workshop Disabled Alert -->
+        <div class="col-lg-6 mb-3">
+            <div class="settings-card h-100">
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="workshop_disabled_enabled"
+                           name="workshop_disabled_enabled" {{ 'checked' if settings.workshop_disabled_enabled }}>
+                    <label class="form-check-label" for="workshop_disabled_enabled">
+                        <i class="bi bi-exclamation-triangle"></i> Workshop Disabled Alert
+                    </label>
+                </div>
+                <p class="small text-muted mb-3">Alert when an FC has submarines but its workshop is disabled in AutoRetainer.</p>
+                <div class="mb-0">
+                    <label class="form-label small">Cooldown between alerts:</label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" class="form-control" name="workshop_disabled_cooldown_minutes"
+                               value="{{ settings.workshop_disabled_cooldown_minutes }}" min="5">
+                        <span class="input-group-text">minutes</span>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Section: Notification Channels -->
@@ -481,7 +503,7 @@ async function saveSettings() {
     const data = {};
 
     // Handle checkboxes explicitly (unchecked = false)
-    ['alerts_enabled', 'low_supply_enabled', 'idle_sub_enabled', 'not_farming_enabled', 'not_farming_use_fc_target_level', 'unbuilt_subs_enabled',
+    ['alerts_enabled', 'low_supply_enabled', 'idle_sub_enabled', 'not_farming_enabled', 'not_farming_use_fc_target_level', 'unbuilt_subs_enabled', 'workshop_disabled_enabled',
      'discord_enabled', 'pushover_enabled', 'email_enabled', 'smtp_use_auth', 'smtp_use_tls'].forEach(field => {
         data[field] = formData.has(field);
     });
