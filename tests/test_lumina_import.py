@@ -105,3 +105,19 @@ def test_consumption_uses_real_duration_not_clamp(app, db):
     tanks, kits = ConfigParser()._calculate_consumption(item_ids, pts, 125)
     assert 14.5 <= tanks <= 15.5  # 21 * 24 / ~33.4h
     assert kits > 0
+
+
+def test_consumption_prefers_plugin_part_row_ids(app, db):
+    """The static item->row table has known errors (e.g. Whale/Shark hull-stern
+    swaps). When the plugin supplies authoritative part_row_ids, consumption
+    must use them instead of converting item ids."""
+    from app.services.config_parser import ConfigParser
+
+    _seed_jorz_game_data(db)
+    pts = [10, 15, 18, 26]
+    # Bogus item ids that don't resolve via the mapping table at all — with
+    # correct part_row_ids the result must still be the accurate ~15.1/day.
+    bogus_item_ids = [1, 2, 3, 4]
+    tanks, kits = ConfigParser()._calculate_consumption(
+        bogus_item_ids, pts, 125, part_row_ids=[23, 24, 22, 25])
+    assert 14.5 <= tanks <= 15.5

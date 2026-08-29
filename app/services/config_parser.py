@@ -241,7 +241,8 @@ class ConfigParser:
         self,
         part_ids: list[int],
         route_points: list[int],
-        sub_level: int
+        sub_level: int,
+        part_row_ids: list[int] = None
     ) -> tuple[float, float]:
         """
         Calculate consumption rates based on actual parts and route.
@@ -250,6 +251,12 @@ class ConfigParser:
         - Fuel: sum of CeruleumTankReq for all sectors
         - Repair: based on damage formula and part repair materials
 
+        Args:
+            part_ids: AutoRetainer part item IDs (21792+); converted via the
+                static item->row table when part_row_ids is not supplied.
+            part_row_ids: Authoritative Lumina part row IDs (1-40) from the
+                plugin. Preferred over item-id conversion when present.
+
         Returns:
             Tuple of (tanks_per_day, kits_per_day)
         """
@@ -257,7 +264,7 @@ class ConfigParser:
         default_tanks = 9.0
         default_kits = 1.33
 
-        if not part_ids or not route_points:
+        if not route_points or (not part_ids and not part_row_ids):
             return default_tanks, default_kits
 
         try:
@@ -288,12 +295,15 @@ class ConfigParser:
             max_part_damage = 0
             total_repair_materials = 0
 
-            for item_id in part_ids:
-                # Convert AutoRetainer Item ID to Lumina row ID
-                row_id = item_id_to_row_id(item_id)
-                if not row_id:
-                    continue
+            # Resolve part row IDs once: plugin-supplied row IDs are
+            # authoritative; the static item->row table is the fallback.
+            if part_row_ids and len(part_row_ids) == 4:
+                row_ids = [int(r) for r in part_row_ids if r]
+            else:
+                row_ids = [item_id_to_row_id(i) for i in part_ids]
+                row_ids = [r for r in row_ids if r]
 
+            for row_id in row_ids:
                 part = get_submarine_part(row_id)
                 if not part:
                     continue
@@ -316,8 +326,6 @@ class ConfigParser:
             # Voyage duration: prefer the exact speed-aware calculation (raw,
             # un-snapped — consumption is a rate, not a route-stat variant).
             estimated_voyage_hours = None
-            row_ids = [item_id_to_row_id(i) for i in part_ids]
-            row_ids = [r for r in row_ids if r]
             if len(row_ids) == 4 and sub_level > 0:
                 try:
                     from app.services.voyage_duration_calculator import calculate_voyage_duration
@@ -750,10 +758,10 @@ class ConfigParser:
                 if not route_name and plan_name:
                     route_name = plan_name
 
-                # Calculate consumption
+                # Calculate consumption (plugin part_row_ids are authoritative)
                 sub_level = sub_data.get('level', 0)
                 tanks_per_day, kits_per_day = self._calculate_consumption(
-                    part_ids, route_points, sub_level
+                    part_ids, route_points, sub_level, part_row_ids=part_row_ids
                 )
 
                 # Get gil earnings, using duration for accuracy
