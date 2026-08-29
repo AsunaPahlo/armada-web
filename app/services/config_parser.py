@@ -313,19 +313,29 @@ class ConfigParser:
             # Calculate voyages until repair needed
             voyages_until_repair = MAX_DURABILITY / max_part_damage
 
-            # Calculate voyage duration from actual sector survey times
-            total_survey_minutes = 0
-            for sector_id in route_points:
-                sector = get_exploration(sector_id)
-                if sector:
-                    total_survey_minutes += sector.survey_duration_min
+            # Voyage duration: prefer the exact speed-aware calculation (raw,
+            # un-snapped — consumption is a rate, not a route-stat variant).
+            estimated_voyage_hours = None
+            row_ids = [item_id_to_row_id(i) for i in part_ids]
+            row_ids = [r for r in row_ids if r]
+            if len(row_ids) == 4 and sub_level > 0:
+                try:
+                    from app.services.voyage_duration_calculator import calculate_voyage_duration
+                    estimated_voyage_hours = calculate_voyage_duration(
+                        route_points, row_ids, sub_level, snap=False
+                    )
+                except Exception:
+                    estimated_voyage_hours = None
 
-            # Add ~20% for travel time between sectors
-            total_voyage_minutes = total_survey_minutes * 1.2
-            estimated_voyage_hours = total_voyage_minutes / 60.0
-
-            # Minimum 12 hours, maximum 48 hours for sanity
-            estimated_voyage_hours = max(12.0, min(48.0, estimated_voyage_hours))
+            if not estimated_voyage_hours or estimated_voyage_hours <= 0:
+                # Fallback: crude estimate from sector survey times (parts or
+                # level unknown). Clamped for sanity — accurate path is not.
+                total_survey_minutes = 0
+                for sector_id in route_points:
+                    sector = get_exploration(sector_id)
+                    if sector:
+                        total_survey_minutes += sector.survey_duration_min
+                estimated_voyage_hours = max(12.0, min(48.0, total_survey_minutes * 1.2 / 60.0))
 
             voyages_per_day = 24.0 / estimated_voyage_hours
 

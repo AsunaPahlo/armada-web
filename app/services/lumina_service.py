@@ -95,14 +95,15 @@ class LuminaDataService:
             return None
 
     def parse_csv(self, content: str) -> list[dict]:
-        """Parse CSV content, skipping the first two rows (headers)."""
+        """Parse CSV content using row 0 as headers."""
         lines = content.strip().split('\n')
-        if len(lines) < 3:
+        if len(lines) < 2:
             return []
 
-        # Row 0: key names, Row 1: type info, Row 2+: data
-        # We'll use row 0 as headers
-        reader = csv.DictReader(io.StringIO('\n'.join([lines[0]] + lines[2:])))
+        first_field = lines[1].split(',')[0].strip()
+        data_start = 1 if first_field.isdigit() else 2
+
+        reader = csv.DictReader(io.StringIO('\n'.join([lines[0]] + lines[data_start:])))
         return list(reader)
 
     def update_submarine_parts(self, force: bool = False) -> int:
@@ -172,9 +173,10 @@ class LuminaDataService:
 
         for row in rows:
             try:
-                row_id = int(row.get('#', 0))
-                if row_id == 0:
+                raw_id = (row.get('#') or '').strip()
+                if not raw_id.isdigit():
                     continue
+                row_id = int(raw_id)
 
                 sector = SubmarineExploration.query.get(row_id)
                 if not sector:

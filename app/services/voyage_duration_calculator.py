@@ -211,14 +211,18 @@ def calculate_speed_from_build(build: str, level: int) -> Optional[int]:
     return calculate_submarine_speed(part_ids, level)
 
 
-def calculate_voyage_duration(route_points: list[int], part_ids: list[int], level: int) -> Optional[float]:
+def calculate_voyage_duration(route_points: list[int], part_ids: list[int], level: int,
+                              snap: bool = True) -> Optional[float]:
     """
     Calculate voyage duration in hours.
 
     Args:
         route_points: List of sector IDs in voyage order
-        part_ids: List of 4 part item IDs [hull, stern, bow, bridge]
+        part_ids: List of 4 part row IDs [hull, stern, bow, bridge]
         level: Submarine level (1-125)
+        snap: Snap to the standard 24/36/48h buckets (for matching route-stat
+              variants). Pass False for the true continuous duration, e.g. when
+              deriving consumption rates.
 
     Returns:
         Duration in hours, or None if calculation not possible
@@ -267,9 +271,9 @@ def calculate_voyage_duration(route_points: list[int], part_ids: list[int], leve
 
         current_sector = next_sector
 
-    # Convert to hours and snap to standard bucket
+    # Convert to hours, snapping to standard buckets unless raw requested
     raw_hours = total_seconds / 3600.0
-    return snap_duration_to_bucket(raw_hours)
+    return snap_duration_to_bucket(raw_hours) if snap else raw_hours
 
 
 def calculate_voyage_duration_from_build(route_points: list[int], build: str, level: int) -> Optional[float]:
